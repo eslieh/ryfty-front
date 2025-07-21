@@ -1,0 +1,70 @@
+section.auth-section {
+  display: grid;
+  place-content: center;
+  height: 100vh;
+  width: 100%;
+  gap: 10px;
+}
+.label-section {
+  display: grid;
+  place-content: center;
+}
+
+.label-holder {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.label-brand {
+  display: flex;
+  font-size: 46px;
+  font-weight: 900;
+  align-items: center;
+  color: #009f5b;
+}
+.courier-bransd{
+  color: black;
+  font-size: 46px;
+}
+.courier-brand {
+  color: black;
+}
+
+
+.auth-container {
+  display: grid;
+  width: fit-content;
+  text-align: center;
+}
+
+.auth-container form {
+  display: grid;
+  gap: 5px;
+}
+.auth-container input {
+    border: none;
+    background: #8080802b;
+    padding: 11px;
+    padding-left: 26px;
+    font-size: 17px;
+    border-radius: 11px;
+    transition: all ease 0.8s;
+    color: black;
+}
+.auth-container input:hover {
+    border: 2px solid green;
+    background: transparent;
+    padding: 11px;
+    padding-left: 26px;
+    font-size: 17px;
+    border-radius: 11px;
+    transition: all ease 0.8s;
+}
+.dots.auth {
+  background: transparent;
+  width: 65px;
+  height: 65px;
+  border-radius: 65px 65px 30px 65px;
+  border: 12px solid #009f5b;
+}
