@@ -244,7 +244,7 @@ section.how-it-works {
 .steps {
     display: grid
 ;
-    flex-wrap: wrap;
+        grid-template-columns: repeat(1, 1fr);
     gap: 27px;
 }
 .step {
