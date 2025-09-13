@@ -3,6 +3,7 @@ from sqlalchemy.dialects.postgresql import UUID, JSON
 from datetime import datetime
 from sqlalchemy import CheckConstraint, Index
 from models import db
+import uuid
 
 # --- ENUM-LIKE CONSTANTS ---
 
@@ -50,14 +51,14 @@ class DefaultMethod:
 class User(db.Model):
     __tablename__ = "users"
 
-    id = db.Column(UUID(as_uuid=True), primary_key=True)
+    id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     name = db.Column(db.Text, nullable=False, index=True)  # Index for name searches
     email = db.Column(db.Text, nullable=False, unique=True, index=True)  # Unique index for email
-    phone = db.Column(db.Text, nullable=False, unique=True, index=True)  # Unique index for phone
-    password = db.Column(db.Text, nullable=False)
-    avator_url = db.Column(db.Text, nullable=False)
-    bio = db.Column(db.Text, nullable=False)
-    role = db.Column(db.String(255), nullable=False, index=True)  # Index for role-based queries
+    phone = db.Column(db.Text, nullable=True, unique=True, index=True)  # Unique index for phone
+    password = db.Column(db.Text, nullable=True)
+    avator_url = db.Column(db.Text, nullable=True)
+    bio = db.Column(db.Text, nullable=True)
+    role = db.Column(db.String(255), nullable=False, index=True, default="customer")  # Index for role-based queries
     date_joined = db.Column(db.DateTime(timezone=True), default=datetime.utcnow, nullable=False, index=True)  # Index for date queries
 
     # Define constraints and indexes in __table_args__
@@ -131,7 +132,7 @@ class Experience(db.Model):
 class Slot(db.Model):
     __tablename__ = "slots"
 
-    id = db.Column(UUID(as_uuid=True), primary_key=True)
+    id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     experience_id = db.Column(UUID(as_uuid=True), db.ForeignKey("experiences.id"), nullable=False, index=True)
     name = db.Column(db.Text, nullable=False, index=True)
     capacity = db.Column(db.Integer, nullable=False, index=True)  # Index for capacity filtering
@@ -160,7 +161,7 @@ class Slot(db.Model):
 class Reservation(db.Model):
     __tablename__ = "reservations"
 
-    id = db.Column(UUID(as_uuid=True), primary_key=True)
+    id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     user_id = db.Column(UUID(as_uuid=True), db.ForeignKey("users.id"), nullable=False, index=True)
     slot_id = db.Column(UUID(as_uuid=True), db.ForeignKey("slots.id"), nullable=False, index=True)
     quantity = db.Column(db.Integer, nullable=False)
@@ -211,7 +212,7 @@ class Reservation(db.Model):
 class ReservationTxn(db.Model):
     __tablename__ = "reservation_txn"
 
-    id = db.Column(UUID(as_uuid=True), primary_key=True)
+    id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     experience_id = db.Column(UUID(as_uuid=True), db.ForeignKey("experiences.id"), nullable=False, index=True)
     reservation_id = db.Column(UUID(as_uuid=True), db.ForeignKey("reservations.id"), nullable=False, index=True)
     amount = db.Column(db.Numeric(8, 2), nullable=False, index=True)
@@ -252,7 +253,7 @@ class ReservationTxn(db.Model):
 class ReservationRefund(db.Model):
     __tablename__ = "reservation_refunds"
 
-    id = db.Column(UUID(as_uuid=True), primary_key=True)
+    id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     reservation_id = db.Column(UUID(as_uuid=True), db.ForeignKey("reservations.id"), nullable=False, index=True)
     user_id = db.Column(UUID(as_uuid=True), db.ForeignKey("users.id"), nullable=False, index=True)
     experience_id = db.Column(UUID(as_uuid=True), db.ForeignKey("experiences.id"), nullable=False, index=True)
@@ -285,7 +286,7 @@ class ReservationRefund(db.Model):
 class UserWallet(db.Model):
     __tablename__ = "user_wallet"
 
-    id = db.Column(UUID(as_uuid=True), primary_key=True)
+    id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     user_id = db.Column(UUID(as_uuid=True), db.ForeignKey("users.id"), nullable=False, unique=True, index=True)
     balance = db.Column(db.Numeric(8, 2), nullable=False, default=0.0, index=True)  # Index for balance queries
     created_at = db.Column(db.DateTime(timezone=True), default=datetime.utcnow, nullable=False)
@@ -305,7 +306,7 @@ class UserWallet(db.Model):
 class PlatformWallet(db.Model):
     __tablename__ = "platform_wallet"
 
-    id = db.Column(UUID(as_uuid=True), primary_key=True)
+    id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     balance = db.Column(db.Numeric(8, 2), nullable=False, default=0.0, index=True)
     created_at = db.Column(db.DateTime(timezone=True), default=datetime.utcnow, nullable=False)
     updated_at = db.Column(db.DateTime(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False, index=True)
@@ -317,7 +318,7 @@ class PlatformWallet(db.Model):
 class UsersLedger(db.Model):
     __tablename__ = "users_ledger"
 
-    id = db.Column(UUID(as_uuid=True), primary_key=True)
+    id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     user_id = db.Column(UUID(as_uuid=True), db.ForeignKey("users.id"), nullable=False, index=True)
     txn_type = db.Column(db.String(255), nullable=False, index=True)
     reservation_txn = db.Column(UUID(as_uuid=True), db.ForeignKey("reservation_txn.id"), nullable=True, index=True)
@@ -350,7 +351,7 @@ class UsersLedger(db.Model):
 class SettlementTxn(db.Model):
     __tablename__ = "settlement_txn"
 
-    id = db.Column(UUID(as_uuid=True), primary_key=True)
+    id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     user_id = db.Column(UUID(as_uuid=True), db.ForeignKey("users.id"), nullable=True, index=True)
     request_amount = db.Column(db.Numeric(8, 2), nullable=False, index=True)
     approved_amount = db.Column(db.Numeric(8, 2), nullable=False, index=True)
@@ -372,7 +373,7 @@ class SettlementTxn(db.Model):
 class PaymentMethod(db.Model):
     __tablename__ = "payment_method"
 
-    id = db.Column(UUID(as_uuid=True), primary_key=True)
+    id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     user_id = db.Column(UUID(as_uuid=True), db.ForeignKey("users.id"), nullable=False, index=True)
     default_method = db.Column(db.String(255), nullable=False, index=True)
     paybill = db.Column(db.Integer, nullable=True)

@@ -17,7 +17,7 @@ from models import db
 from flask_restful import Resource
 
 # Import your resources
-from resources.auth import GoogleAuth
+from resources.auth import GoogleAuth, Login, Register
 from resources.user_info import UserInfo
 
 import sqlalchemy.pool
@@ -93,8 +93,8 @@ def create_app():
     api.add_resource(HealthCheck, '/health')
 
     api.add_resource(GoogleAuth, '/auth/google')
-    # api.add_resource(Login, '/auth/signin')
-    # api.add_resource(Register, '/auth/signup')
+    api.add_resource(Login, '/auth/signin')
+    api.add_resource(Register, '/auth/signup')
     
     api.add_resource(UserInfo, '/user')
     
