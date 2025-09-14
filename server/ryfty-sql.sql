@@ -4,7 +4,7 @@ CREATE TABLE "users"(
     "email" TEXT NOT NULL,
     "phone" TEXT NOT NULL,
     "password" TEXT NOT NULL,
-    "avator_url" TEXT NOT NULL,
+    "avatar_url" TEXT NOT NULL,
     "bio" TEXT NOT NULL,
     "role" VARCHAR(255) CHECK
         ("role" IN('')) NOT NULL,

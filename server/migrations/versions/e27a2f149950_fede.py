@@ -31,7 +31,7 @@ def upgrade():
     sa.Column('email', sa.Text(), nullable=False),
     sa.Column('phone', sa.Text(), nullable=False),
     sa.Column('password', sa.Text(), nullable=False),
-    sa.Column('avator_url', sa.Text(), nullable=False),
+    sa.Column('avatar_url', sa.Text(), nullable=False),
     sa.Column('bio', sa.Text(), nullable=False),
     sa.Column('role', sa.String(length=255), nullable=False),
     sa.Column('date_joined', sa.DateTime(timezone=True), nullable=False),

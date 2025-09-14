@@ -26,7 +26,7 @@ class GoogleAuth(Resource):
         # Check if user exists, else create
         user = User.query.filter_by(email=email).first()
         if not user:
-            user = User(email=email, name=name, avator_url=profile)
+            user = User(email=email, name=name, avatar_url=profile)
             db.session.add(user)
             db.session.commit()
 
@@ -34,7 +34,7 @@ class GoogleAuth(Resource):
         access_token = create_access_token(identity=str(user.id))
         # redirect_url = f"https://blubbb.vercel.app/auth?{urlencode({'token': access_token, 'email': user.email, 'id': user.id, 'name': user.name, 'avatar_url': user.avatar_url})}"
         # return redirect(redirect_url)
-        return {"access_token": access_token, "user": {"id": str(user.id), "email": user.email, "avatar_url":user.avator_url, "name": user.name}}, 200
+        return {"access_token": access_token, "user": {"id": str(user.id), "email": user.email, "avatar_url":user.avatar_url, "name": user.name}}, 200
 
 
 class Login(Resource):
@@ -42,7 +42,7 @@ class Login(Resource):
         args = request.get_json()
         identifier = args.get("identifier")  # can be email or phone
         password = args.get("password")
-        
+
         if not identifier or not password:
             return {"error": "Identifier (email/phone) and password required"}, 400
 
@@ -72,7 +72,7 @@ class Login(Resource):
                     "email": user.email,
                     "phone": user.phone,
                     "name": user.name,
-                    "avatar_url": user.avator_url
+                    "avatar_url": user.avatar_url
                 }
             }, 200
 

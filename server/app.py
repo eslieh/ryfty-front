@@ -19,9 +19,14 @@ from flask_restful import Resource
 # Import your resources
 from resources.auth import GoogleAuth, Login, Register
 from resources.user_info import UserInfo
+from resources.experiences import ExperienceList, ExperienceDetail, SlotList, SlotDetail
+from resources.experiences_public import PublicExperienceList, PublicExperienceDetail, TrendingExperiences
 
 import sqlalchemy.pool
 from celery_app import celery
+import json
+from decimal import Decimal
+
 from celery_app import init_celery
 bcrypt = Bcrypt()
 
@@ -43,6 +48,13 @@ def create_app():
         BROKER_USE_SSL={"ssl_cert_reqs": ssl.CERT_NONE},
         CELERY_REDIS_BACKEND_USE_SSL={"ssl_cert_reqs": ssl.CERT_NONE}
     )
+    class DecimalEncoder(json.JSONEncoder):
+        def default(self, obj):
+            if isinstance(obj, Decimal):
+                return float(obj)
+            return super().default(obj)
+        
+    app.json_encoder = DecimalEncoder
 
     celery = init_celery(app)
     bcrypt.init_app(app)
@@ -97,6 +109,16 @@ def create_app():
     api.add_resource(Register, '/auth/signup')
     
     api.add_resource(UserInfo, '/user')
+    # Experience and Slot management
+    api.add_resource(ExperienceList, "/experiences")
+    api.add_resource(ExperienceDetail, "/experiences/<uuid:experience_id>")
+    api.add_resource(SlotList, "/experiences/<uuid:experience_id>/slots")
+    api.add_resource(SlotDetail, "/slots/<uuid:slot_id>")
+
+    # Public experience endpoints
+    api.add_resource(PublicExperienceList, "/public/experiences")
+    api.add_resource(PublicExperienceDetail, "/public/experiences/<uuid:experience_id>")
+    api.add_resource(TrendingExperiences, "/public/experiences/trending")
     
     return app
 

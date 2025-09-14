@@ -12,7 +12,11 @@ class UserInfo(Resource):
         cached_data = cache.get(f"user:{user_id}")
 
         if cached_data:
-            return json.loads(cached_data)
+            if isinstance(cached_data, (str, bytes, bytearray)):
+                return json.loads(cached_data)
+            # If already dict (e.g., memory cache returned object directly)
+            if isinstance(cached_data, dict):
+                return cached_data  
 
         user = User.query.get(user_id)
         if not user:
@@ -22,13 +26,14 @@ class UserInfo(Resource):
             "id": str(user.id),
             "email": user.email,
             "name": user.name,
-            "avatar_url": user.avator_url,  # match your model field
+            "avatar_url": user.avatar_url,
             "bio": user.bio,
             "role": user.role,
         }
 
-        cache.set(f"user:{user_id}", json.dumps(user_info), timeout=self.CACHE_TIMEOUT)
+        cache.set(f"user:{user_id}", user_info, timeout=self.CACHE_TIMEOUT)
         return user_info
+
 
     def _invalidate_user_cache(self, user_id):
         current_app.cache.delete(f"user:{user_id}")
@@ -54,8 +59,8 @@ class UserInfo(Resource):
         if "name" in args and args["name"] != user.name:
             user.name = args["name"]
             updated = True
-        if "avatar_url" in args and args["avatar_url"] != user.avator_url:
-            user.avator_url = args["avatar_url"]
+        if "avatar_url" in args and args["avatar_url"] != user.avatar_url:
+            user.avatar_url = args["avatar_url"]
             updated = True
         if "bio" in args and args["bio"] != user.bio:
             user.bio = args["bio"]

@@ -56,7 +56,7 @@ class User(db.Model):
     email = db.Column(db.Text, nullable=False, unique=True, index=True)  # Unique index for email
     phone = db.Column(db.Text, nullable=True, unique=True, index=True)  # Unique index for phone
     password = db.Column(db.Text, nullable=True)
-    avator_url = db.Column(db.Text, nullable=True)
+    avatar_url = db.Column(db.Text, nullable=True)
     bio = db.Column(db.Text, nullable=True)
     role = db.Column(db.String(255), nullable=False, index=True, default="customer")  # Index for role-based queries
     date_joined = db.Column(db.DateTime(timezone=True), default=datetime.utcnow, nullable=False, index=True)  # Index for date queries
