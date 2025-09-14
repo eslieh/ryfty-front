@@ -134,19 +134,26 @@ class Slot(db.Model):
 
     id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     experience_id = db.Column(UUID(as_uuid=True), db.ForeignKey("experiences.id"), nullable=False, index=True)
+    
     name = db.Column(db.Text, nullable=False, index=True)
-    capacity = db.Column(db.Integer, nullable=False, index=True)  # Index for capacity filtering
-    booked = db.Column(db.Integer, nullable=False, default=0, index=True)  # Index for availability checks
-    price = db.Column(db.Numeric(8, 2), nullable=False, index=True)  # Index for price sorting/filtering
-    date = db.Column(db.Date, nullable=False, index=True)  # Index for date queries
+    capacity = db.Column(db.Integer, nullable=False, index=True)
+    booked = db.Column(db.Integer, nullable=False, default=0, index=True)
+    price = db.Column(db.Numeric(8, 2), nullable=False, index=True)
+
+    # Date and time
+    date = db.Column(db.Date, nullable=False, index=True)
+    start_time = db.Column(db.Time, nullable=False, index=True)  # With tz info
+    end_time = db.Column(db.Time, nullable=False, index=True)
+
+    # Store tz as string ("Africa/Nairobi", "UTC", etc.) for clarity
+    timezone = db.Column(db.String(64), nullable=False, default="UTC+3")
 
     __table_args__ = (
-        # Composite indexes for common queries
         Index('idx_slots_experience_date', 'experience_id', 'date'),
         Index('idx_slots_date_availability', 'date', 'capacity', 'booked'),
         Index('idx_slots_price_date', 'price', 'date'),
-        # Partial index for available slots
-        Index('idx_slots_available', 'experience_id', 'date', 
+        Index('idx_slots_time_range', 'date', 'start_time', 'end_time'),
+        Index('idx_slots_available', 'experience_id', 'date',
               postgresql_where=db.text('capacity > booked')),
     )
 
@@ -155,7 +162,7 @@ class Slot(db.Model):
     transactions = db.relationship("ReservationTxn", back_populates="slot")
 
     def __repr__(self):
-        return f"<Slot {self.name} - {self.date}>"
+        return f"<Slot {self.name} - {self.date} {self.start_time}-{self.end_time} {self.timezone}>"
 
 
 class Reservation(db.Model):
@@ -399,3 +406,16 @@ class PaymentMethod(db.Model):
 
     def __repr__(self):
         return f"<PaymentMethod {self.default_method} for {self.user_id}>"
+    
+    
+    
+    
+# note
+
+# CREATE EXTENSION IF NOT EXISTS pg_trgm; fpr fuzzy text search
+# CREATE EXTENSION IF NOT EXISTS unaccent;   -- optional, but helps normalize
+# CREATE INDEX IF NOT EXISTS experience_trgm_idx
+# ON experiences
+# USING gin (
+#   (title || ' ' || description || ' ' || destinations::text || ' ' || activities::text) gin_trgm_ops
+# )

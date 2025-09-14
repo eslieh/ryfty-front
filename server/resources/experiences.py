@@ -93,6 +93,12 @@ class SlotSchema(Schema):
     booked = fields.Int(missing=0, validate=validate.Range(min=0))
     price = fields.Decimal(required=True, places=2, validate=validate.Range(min=0))
     date = fields.Date(required=True)
+
+    # New time fields
+    start_time = fields.Time(required=True)  
+    end_time = fields.Time(required=True)  
+    timezone = fields.Str(required=True, validate=validate.Length(min=2, max=64))
+
     experience_id = fields.Str(dump_only=True)
     created_at = fields.DateTime(dump_only=True)
     updated_at = fields.DateTime(dump_only=True)
@@ -101,13 +107,18 @@ class SlotSchema(Schema):
     def validate_booking(self, data, **kwargs):
         if data.get("booked", 0) > data.get("capacity", 0):
             raise ValidationError("Booked count cannot exceed capacity")
-    
+        if "start_time" in data and "end_time" in data:
+            if data["end_time"] <= data["start_time"]:
+                raise ValidationError("End time must be after start time")
+
     @post_dump
     def convert_decimal_to_float(self, data, **kwargs):
         """Convert Decimal to float for JSON serialization"""
-        if 'price' in data and isinstance(data['price'], Decimal):
-            data['price'] = float(data['price'])
+        if "price" in data and isinstance(data["price"], Decimal):
+            data["price"] = float(data["price"])
         return data
+
+    
 # Initialize schemas
 experience_schema = ExperienceSchema()
 experience_list_schema = ExperienceListSchema(many=True)

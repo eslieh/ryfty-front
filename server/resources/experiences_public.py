@@ -1,10 +1,11 @@
 from flask_restful import Resource
+from sqlalchemy.sql import func
 from flask import request, current_app
 from flask_caching import Cache
 from models import db, Experience, User, Slot
 from marshmallow import Schema, fields, validate, ValidationError
-from sqlalchemy import and_, or_, func, desc, asc
-from sqlalchemy.orm import joinedload, selectinload
+from sqlalchemy import and_, or_, func, desc, asc, cast, String
+from sqlalchemy.orm import joinedload, selectinload, aliased
 from datetime import datetime, date, timedelta
 from decimal import Decimal
 from functools import wraps
@@ -93,6 +94,7 @@ class ExperienceFilterSchema(Schema):
     sort_by = fields.Str(missing="created_at", validate=validate.OneOf([
         "created_at", "start_date", "price_asc", "price_desc", "popularity", "availability"
     ]))
+    test = fields.Bool(missing=False)
 
 class PublicExperienceSchema(Schema):
     """Public experience schema for API responses"""
@@ -104,6 +106,9 @@ class PublicExperienceSchema(Schema):
     poster_image_url = fields.Url()
     start_date = fields.Date()
     end_date = fields.Date()
+    start_time = fields.Time(required=True)  
+    end_time = fields.Time(required=True)  
+    timezone = fields.Str(required=True, validate=validate.Length(min=2, max=64))
     meeting_point = fields.Dict()
     provider_name = fields.Str()
     provider_avatar = fields.Url()
@@ -274,9 +279,9 @@ class PublicExperienceList(Resource):
         
         # Validate and parse request parameters
         try:
-            filters = filter_schema.load(request.args.to_dict(flat=False))
+            filters = filter_schema.load(request.args.to_dict(flat=True))
             # Convert single-item lists back to strings for certain fields
-            for key in ['status', 'search', 'sort_by', 'cursor']:
+            for key in ['status', 'search', 'sort_by', 'cursor', 'test']:
                 if key in filters and isinstance(filters[key], list):
                     filters[key] = filters[key][0] if filters[key] else filter_schema.fields[key].missing
         except ValidationError as e:
@@ -309,6 +314,8 @@ class PublicExperienceList(Resource):
         # Execute query with limit + 1 for next cursor detection
         limit = filters['limit']
         experiences_raw = query.limit(limit + 1).all()
+        if filters.get('search'):
+            experiences_raw = [exp for exp, score in experiences_raw]
         
         # Check if there are more results
         has_next = len(experiences_raw) > limit
@@ -374,15 +381,32 @@ class PublicExperienceList(Resource):
         if filters.get('start_date_to'):
             query = query.filter(Experience.start_date <= filters['start_date_to'])
         
-        # Search functionality
+        # Search functionality (fuzzy + ILIKE)
         if filters.get('search'):
-            search_term = f"%{filters['search']}%"
-            query = query.filter(or_(
-                Experience.title.ilike(search_term),
-                Experience.description.ilike(search_term),
-                Experience.destinations.astext.ilike(search_term),
-                Experience.activities.astext.ilike(search_term)
-            ))
+            raw_search = filters['search']
+
+            score_subq = (
+                db.session.query(
+                    Experience.id.label("exp_id"),
+                    func.similarity(Experience.title, raw_search).label("score")
+                )
+                .subquery()
+            )
+
+            scored_exp = aliased(Experience)
+
+            query = (
+                db.session.query(scored_exp, score_subq.c.score)
+                .join(score_subq, scored_exp.id == score_subq.c.exp_id)
+                .options(
+                    joinedload(scored_exp.provider),
+                    selectinload(scored_exp.slots)
+                )
+                .filter(score_subq.c.score > 0.14)
+                .order_by(score_subq.c.score.desc())
+            )
+
+
         
         # Price filtering (requires subquery for slot prices)
         if filters.get('min_price') or filters.get('max_price'):
@@ -569,7 +593,7 @@ class PublicExperienceDetail(Resource):
             return {"error": "Experience not found"}, 404
         
         # Transform to detailed format
-        cached_exp = CachedExperience.from_experience(experience, provider_data=True)
+        cached_exp = CachedExperience.from_experience(experience)
         experience_data = asdict(cached_exp)
         
         # Add provider details
@@ -589,6 +613,9 @@ class PublicExperienceDetail(Resource):
                 'date': slot.date.isoformat(),
                 'capacity': slot.capacity,
                 'booked': slot.booked,
+                'start_time': slot.start_time.isoformat(),
+                'end_time': slot.end_time.isoformat(),
+                'timezone': slot.timezone,
                 'available': slot.capacity - slot.booked,
                 'price': float(slot.price)
             }
