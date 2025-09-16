@@ -15,9 +15,9 @@ celery.conf.update(
     result_serializer='json',
     timezone='Africa/Nairobi',
     enable_utc=True,
-    # imports=[
-    #     'workers.initiate_mpesa',  # <-- import your task module here
-    # ]
+    imports=[
+        'workers.initiate_mpesa',  # <-- import your task module here
+    ]
 )
 
 def init_celery(app):

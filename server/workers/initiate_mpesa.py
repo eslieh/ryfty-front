@@ -2,7 +2,7 @@
 
 import logging
 from dotenv import load_dotenv
-from models import ApiCollection, db, ApiDisbursement
+from models import ApiCollection, db, ApiDisbursement, PaymentMethod, User
 import requests
 import base64
 import re
@@ -15,6 +15,7 @@ from celery_app import celery
 # M-Pesa API credentials (loaded from .env file)
 MPESA_SHORTCODE = os.getenv("MPESA_SHORTCODE")
 B2C_URL = "https://api.safaricom.co.ke/mpesa/b2c/v3/paymentrequest"
+B2B_URL = "https://api.safaricom.co.ke/mpesa/b2b/v1/paymentrequest"
 MPESA_PASSKEY = os.getenv("MPESA_PASSKEY")
 MPESA_CONSUMER_KEY = os.getenv("MPESA_CONSUMER_KEY")
 MPESA_CONSUMER_SECRET = os.getenv("MPESA_CONSUMER_SECRET")
@@ -41,8 +42,8 @@ def initiate_payment(self, api_collection_id):
 
         phone_number = api_collection.mpesa_number
         amount = api_collection.amount
-        tenant_id = api_collection.tenant_id
-        call_back_url = f"https://bgrtfdl5-5000.uks1.devtunnels.ms/payment/mpesa/call_back/{tenant_id}/{api_collection_id}"
+        experience_id = api_collection.experience_id
+        call_back_url = f"https://bgrtfdl5-5000.uks1.devtunnels.ms/payment/mpesa/call_back/{experience_id}/{api_collection.slot_id}/{api_collection_id}"
 
         if not phone_number or not amount:
             logger.error(f"Missing phone number or amount for ApiCollection {api_collection_id}.")
@@ -126,15 +127,58 @@ def initiate_disbursement(self, api_disbursement_id):
             logger.error(f"ApiDisbursement with ID {api_disbursement_id} not found.")
             return
 
-        phone_number = api_disbursement.mpesa_number
+        disbursement_type = api_disbursement.disbursement_type
+        phone_number = None
+        paybill_number = None
+        account_number = None
+        command_type = None
+        
+        if disbursement_type == "settlement":
+            # get payment method    
+            payment_method = PaymentMethod.query.filter_by(user_id=api_disbursement.user_id).first()
+            if payment_method:
+                if payment_method.method_type == "mpesa":
+                    phone_number = payment_method.mpesa_number
+                    command_type = "BusinessPayment"
+                elif payment_method.method_type == "bank":
+                    paybill_number = payment_method.bank_id
+                    account_number = payment_method.bank_account_number
+                    command_type = "BusinessPayBill"
+                elif payment_method.method_type == "paybill":
+                    paybill_number = payment_method.paybill
+                    account_number = payment_method.account_no
+                    command_type = "BusinessPayBill"
+                    
+        elif disbursement_type == "refund":
+            if api_disbursement.mpesa_number:
+                phone_number = api_disbursement.mpesa_number
+                command_type = "BusinessPayment"
+        
         amount = api_disbursement.amount
-        tenant_id = api_disbursement.tenant_id
-        result_url = f"https://bgrtfdl5-5000.uks1.devtunnels.ms/payment/mpesa/disburse_call_back/{tenant_id}/{api_disbursement_id}/result"
-        timeout_url = f"https://bgrtfdl5-5000.uks1.devtunnels.ms/payment/mpesa/disburse_call_back/{tenant_id}/{api_disbursement_id}/timeout"
+        user_id = api_disbursement.user_id
+        b2c_result_url = f"https://bgrtfdl5-5000.uks1.devtunnels.ms/payment/mpesa/b2c/disburse_call_back/{user_id}/{api_disbursement_id}/result"
+        b2c_timeout_url = f"https://bgrtfdl5-5000.uks1.devtunnels.ms/payment/mpesa/b2c/disburse_call_back/{user_id}/{api_disbursement_id}/timeout"
+        b2b_result_url = f"https://bgrtfdl5-5000.uks1.devtunnels.ms/payment/mpesa/b2b/disburse_call_back/{user_id}/{api_disbursement_id}/result"
+        b2b_timeout_url = f"https://bgrtfdl5-5000.uks1.devtunnels.ms/payment/mpesa/b2b/disburse_call_back/{user_id}/{api_disbursement_id}/timeout"
 
-        if not phone_number or not amount:
-            logger.error(f"Missing phone number or amount for ApiDisbursement {api_disbursement_id}.")
+        # Determine API URL based on command type
+        if command_type == "BusinessPayBill":
+            api_url = B2B_URL
+        elif command_type == "BusinessPayment":
+            api_url = B2C_URL
+        else:
+            logger.error(f"Invalid command type for ApiDisbursement {api_disbursement_id}.")
             return
+
+        # Validate required fields based on command type
+        if command_type == "BusinessPayment":
+            if not phone_number or not amount:
+                logger.error(f"Missing phone number or amount for B2C ApiDisbursement {api_disbursement_id}.")
+                return
+        elif command_type == "BusinessPayBill":
+            if not paybill_number or not account_number or not amount:
+                logger.error(f"Missing paybill number, account number, or amount for B2B ApiDisbursement {api_disbursement_id}.")
+                return
 
         def format_phone_number(number):
             digits = re.sub(r'\D', '', number)
@@ -145,11 +189,7 @@ def initiate_disbursement(self, api_disbursement_id):
             logger.warning(f"Invalid phone number format: {number}")
             return None
 
-        formatted_number = format_phone_number(phone_number)
-        if not formatted_number:
-            logger.error(f"Failed to format phone number: {phone_number}")
-            return
-
+        # Get auth token
         auth_token = get_mpesa_auth_token()
         if not auth_token:
             logger.error("Failed to get M-Pesa authorization token.")
@@ -160,28 +200,58 @@ def initiate_disbursement(self, api_disbursement_id):
             "Content-Type": "application/json"
         }
 
-        payload = {
-            "OriginatorConversationID": str(api_disbursement_id),
-            "InitiatorName": INITIATOR_NAME,
-            "SecurityCredential": SECURITY_CREDENTIAL,
-            "CommandID": "BusinessPayment",   # or SalaryPayment, PromotionPayment
-            "Amount": str(int(amount)),
-            "PartyA": MPESA_SHORTCODE,
-            "PartyB": formatted_number,
-            "Remarks": "Account withdraw",
-            "QueueTimeOutURL": timeout_url,
-            "ResultURL": result_url,
-            "Occasion": "Payment"
-        }
+        # Build payload based on command type
+        if command_type == "BusinessPayment":
+            # B2C Payment
+            formatted_number = format_phone_number(phone_number)
+            if not formatted_number:
+                logger.error(f"Failed to format phone number: {phone_number}")
+                return
+
+            payload = {
+                "OriginatorConversationID": str(api_disbursement_id),
+                "InitiatorName": INITIATOR_NAME,
+                "SecurityCredential": SECURITY_CREDENTIAL,
+                "CommandID": "BusinessPayment",
+                "Amount": str(int(amount)),
+                "PartyA": MPESA_SHORTCODE,
+                "PartyB": formatted_number,
+                "Remarks": "Account withdraw",
+                "QueueTimeOutURL": b2c_timeout_url,
+                "ResultURL": b2c_result_url,
+                "Occasion": "Payment"
+            }
         
-        response = requests.post(B2C_URL, headers=headers, json=payload)
+        elif command_type == "BusinessPayBill":
+            # B2B Payment
+            payload = {
+                "Initiator": INITIATOR_NAME,
+                "SecurityCredential": SECURITY_CREDENTIAL,
+                "CommandID": "BusinessPayBill",
+                "SenderIdentifierType": "4",
+                "RecieverIdentifierType": "4",
+                "Amount": str(int(amount)),
+                "PartyA": MPESA_SHORTCODE,
+                "PartyB": paybill_number,
+                "AccountReference": account_number,
+                "Requester": None,  # Optional field
+                "Remarks": "Account withdraw",
+                "QueueTimeOutURL": b2b_timeout_url,
+                "ResultURL": b2b_result_url,
+                "Occasion": "Payment"
+            }
+    
+        # Make the API request
+        response = requests.post(api_url, headers=headers, json=payload)
         try:
             response_data = response.json()
             if response.status_code == 200:
-                api_disbursement_id.status = "initiated"
+                # Fix: Update the actual object, not the ID
+                api_disbursement.status = "initiated"
                 db.session.commit()
-                logger.info(f"Payment request {api_disbursement_id} successfully initiated: {api_disbursement_id}")
+                logger.info(f"Payment request {api_disbursement_id} successfully initiated: {response_data}")
             else:
                 logger.error(f"Failed to initiate payment for {api_disbursement_id}: {response_data}")
-        except Exception:
-            return {"error": "Invalid JSON response", "raw": response.text} 
+        except Exception as e:
+            logger.error(f"Error processing response for {api_disbursement_id}: {str(e)}")
+            return {"error": "Invalid JSON response", "raw": response.text}

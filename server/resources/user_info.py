@@ -75,4 +75,3 @@ class UserInfo(Resource):
             self._get_user_from_cache(user_id)
 
         return {"message": "User info updated successfully"}, 200
-

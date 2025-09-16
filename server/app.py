@@ -21,6 +21,9 @@ from resources.auth import GoogleAuth, Login, Register
 from resources.user_info import UserInfo
 from resources.experiences import ExperienceList, ExperienceDetail, SlotList, SlotDetail
 from resources.experiences_public import PublicExperienceList, PublicExperienceDetail, TrendingExperiences
+from resources.public_reservation_resource import PublicReservationResource, InstallmentReservationResource
+from resources.mpesa_callback import MpesaCallbackResource
+from resources.provider_reservations import ProviderReservationsOptimized
 
 import sqlalchemy.pool
 from celery_app import celery
@@ -114,12 +117,20 @@ def create_app():
     api.add_resource(ExperienceDetail, "/experiences/<uuid:experience_id>")
     api.add_resource(SlotList, "/experiences/<uuid:experience_id>/slots")
     api.add_resource(SlotDetail, "/slots/<uuid:slot_id>")
+    # experience reservations for providers
+    api.add_resource(ProviderReservationsOptimized, "/provider/reservations/<uuid:experience_id>")
 
     # Public experience endpoints
     api.add_resource(PublicExperienceList, "/public/experiences")
     api.add_resource(PublicExperienceDetail, "/public/experiences/<uuid:experience_id>")
     api.add_resource(TrendingExperiences, "/public/experiences/trending")
     
+    
+    # Public reservation endpoint
+    api.add_resource(PublicReservationResource, "/public/reservations_request")
+    api.add_resource(InstallmentReservationResource, "/public/partial_payment/<uuid:reservation_id>")
+    # M-Pesa callback endpoint
+    api.add_resource(MpesaCallbackResource, "/payment/mpesa/call_back/<uuid:experience_id>/<uuid:slot_id>/<uuid:api_collection_id>")
     return app
 
 

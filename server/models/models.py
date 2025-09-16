@@ -176,11 +176,12 @@ class Reservation(db.Model):
     amount_paid = db.Column(db.Numeric(8, 2), nullable=False, index=True)
     payment_type = db.Column(db.String(255), nullable=False, index=True)
     status = db.Column(db.String(255), nullable=False, index=True)
-    due_date = db.Column(db.DateTime(timezone=True), nullable=False, index=True)
+    due_date = db.Column(db.DateTime(timezone=True), nullable=True, index=True)
     created_at = db.Column(db.DateTime(timezone=True), default=datetime.utcnow, nullable=False, index=True)
     update_at = db.Column(db.DateTime(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
     experience_id = db.Column(UUID(as_uuid=True), db.ForeignKey("experiences.id"), nullable=False, index=True)
     checked_in = db.Column(db.Boolean, nullable=False, default=False, index=True)
+    revocked = db.Column(db.Boolean, nullable=False, default=False, index=True)
 
     __table_args__ = (
         CheckConstraint(
@@ -215,6 +216,46 @@ class Reservation(db.Model):
     def __repr__(self):
         return f"<Reservation {self.id} ({self.status})>"
 
+class ApiCollection(db.Model):
+    __tablename__ = "api_collections"
+
+    id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    slot_id = db.Column(UUID(as_uuid=True), db.ForeignKey("slots.id"), nullable=False, index=True)
+    user_id = db.Column(UUID(as_uuid=True), db.ForeignKey("users.id"), nullable=False, index=True)
+    quantity = db.Column(db.Integer, nullable=False)
+    reservation_id = db.Column(UUID(as_uuid=True), db.ForeignKey("reservations.id"), nullable=True, index=True)
+    experience_id = db.Column(UUID(as_uuid=True), db.ForeignKey("experiences.id"), nullable=False, index=True)
+    amount = db.Column(db.Numeric(8, 2), nullable=False, index=True)
+    mpesa_checkout_request_id = db.Column(db.Text, nullable=True, unique=True, index=True)  # Unique index for checkout ID
+    transaction_reference = db.Column(db.Text, nullable=True, unique=True, index=True)  # Unique index for reference
+    status = db.Column(db.String(255), nullable=False, index=True)
+    mpesa_number = db.Column(db.Text, nullable=False, index=True)
+    description = db.Column(db.Text, nullable=True)
+    created_at = db.Column(db.DateTime(timezone=True), default=datetime.utcnow, nullable=False)
+    updated_at = db.Column(db.DateTime(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+
+    def __repr__(self):
+        return f"<ApiCollection {self.name}>"
+    
+class ApiDisbursement(db.Model):
+    __tablename__ = "api_disbursements"
+
+    id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id = db.Column(UUID(as_uuid=True), db.ForeignKey("users.id"), nullable=False, index=True)
+    amount = db.Column(db.Numeric(8, 2), nullable=False, index=True)
+    refund_id = db.Column(UUID(as_uuid=True), db.ForeignKey("reservation_refunds.id"), nullable=True, index=True)
+    
+    mpesa_checkout_request_id = db.Column(db.Text, nullable=True, unique=True, index=True)  # Unique index for checkout ID
+    transaction_reference = db.Column(db.Text, nullable=True, unique=True, index=True)  # Unique index for reference
+    status = db.Column(db.String(255), nullable=False, index=True)
+    mpesa_number = db.Column(db.Text, nullable=True, index=True)
+    disbursement_type = db.Column(db.String(255), nullable=False, index=True) # e.g., "payout", "refund", "settlement"
+    description = db.Column(db.Text, nullable=True)
+    created_at = db.Column(db.DateTime(timezone=True), default=datetime.utcnow, nullable=False)
+    updated_at = db.Column(db.DateTime(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+
+    def __repr__(self):
+        return f"<ApiDisbursement {self.name}>"
 
 class ReservationTxn(db.Model):
     __tablename__ = "reservation_txn"
@@ -228,7 +269,7 @@ class ReservationTxn(db.Model):
     slot_id = db.Column(UUID(as_uuid=True), db.ForeignKey("slots.id"), nullable=False, index=True)
     transaction_reference = db.Column(db.Text, nullable=False, unique=True, index=True)  # Unique index for reference
     status = db.Column(db.String(255), nullable=False, index=True)
-    paid_at = db.Column(db.DateTime(timezone=True), nullable=False, index=True)
+    paid_at = db.Column(db.DateTime(timezone=True), default=datetime.utcnow, nullable=False, index=True)
     created_at = db.Column(db.DateTime(timezone=True), default=datetime.utcnow, nullable=False, index=True)
     updated_at = db.Column(db.DateTime(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
 
@@ -264,7 +305,10 @@ class ReservationRefund(db.Model):
     reservation_id = db.Column(UUID(as_uuid=True), db.ForeignKey("reservations.id"), nullable=False, index=True)
     user_id = db.Column(UUID(as_uuid=True), db.ForeignKey("users.id"), nullable=False, index=True)
     experience_id = db.Column(UUID(as_uuid=True), db.ForeignKey("experiences.id"), nullable=False, index=True)
-    amount = db.Column(db.Numeric(10, 2), nullable=False, index=True)
+    requested_amount = db.Column(db.Numeric(10, 2), nullable=False, index=True)
+    approved_amount = db.Column(db.Numeric(10, 2), nullable=False, index=True)
+    transaction_reference = db.Column(db.Text, nullable=True, unique=True, index=True)  # Unique index for reference
+    mpesa_number = db.Column(db.Text, nullable=False, index=True)
     status = db.Column(db.String(20), nullable=False, default="pending", index=True)
     reason = db.Column(db.Text, nullable=True)
     processed_at = db.Column(db.DateTime, nullable=True, index=True)
@@ -279,7 +323,7 @@ class ReservationRefund(db.Model):
         Index('idx_refunds_user_status', 'user_id', 'status'),
         Index('idx_refunds_experience_status', 'experience_id', 'status'),
         # Partial index for pending refunds
-        Index('idx_refunds_pending', 'amount', 'reservation_id',
+        Index('idx_refunds_pending', 'requested_amount', 'reservation_id',
               postgresql_where=db.text("status = 'pending'")),
     )
 
@@ -329,12 +373,16 @@ class UsersLedger(db.Model):
     user_id = db.Column(UUID(as_uuid=True), db.ForeignKey("users.id"), nullable=False, index=True)
     txn_type = db.Column(db.String(255), nullable=False, index=True)
     reservation_txn = db.Column(UUID(as_uuid=True), db.ForeignKey("reservation_txn.id"), nullable=True, index=True)
+    settlement_txn = db.Column(UUID(as_uuid=True), db.ForeignKey("settlement_txn.id"), nullable=True, index=True)
     refund_txn = db.Column(UUID(as_uuid=True), db.ForeignKey("reservation_refunds.id"), nullable=True, index=True)
+    applicable_fee = db.Column(db.Numeric(8, 2), nullable=True) # e.g., platform fee on credits
+    fee_type = db.Column(db.String(255), nullable=True, index=True) # e.g., "platform", "mpesa", etc.
     transaction_ref = db.Column(db.Text, nullable=False, index=True)
     amount = db.Column(db.Numeric(8, 2), nullable=False, index=True)
     balance_before = db.Column(db.Numeric(8, 2), nullable=False)
+    balance = db.Column(db.Numeric(8, 2), nullable=False, index=True)
+    description = db.Column(db.Text, nullable=True)
     date_done = db.Column(db.DateTime(timezone=True), default=datetime.utcnow, nullable=False, index=True)
-
     __table_args__ = (
         CheckConstraint(
             f"txn_type IN ('{LedgerTxnType.DEBIT}', '{LedgerTxnType.CREDIT}')",
@@ -360,8 +408,7 @@ class SettlementTxn(db.Model):
 
     id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     user_id = db.Column(UUID(as_uuid=True), db.ForeignKey("users.id"), nullable=True, index=True)
-    request_amount = db.Column(db.Numeric(8, 2), nullable=False, index=True)
-    approved_amount = db.Column(db.Numeric(8, 2), nullable=False, index=True)
+    amount = db.Column(db.Numeric(8, 2), nullable=False, index=True)
     checkout_id = db.Column(db.Text, nullable=False, unique=True, index=True)
     txn_id = db.Column(db.Text, nullable=False, unique=True, index=True)
     service_fee = db.Column(db.Numeric(8, 2), nullable=False, index=True)
@@ -369,8 +416,8 @@ class SettlementTxn(db.Model):
 
     __table_args__ = (
         # Composite indexes for settlement reporting
-        Index('idx_settlement_user_amount', 'user_id', 'approved_amount'),
-        Index('idx_settlement_platform_amount', 'platform', 'approved_amount'),
+        Index('idx_settlement_user_amount', 'user_id', 'amount'),
+        Index('idx_settlement_platform_amount', 'platform', 'amount'),
     )
 
     def __repr__(self):
