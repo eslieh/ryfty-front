@@ -181,7 +181,7 @@ class Reservation(db.Model):
     update_at = db.Column(db.DateTime(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
     experience_id = db.Column(UUID(as_uuid=True), db.ForeignKey("experiences.id"), nullable=False, index=True)
     checked_in = db.Column(db.Boolean, nullable=False, default=False, index=True)
-    revocked = db.Column(db.Boolean, nullable=False, default=False, index=True)
+    revocked = db.Column(db.Boolean, nullable=True, default=False, index=True)
 
     __table_args__ = (
         CheckConstraint(
@@ -306,11 +306,14 @@ class ReservationRefund(db.Model):
     user_id = db.Column(UUID(as_uuid=True), db.ForeignKey("users.id"), nullable=False, index=True)
     experience_id = db.Column(UUID(as_uuid=True), db.ForeignKey("experiences.id"), nullable=False, index=True)
     requested_amount = db.Column(db.Numeric(10, 2), nullable=False, index=True)
-    approved_amount = db.Column(db.Numeric(10, 2), nullable=False, index=True)
+    approved_amount = db.Column(db.Numeric(10, 2), nullable=True, index=True)
     transaction_reference = db.Column(db.Text, nullable=True, unique=True, index=True)  # Unique index for reference
     mpesa_number = db.Column(db.Text, nullable=False, index=True)
     status = db.Column(db.String(20), nullable=False, default="pending", index=True)
     reason = db.Column(db.Text, nullable=True)
+    reviewed_at = db.Column(db.DateTime, nullable=True)
+    admin_reason = db.Column(db.Text, nullable=True)
+    requested_at = db.Column(db.DateTime(timezone=True), default=datetime.utcnow, nullable=False)
     processed_at = db.Column(db.DateTime, nullable=True, index=True)
 
     __table_args__ = (
@@ -379,6 +382,7 @@ class UsersLedger(db.Model):
     fee_type = db.Column(db.String(255), nullable=True, index=True) # e.g., "platform", "mpesa", etc.
     transaction_ref = db.Column(db.Text, nullable=False, index=True)
     amount = db.Column(db.Numeric(8, 2), nullable=False, index=True)
+    status = db.Column(db.Text, nullable=True)
     balance_before = db.Column(db.Numeric(8, 2), nullable=False)
     balance = db.Column(db.Numeric(8, 2), nullable=False, index=True)
     description = db.Column(db.Text, nullable=True)

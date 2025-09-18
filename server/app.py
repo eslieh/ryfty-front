@@ -22,8 +22,9 @@ from resources.user_info import UserInfo
 from resources.experiences import ExperienceList, ExperienceDetail, SlotList, SlotDetail
 from resources.experiences_public import PublicExperienceList, PublicExperienceDetail, TrendingExperiences
 from resources.public_reservation_resource import PublicReservationResource, InstallmentReservationResource
-from resources.mpesa_callback import MpesaCallbackResource
+from resources.mpesa_callback import MpesaCallbackResource, MpesaB2bDisbursementCallback, MpesaB2cDisbursementCallback
 from resources.provider_reservations import ProviderReservationsOptimized
+from resources.refund_resource import RefundRequest, RefundRequestLists, RefundInitiate
 
 import sqlalchemy.pool
 from celery_app import celery
@@ -131,6 +132,15 @@ def create_app():
     api.add_resource(InstallmentReservationResource, "/public/partial_payment/<uuid:reservation_id>")
     # M-Pesa callback endpoint
     api.add_resource(MpesaCallbackResource, "/payment/mpesa/call_back/<uuid:experience_id>/<uuid:slot_id>/<uuid:api_collection_id>")
+    api.add_resource(MpesaB2cDisbursementCallback, "/payment/mpesa/b2c/disburse_call_back/<uuid:user_id>/<uuid:api_disbursement_id>/result")
+    api.add_resource(MpesaB2bDisbursementCallback, "/payment/mpesa/b2b/disburse_call_back/<uuid:user_id>/<uuid:api_disbursement_id>/result")
+    
+    # refund request endpoint
+    api.add_resource(RefundRequest, "/refund/request/<uuid:reservation_id>")
+    api.add_resource(RefundRequestLists, "/refund/request/list/<uuid:experience_id>", "/refund/request/list/<uuid:experience_id>/<uuid:reservation_id>")
+    
+    # refund processing endpoint
+    api.add_resource(RefundInitiate, "/refund/process/<uuid:reservation_id>/<uuid:refund_id>")
     return app
 
 
