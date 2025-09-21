@@ -4,7 +4,7 @@ from flask import request, current_app
 from flask_caching import Cache
 from models import db, Experience, User, Slot
 from marshmallow import Schema, fields, validate, ValidationError
-from sqlalchemy import and_, or_, func, desc, asc, cast, String
+from sqlalchemy import and_, or_, func, desc, asc, cast, String, select
 from sqlalchemy.orm import joinedload, selectinload, aliased
 from datetime import datetime, date, timedelta
 from decimal import Decimal
@@ -388,7 +388,11 @@ class PublicExperienceList(Resource):
             score_subq = (
                 db.session.query(
                     Experience.id.label("exp_id"),
-                    func.similarity(Experience.title, raw_search).label("score")
+                    func.greatest(
+                        func.similarity(Experience.title, raw_search),
+                        func.similarity(cast(Experience.meeting_point["address"], String), raw_search),
+                        func.similarity(cast(Experience.meeting_point["name"], String), raw_search)
+                    ).label("score")
                 )
                 .subquery()
             )

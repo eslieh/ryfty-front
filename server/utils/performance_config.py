@@ -316,7 +316,7 @@ class CacheWarmer:
                 )
                 
                 # Cache individual experience details
-                from experiences_public import CachedExperience
+                from resources.experiences_public import CachedExperience
                 from dataclasses import asdict
                 
                 for exp in popular_experiences:
@@ -333,7 +333,7 @@ class CacheWarmer:
         """Pre-populate trending experiences cache"""
         with self.app.app_context():
             try:
-                from experiences_public import TrendingExperiences
+                from resources.experiences_public import TrendingExperiences
                 trending_resource = TrendingExperiences()
                 trending_resource.get()  # This will populate the cache
                 perf_logger.info("Warmed trending experiences cache")

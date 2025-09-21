@@ -207,6 +207,10 @@ class Reservation(db.Model):
             name='check_reservation_status'
         ),
         # Composite indexes for common query patterns
+        Index('idx_reservations_id', 'id'),
+        Index('idx_reservations_user_id', 'user_id'),
+        Index('idx_reservations_experience_id', 'experience_id'),
+        Index('idx_reservations_slot_id', 'slot_id'),
         Index('idx_reservations_user_status', 'user_id', 'status'),
         Index('idx_reservations_experience_status', 'experience_id', 'status'),
         Index('idx_reservations_slot_status', 'slot_id', 'status'),

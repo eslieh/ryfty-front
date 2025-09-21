@@ -5,6 +5,7 @@ from decimal import Decimal, InvalidOperation
 from flask import current_app
 from sqlalchemy.exc import SQLAlchemyError
 from typing import Optional
+from workers.email_worker import send_reservation_email_async
 from sqlalchemy import func
 from utils.tarrifs import get_b2c_business_charge, get_b2b_business_charge, get_original_b2b_amount, get_original_b2c_value
 
@@ -112,6 +113,9 @@ def logg_wallet(self, slot_id, user_id, quantity, amount_paid, status, transacti
             except Exception:
                 pass
             
+            send_reservation_email_async.delay(reservation.id)
+            
+            
             create_ledger.delay(
                 user_id=experience.provider_id,
                 txn_type="credit",
@@ -120,6 +124,7 @@ def logg_wallet(self, slot_id, user_id, quantity, amount_paid, status, transacti
                 amount=amount,
                 service_fee=platform_fee
             )
+            
             logger.info(
                 f"Wallet transaction logged: txn_ref={transaction_ref}, "
                 f"slot={slot_id}, reservation={reservation.id}, "

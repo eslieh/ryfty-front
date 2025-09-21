@@ -79,8 +79,15 @@ class InstallmentReservationResource(Resource):
     
 
         amount_paid = reservation.amount_paid
+        
+        remaining = reservation.total_price - amount_paid
+        
         if amount_paid >= reservation.total_price:
             return {"error": "Reservation is already fully paid"}, 400
+        
+        if Decimal(amount)  > remaining:
+            return {"error": f"The amount entered is more than the required, to finish the installment please pay KES{str(remaining)} "}
+        
         
         api_collection = ApiCollection(
             user_id=user_id,

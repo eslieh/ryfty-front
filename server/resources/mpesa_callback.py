@@ -175,6 +175,9 @@ class MpesaB2bDisbursementCallback(Resource):
                 api_disbursement.transaction_reference = transaction_id
                 service_fee = get_b2c_business_charge(float(api_disbursement.amount))
                 db.session.commit()
+                
+                
+                
                 wallet_settlement.delay(
                     user_id=user_id,
                     amount=float(api_disbursement.amount),

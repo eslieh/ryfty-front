@@ -20,12 +20,14 @@ from flask_restful import Resource
 from resources.auth import GoogleAuth, Login, Register, ResetPassword, RequestPasswordReset, Verify
 from resources.user_info import UserInfo
 from resources.experiences import ExperienceList, ExperienceDetail, SlotList, SlotDetail
+from resources.checkin_resource import CheckinResource
 from resources.experiences_public import PublicExperienceList, PublicExperienceDetail, TrendingExperiences
 from resources.public_reservation_resource import PublicReservationResource, InstallmentReservationResource
 from resources.mpesa_callback import MpesaCallbackResource, MpesaB2bDisbursementCallback, MpesaB2cDisbursementCallback
 from resources.provider_reservations import ProviderReservationsOptimized
 from resources.refund_resource import RefundRequest, RefundRequestLists, RefundInitiate
 from resources.wallet_resource import WalletResource, PaymentMethodResource, DisbursementResource
+from resources.test import TestSendReservation
 
 import sqlalchemy.pool
 from celery_app import celery
@@ -151,6 +153,13 @@ def create_app():
     api.add_resource(WalletResource, "/wallet")
     api.add_resource(PaymentMethodResource, "/wallet/payment-method", "/wallet/payment-method/<uuid:method_id>")
     api.add_resource(DisbursementResource,  "/api/payment/initiate")
+    
+    # checkin resource 
+    api.add_resource(CheckinResource, '/experiences/<uuid:experience_id>/checkin')
+    
+    
+    # test resource
+    api.add_resource(TestSendReservation, "/api/test/send_reservation_mail")
     return app
 
 

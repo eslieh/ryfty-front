@@ -231,7 +231,7 @@ class ProviderReservationsOptimized(Resource):
     
     @jwt_required()
     @cache_result(timeout=300, key_prefix="provider_reservations_optimized")
-    def get(self, q):
+    def get(self, experience_id):
         user_id = get_jwt_identity()
         
         # Validate access (reuse methods from above class)
@@ -305,105 +305,3 @@ class ProviderReservationsOptimized(Resource):
         }, 200
 
 
-
-
-
-
-
-
-# # Enhanced version with additional ORM optimizations
-# class ProviderReservationsEnhanced(Resource):
-    
-#     @jwt_required()
-#     @cache_result(timeout=300, key_prefix="provider_reservations_enhanced")
-#     def get(self, experience_id):
-#         user_id = get_jwt_identity()
-        
-#         # Validate access
-#         if not ProviderReservations._validate_provider_access(user_id):
-#             return {"error": "Unauthorized"}, 403
-        
-#         if not ProviderReservations._validate_experience_ownership(user_id, experience_id):
-#             return {"error": "Experience not found or unauthorized"}, 404
-        
-#         # Parse query parameters with additional filters
-#         page = int(request.args.get('page', 1))
-#         per_page = min(int(request.args.get('per_page', 50)), 100)
-#         status_filter = request.args.get('status')
-#         date_from = request.args.get('date_from')
-#         date_to = request.args.get('date_to')
-        
-#         # Build base query with optimized loading strategy
-#         # Using a combination of joinedload for one-to-one and selectinload for collections
-#         query = db.session.query(Reservation).filter(
-#             Reservation.experience_id == experience_id
-#         ).join(
-#             Experience, Reservation.experience_id == Experience.id
-#         ).filter(
-#             Experience.provider_id == user_id
-#         )
-        
-#         # Apply filters
-#         if status_filter:
-#             query = query.filter(Reservation.status == status_filter)
-        
-#         if date_from:
-#             try:
-#                 date_from_obj = datetime.fromisoformat(date_from)
-#                 query = query.filter(Reservation.created_at >= date_from_obj)
-#             except ValueError:
-#                 return {"error": "Invalid date_from format"}, 400
-        
-#         if date_to:
-#             try:
-#                 date_to_obj = datetime.fromisoformat(date_to)
-#                 query = query.filter(Reservation.created_at <= date_to_obj)
-#             except ValueError:
-#                 return {"error": "Invalid date_to format"}, 400
-        
-#         # Optimize loading strategy based on relationship types
-#         query = query.options(
-#             joinedload(Reservation.user),      # One-to-one relationship
-#             joinedload(Reservation.experience), # One-to-one relationship  
-#             joinedload(Reservation.slot)       # One-to-one relationship
-#         ).order_by(desc(Reservation.created_at))
-        
-#         # Get count efficiently
-#         count_query = db.session.query(func.count(Reservation.id)).filter(
-#             Reservation.experience_id == experience_id
-#         ).join(
-#             Experience, Reservation.experience_id == Experience.id
-#         ).filter(
-#             Experience.provider_id == user_id
-#         )
-        
-#         # Apply same filters to count query
-#         if status_filter:
-#             count_query = count_query.filter(Reservation.status == status_filter)
-#         if date_from:
-#             count_query = count_query.filter(Reservation.created_at >= datetime.fromisoformat(date_from))
-#         if date_to:
-#             count_query = count_query.filter(Reservation.created_at <= datetime.fromisoformat(date_to))
-        
-#         total_count = count_query.scalar()
-        
-#         # Execute main query with pagination
-#         reservations = query.offset((page - 1) * per_page).limit(per_page).all()
-        
-#         # Format results
-#         result = ProviderReservations._format_reservation_data(reservations)
-        
-#         return {
-#             "reservations": result,
-#             "pagination": {
-#                 "page": page,
-#                 "per_page": per_page,
-#                 "total": total_count,
-#                 "pages": (total_count + per_page - 1) // per_page
-#             },
-#             "filters_applied": {
-#                 "status": status_filter,
-#                 "date_from": date_from,
-#                 "date_to": date_to
-#             }
-#         }, 200
