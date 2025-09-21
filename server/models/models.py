@@ -59,6 +59,8 @@ class User(db.Model):
     avatar_url = db.Column(db.Text, nullable=True)
     bio = db.Column(db.Text, nullable=True)
     role = db.Column(db.String(255), nullable=False, index=True, default="customer")  # Index for role-based queries
+    is_email_verified = db.Column(db.Boolean, default=False, nullable=True)
+    is_phone_verified = db.Column(db.Boolean, default=False, nullable=True)
     date_joined = db.Column(db.DateTime(timezone=True), default=datetime.utcnow, nullable=False, index=True)  # Index for date queries
 
     # Define constraints and indexes in __table_args__
@@ -79,9 +81,21 @@ class User(db.Model):
     payment_methods = db.relationship("PaymentMethod", back_populates="user")
     ledger = db.relationship("UsersLedger", back_populates="user")
     refunds = db.relationship("ReservationRefund", back_populates="user")
+    
 
     def __repr__(self):
         return f"<User {self.email} ({self.role})>"
+
+
+class VerificationToken(db.Model):
+    id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id = db.Column(UUID(as_uuid=True), db.ForeignKey('users.id'), nullable=False)
+    token = db.Column(db.String(128), nullable=False, unique=True)
+    type = db.Column(db.String(10), nullable=False)  # "email" or "phone" or "reset"
+    expires_at = db.Column(db.DateTime, nullable=False)
+    used = db.Column(db.Boolean, default=False)
+
+    user = db.relationship("User", backref="verification_tokens")
 
 
 class Experience(db.Model):
@@ -415,9 +429,10 @@ class SettlementTxn(db.Model):
     amount = db.Column(db.Numeric(8, 2), nullable=False, index=True)
     checkout_id = db.Column(db.Text, nullable=False, unique=True, index=True)
     txn_id = db.Column(db.Text, nullable=False, unique=True, index=True)
+    status = db.Column(db.Text, nullable=False, unique=True)
     service_fee = db.Column(db.Numeric(8, 2), nullable=False, index=True)
     platform = db.Column(db.Boolean, nullable=True, index=True)
-
+    date_done = db.Column(db.DateTime(timezone=True), default=datetime.utcnow, nullable=False)
     __table_args__ = (
         # Composite indexes for settlement reporting
         Index('idx_settlement_user_amount', 'user_id', 'amount'),

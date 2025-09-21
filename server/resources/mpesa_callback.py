@@ -115,7 +115,7 @@ class MpesaB2cDisbursementCallback(Resource):
                     wallet_settlement.delay(
                         user_id=user_id,
                         amount=float(api_disbursement.amount),
-                        checkout_id=api_disbursement.checkout_id,
+                        checkout_id=conversation_id,
                         transaction_ref=transaction_id,
                         service_fee=service_fee
                     )
@@ -160,7 +160,7 @@ class MpesaB2bDisbursementCallback(Resource):
             result_code = result.get('ResultCode')
             result_desc = result.get('ResultDesc')
             transaction_id = result.get('TransactionID')
-
+            print(result)
             if not user_id or not api_disbursement_id:
                 logger.warning("Tenant ID or ApiDisbursement ID missing in callback")
                 return {"ResultCode": 1, "ResultDesc": "Missing data"}, 400
@@ -189,6 +189,7 @@ class MpesaB2bDisbursementCallback(Resource):
             else:
                 # Failed disbursement
                 api_disbursement.status = "failed"
+                api_disbursement.description = result_desc
                 db.session.commit()
 
                 logger.info(f"Disbursement Callback failed for disbursement {api_disbursement_id}: {result_desc}")

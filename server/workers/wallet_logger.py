@@ -178,7 +178,7 @@ def wallet_settlement(self, user_id, amount, checkout_id, transaction_ref, servi
                 user_id=user_id,
                 amount=total_amount,
                 checkout_id=checkout_id,
-                transaction_reference=transaction_ref,
+                txn_id=transaction_ref,
                 status="completed",
                 service_fee=service_fee,
                 platform=(user.role == "admin")
@@ -284,6 +284,7 @@ def refund_settlement(self, user_id, refund_id, transaction_ref, service_fee=0, 
             # If wallet is good, continue refund
             refund.approved_amount = amount
             refund.status = "approved"
+            # refund.processed_at = db
             reservation.revocked = True
             slot.booked -= reservation.quantity
 

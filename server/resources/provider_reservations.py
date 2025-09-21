@@ -231,7 +231,7 @@ class ProviderReservationsOptimized(Resource):
     
     @jwt_required()
     @cache_result(timeout=300, key_prefix="provider_reservations_optimized")
-    def get(self, experience_id):
+    def get(self, q):
         user_id = get_jwt_identity()
         
         # Validate access (reuse methods from above class)

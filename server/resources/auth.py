@@ -2,10 +2,12 @@ from flask import redirect, jsonify, url_for, request
 from flask_restful import Resource
 from flask_dance.contrib.google import google
 from flask_jwt_extended import create_access_token, get_jwt_identity, jwt_required
-from models import db, User
+from models import db, User, VerificationToken
 from flask_bcrypt import Bcrypt
 import phonenumbers
-from datetime import datetime
+from datetime import datetime, timedelta
+from workers.email_worker import send_verification_email, send_reset_email
+import secrets
 from urllib.parse import urlencode
 
 bcrypt = Bcrypt()
@@ -26,7 +28,7 @@ class GoogleAuth(Resource):
         # Check if user exists, else create
         user = User.query.filter_by(email=email).first()
         if not user:
-            user = User(email=email, name=name, avatar_url=profile)
+            user = User(email=email, name=name, avatar_url=profile, is_email_verified=True)
             db.session.add(user)
             db.session.commit()
 
@@ -118,10 +120,115 @@ class Register(Resource):
             phone=phone,
             password=hashed_password,
             name=name,
-            role=role
+            role=role,
+            is_email_verified=False,
+            is_phone_verified=False
         )
         db.session.add(new_user)
         db.session.commit()
 
+        # Generate verification token
+        token = f"{secrets.randbelow(10**6):06}"
+        expires_at = datetime.utcnow() + timedelta(minutes=30)
+
+        verification = VerificationToken(
+            user_id=new_user.id,
+            token=token,
+            type="email" if email else "phone",
+            expires_at=expires_at
+        )
+        db.session.add(verification)
+        db.session.commit()
+
+        # Send email or SMS here
+        if email:
+            send_verification_email.delay(name=name,email=email, token=token)
+        
+
         return {"message": "User registered successfully"}, 201
 
+class Verify(Resource):
+    def post(self):
+        args = request.get_json()
+        token = args.get("token")
+        
+        verification = VerificationToken.query.filter_by(token=token, used=False).first()
+        if not verification:
+            return {"error": "Invalid or expired token"}, 400
+
+        if verification.expires_at < datetime.utcnow():
+            return {"error": "Token expired"}, 400
+
+        # Mark user as verified
+        if verification.type == "email":
+            verification.user.is_email_verified = True
+        else:
+            verification.user.is_phone_verified = True
+
+        verification.used = True
+        db.session.commit()
+
+        return {"message": f"{verification.type.capitalize()} verified successfully"}, 200
+
+
+class RequestPasswordReset(Resource):
+    def post(self):
+        args = request.get_json()
+        email = args.get("email")
+
+        if not email:
+            return {"error": "Email is required"}, 400
+
+        user = User.query.filter_by(email=email).first()
+        if not user:
+            return {"error": "No account found with that email"}, 404
+
+        # Generate reset token
+        token =  f"{secrets.randbelow(10**6):06}"
+        expires_at = datetime.utcnow() + timedelta(minutes=30)
+
+        reset_token = VerificationToken(
+            user_id=user.id,
+            token=token,
+            type="reset",
+            expires_at=expires_at
+        )
+        db.session.add(reset_token)
+        db.session.commit()
+
+        # Send email in background
+        send_reset_email.delay(name=user.name,email=user.email,token=token)
+
+        return {"message": "Password reset code sent to email"}, 200
+
+
+class ResetPassword(Resource):
+    def post(self):
+        args = request.get_json()
+        token = args.get("token")
+        new_password = args.get("password")
+
+        if not token or not new_password:
+            return {"error": "Token and new password required"}, 400
+
+        verification = VerificationToken.query.filter_by(
+            token=token,
+            used=False,
+            type="reset"
+        ).first()
+
+        if not verification:
+            return {"error": "Invalid or expired token"}, 400
+
+        if verification.expires_at < datetime.utcnow():
+            return {"error": "Token expired"}, 400
+
+        # Update password
+        hashed_password = bcrypt.generate_password_hash(new_password).decode("utf-8")
+        verification.user.password = hashed_password
+        verification.user.is_email_verified = True  # optionally mark verified on reset
+
+        verification.used = True
+        db.session.commit()
+
+        return {"message": "Password reset successfully"}, 200

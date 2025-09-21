@@ -137,18 +137,18 @@ def initiate_disbursement(self, api_disbursement_id):
             # get payment method    
             payment_method = PaymentMethod.query.filter_by(user_id=api_disbursement.user_id).first()
             if payment_method:
-                if payment_method.method_type == "mpesa":
+                if payment_method.default_method == "mpesa":
                     phone_number = payment_method.mpesa_number
                     command_type = "BusinessPayment"
-                elif payment_method.method_type == "bank":
+                elif payment_method.default_method == "bank":
                     paybill_number = payment_method.bank_id
                     account_number = payment_method.bank_account_number
                     command_type = "BusinessPayBill"
-                elif payment_method.method_type == "paybill":
+                elif payment_method.default_method == "paybill":
                     paybill_number = payment_method.paybill
                     account_number = payment_method.account_no
                     command_type = "BusinessPayBill"
-                    
+            
         elif disbursement_type == "refund":
             if api_disbursement.mpesa_number:
                 phone_number = api_disbursement.mpesa_number
@@ -216,7 +216,7 @@ def initiate_disbursement(self, api_disbursement_id):
                 "Amount": str(int(amount)),
                 "PartyA": MPESA_SHORTCODE,
                 "PartyB": formatted_number,
-                "Remarks": "Account withdraw",
+                "Remarks": "     withdraw",
                 "QueueTimeOutURL": b2c_timeout_url,
                 "ResultURL": b2c_result_url,
                 "Occasion": "Payment"

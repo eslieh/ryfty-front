@@ -17,7 +17,7 @@ from models import db
 from flask_restful import Resource
 
 # Import your resources
-from resources.auth import GoogleAuth, Login, Register
+from resources.auth import GoogleAuth, Login, Register, ResetPassword, RequestPasswordReset, Verify
 from resources.user_info import UserInfo
 from resources.experiences import ExperienceList, ExperienceDetail, SlotList, SlotDetail
 from resources.experiences_public import PublicExperienceList, PublicExperienceDetail, TrendingExperiences
@@ -25,6 +25,7 @@ from resources.public_reservation_resource import PublicReservationResource, Ins
 from resources.mpesa_callback import MpesaCallbackResource, MpesaB2bDisbursementCallback, MpesaB2cDisbursementCallback
 from resources.provider_reservations import ProviderReservationsOptimized
 from resources.refund_resource import RefundRequest, RefundRequestLists, RefundInitiate
+from resources.wallet_resource import WalletResource, PaymentMethodResource, DisbursementResource
 
 import sqlalchemy.pool
 from celery_app import celery
@@ -108,9 +109,13 @@ def create_app():
     # Register all API resources (routes)
     api.add_resource(HealthCheck, '/health')
 
+    # authentication resources
     api.add_resource(GoogleAuth, '/auth/google')
     api.add_resource(Login, '/auth/signin')
     api.add_resource(Register, '/auth/signup')
+    api.add_resource(Verify, '/auth/verify')
+    api.add_resource(RequestPasswordReset, '/auth/reset/request')
+    api.add_resource(ResetPassword, '/auth/reset/verify')
     
     api.add_resource(UserInfo, '/user')
     # Experience and Slot management
@@ -141,6 +146,11 @@ def create_app():
     
     # refund processing endpoint
     api.add_resource(RefundInitiate, "/refund/process/<uuid:reservation_id>/<uuid:refund_id>")
+    
+    # wallet processing resources
+    api.add_resource(WalletResource, "/wallet")
+    api.add_resource(PaymentMethodResource, "/wallet/payment-method", "/wallet/payment-method/<uuid:method_id>")
+    api.add_resource(DisbursementResource,  "/api/payment/initiate")
     return app
 
 
