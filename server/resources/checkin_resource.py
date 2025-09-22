@@ -275,7 +275,7 @@ class CheckinResource(Resource):
                 pass
 
     @jwt_required()
-    def get(self, experience_id):
+    def get(self, experience_id, slot_id=None):
         """Get all reservations for an experience with check-in status"""
         try:
             user_id = get_jwt_identity()
@@ -288,20 +288,39 @@ class CheckinResource(Resource):
             if not self._validate_experience_ownership(user_id, experience_id):
                 return {'error': 'Experience not found or access denied.'}, 404
             
-            # Get reservations with optimized query
-            reservations = db.session.query(Reservation).options(
-                joinedload(Reservation.user).load_only(User.id, User.name, User.email, User.phone, User.avatar_url),
-                joinedload(Reservation.slot).load_only(Slot.id, Slot.name, Slot.date, Slot.start_time, Slot.end_time)
-            ).filter(
-                and_(
-                    Reservation.experience_id == experience_id,
-                    Reservation.status.in_(['confirmed', 'pending']),
-                    Reservation.revocked == False
-                )
-            ).order_by(
-                Reservation.slot_id,
-                Reservation.created_at
-            ).all()
+            if slot_id:
+                
+                # Get reservations with optimized query and slot id
+                reservations = db.session.query(Reservation).options(
+                    joinedload(Reservation.user).load_only(User.id, User.name, User.email, User.phone, User.avatar_url),
+                    joinedload(Reservation.slot).load_only(Slot.id, Slot.name, Slot.date, Slot.start_time, Slot.end_time)
+                ).filter(
+                    and_(
+                        Reservation.experience_id == experience_id,
+                        Reservation.status.in_(['confirmed', 'pending']),
+                        Reservation.checked_in == True,
+                        Reservation.slot_id == slot_id,
+                        Reservation.revocked == False
+                    )
+                ).order_by(
+                    Reservation.slot_id,
+                    Reservation.created_at
+                ).all()
+            else:
+                reservations = db.session.query(Reservation).options(
+                    joinedload(Reservation.user).load_only(User.id, User.name, User.email, User.phone, User.avatar_url),
+                    joinedload(Reservation.slot).load_only(Slot.id, Slot.name, Slot.date, Slot.start_time, Slot.end_time)
+                ).filter(
+                    and_(
+                        Reservation.experience_id == experience_id,
+                        Reservation.status.in_(['confirmed', 'pending']),
+                        Reservation.checked_in == True,
+                        Reservation.revocked == False
+                    )
+                ).order_by(
+                    Reservation.slot_id,
+                    Reservation.created_at
+                ).all()
             
             # Format response for fast rendering
             reservation_list = []

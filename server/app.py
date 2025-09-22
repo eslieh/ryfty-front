@@ -155,7 +155,7 @@ def create_app():
     api.add_resource(DisbursementResource,  "/api/payment/initiate")
     
     # checkin resource 
-    api.add_resource(CheckinResource, '/experiences/<uuid:experience_id>/checkin')
+    api.add_resource(CheckinResource, '/experiences/<uuid:experience_id>/checkin', '/experiences/<uuid:experience_id>/checkin/<uuid:slot_id>')
     
     
     # test resource
