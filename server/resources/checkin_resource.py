@@ -136,7 +136,7 @@ class CheckinResource(Resource):
             # Single query with only necessary joins and fields
             reservation = db.session.query(Reservation).options(
                 # Only load what we need - using class-bound attributes
-                joinedload(Reservation.user).load_only(User.name, User.email),
+                joinedload(Reservation.user).load_only(User.name, User.email, User.id, User.avatar_url),
                 joinedload(Reservation.slot).load_only(Slot.name, Slot.date, Slot.start_time)
             ).filter(
                 and_(
@@ -186,6 +186,7 @@ class CheckinResource(Resource):
                     'reservation': {
                         'id': str(reservation.id),
                         'user_name': reservation.user.name,
+                        'avatar_url': reservation.user.avatar_url,
                         'checked_in_at': reservation.update_at.isoformat() if reservation.update_at else None,
                         'status': 'already_checked_in'
                     }
@@ -236,6 +237,7 @@ class CheckinResource(Resource):
                     'reservation': {
                         'id': str(reservation.id),
                         'user_name': reservation.user.name,
+                        'avatar_url': reservation.user.avatar_url,
                         'user_email': reservation.user.email,
                         'slot_name': reservation.slot.name,
                         'slot_date': reservation.slot.date.isoformat(),
@@ -288,7 +290,7 @@ class CheckinResource(Resource):
             
             # Get reservations with optimized query
             reservations = db.session.query(Reservation).options(
-                joinedload(Reservation.user).load_only(User.id, User.name, User.email, User.phone),
+                joinedload(Reservation.user).load_only(User.id, User.name, User.email, User.phone, User.avatar_url),
                 joinedload(Reservation.slot).load_only(Slot.id, Slot.name, Slot.date, Slot.start_time, Slot.end_time)
             ).filter(
                 and_(
@@ -310,7 +312,9 @@ class CheckinResource(Resource):
                         'id': str(res.user.id),
                         'name': res.user.name,
                         'email': res.user.email,
-                        'phone': res.user.phone
+                        'phone': res.user.phone,
+                        'avatar_url': res.user.avatar_url
+                        
                     },
                     'slot': {
                         'id': str(res.slot.id),
