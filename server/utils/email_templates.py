@@ -7,7 +7,7 @@ logo_url = full_logo
 def verification_email_template(name, token):
     name = first_name(name)
     return f"""
-    <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif; color: #1a1a1a; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 20px; margin: 0; min-height: 100vh;">
+    <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif; color: #1a1a1a; padding: 20px; margin: 0; min-height: 100vh;">
         <div style="max-width: 600px; margin: auto; background: #ffffff; border-radius: 16px; box-shadow: 0 10px 40px rgba(0,0,0,0.1); overflow: hidden;">
             
             <!-- Header -->
@@ -608,3 +608,185 @@ Refund ID: {refund_id}<br>
 </div>
 </body>
 </html>"""
+
+def payout_confirmation_template(payment_data):
+    name = first_name(payment_data["user_name"])
+    amount = payment_data["amount"]
+    transaction_id = payment_data["transaction_id"]
+    timestamp = payment_data["timestamp"]
+    transaction_fee = payment_data["transaction_fee"]
+    payment_method = payment_data["payment_method"]
+    
+    # Dynamic content based on payment method
+    payment_details = ""
+    status_icon = "✅"
+    method_name = ""
+    
+    if payment_method == "mpesa":
+        mpesa_number = payment_data["mpesa_number"]
+        method_name = "M-Pesa"
+        payment_details = f"""
+        <div style="display: flex; justify-content: space-between; margin-bottom: 12px;">
+            <span style="color: #6b7280;">M-Pesa Number:</span>
+            <span style="font-weight: 600; color: #1f2937;">{mpesa_number}</span>
+        </div>
+        """
+    elif payment_method == "bank":
+        bank_id = payment_data["bank_id"]
+        account_number = payment_data["account_number"]
+        method_name = "Bank Transfer"
+        payment_details = f"""
+        <div style="display: flex; justify-content: space-between; margin-bottom: 12px;">
+            <span style="color: #6b7280;">Bank:</span>
+            <span style="font-weight: 600; color: #1f2937;">{bank_id}</span>
+        </div>
+        <div style="display: flex; justify-content: space-between; margin-bottom: 12px;">
+            <span style="color: #6b7280;">Account Number:</span>
+            <span style="font-weight: 600; color: #1f2937;">{account_number}</span>
+        </div>
+        """
+    elif payment_method == "paybill":
+        paybill_number = payment_data["paybill_number"]
+        account_number = payment_data["account_number"]
+        method_name = "Paybill Transfer"
+        payment_details = f"""
+        <div style="display: flex; justify-content: space-between; margin-bottom: 12px;">
+            <span style="color: #6b7280;">Paybill Number:</span>
+            <span style="font-weight: 600; color: #1f2937;">{paybill_number}</span>
+        </div>
+        <div style="display: flex; justify-content: space-between; margin-bottom: 12px;">
+            <span style="color: #6b7280;">Account Number:</span>
+            <span style="font-weight: 600; color: #1f2937;">{account_number}</span>
+        </div>
+        """
+    
+    return f"""
+    <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif; color: #1a1a1a; background: linear-gradient(135deg, #00915a 0%, #00915a 100%); padding: 20px; margin: 0; min-height: 100vh;">
+        <div style="max-width: 600px; margin: auto; background: #ffffff; border-radius: 16px; box-shadow: 0 10px 40px rgba(0,0,0,0.1); overflow: hidden;">
+            
+            <!-- Header -->
+            <div style="background: #ffffff; padding: 32px 40px 24px; text-align: center; border-bottom: 1px solid #f0f0f0;">
+                <img src="{full_logo}" alt="Ryfty" style="height: 48px; width: auto; margin-bottom: 8px;">
+            </div>
+            
+            <!-- Main Content -->
+            <div style="padding: 48px 40px;">
+                <!-- Success Section -->
+                <div style="text-align: center; margin-bottom: 40px;">
+                    <h1 style="margin: 0 0 16px; font-size: 28px; font-weight: 600; color: #1a1a1a; line-height: 1.3;">
+                        Payout Successful, {name}!
+                    </h1>
+                    <p style="margin: 0; font-size: 18px; color: #6b7280; line-height: 1.5;">
+                        Your {method_name} payout has been processed successfully
+                    </p>
+                </div>
+                
+                <!-- Amount Section -->
+                <div style="background: #f0fdf4; border: 2px solid #dcfce7; border-radius: 16px; padding: 32px; text-align: center; margin-bottom: 32px;">
+                    <p style="margin: 0 0 16px; font-size: 16px; color: #374151; font-weight: 500;">
+                        Amount Sent
+                    </p>
+                    <div style="margin-bottom: 24px;">
+                        <span style="font-size: 48px; font-weight: 700; color: #00915a; font-family: 'Courier New', monospace;">
+                            KES {amount:,.2f}
+                        </span>
+                    </div>
+                    <div style="background: #ffffff; border-radius: 12px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
+                        <div style="text-align: left;">
+                            <div style="display: flex; justify-content: space-between; margin-bottom: 12px;">
+                                <span style="color: #6b7280;">Transaction ID:</span>
+                                <span style="font-weight: 600; color: #1f2937; font-family: 'Courier New', monospace;">{transaction_id}</span>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; margin-bottom: 12px;">
+                                <span style="color: #6b7280;">Date & Time:</span>
+                                <span style="font-weight: 600; color: #1f2937;">{timestamp}</span>
+                            </div>
+                            {payment_details}
+                            <div style="border-top: 1px solid #f0f0f0; padding-top: 12px; margin-top: 12px;">
+                                <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                                    <span style="color: #6b7280;">Gross Amount:</span>
+                                    <span style="font-weight: 500; color: #1f2937;">KES {transaction_fee:,.2f}</span>
+                                </div>
+                                <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                                    <span style="color: #6b7280;">Transaction Fee:</span>
+                                    <span style="font-weight: 500; color: #ef4444;">-KES {transaction_fee - amount:,.2f}</span>
+                                </div>
+                                <div style="display: flex; justify-content: space-between; font-weight: 600; color: #00915a; font-size: 16px;">
+                                    <span>Net Amount:</span>
+                                    <span>KES {amount:,.2f}</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Important Information -->
+                <div style="background: #fef3c7; border-left: 4px solid #f59e0b; border-radius: 8px; padding: 20px; margin-bottom: 32px;">
+                    <h3 style="margin: 0 0 12px; font-size: 16px; color: #92400e; font-weight: 600;">
+                        Important Information
+                    </h3>
+                    <div style="color: #92400e; line-height: 1.6; font-size: 14px;">
+                        <p style="margin: 0 0 8px;">• Funds should reflect in your account instantly to 5-10 minutes</p>
+                        <p style="margin: 0 0 8px;">• Keep this email as proof of transaction</p>
+                        <p style="margin: 0 0 8px;">• Contact support if funds don't reflect within 1 hour</p>
+                        <p style="margin: 0;">• Transaction fees are deducted as per your payment method</p>
+                    </div>
+                </div>
+                
+                <!-- Next Steps -->
+                <div style="background: #f9fafb; border-radius: 12px; padding: 24px; margin-bottom: 32px;">
+                    <h3 style="margin: 0 0 16px; font-size: 18px; color: #1f2937; font-weight: 600;">
+                        Continue earning with Ryfty:
+                    </h3>
+                    <div style="color: #4b5563; line-height: 1.6;">
+                        <p style="margin: 0 0 8px;">• Connect with millions of customers and make memories</p>
+                        <p style="margin: 0 0 8px;">• Update your availability</p>
+                        <p style="margin: 0 0 8px;">• Build your reputation with customers</p>
+                    </div>
+                    <div style="margin-top: 20px; text-align: center;">
+                        <a href="https://ryfty.net/provider" style="background: #00915a; color: white; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: 600; display: inline-block;">
+                            View Dashboard
+                        </a>
+                    </div>
+                </div>
+                
+                <!-- Support Section -->
+                <div style="text-align: center; margin-bottom: 32px;">
+                    <p style="margin: 0; font-size: 14px; color: #6b7280; line-height: 1.5;">
+                        Questions about this payout? Our support team is here to help.<br>
+                        Contact us at <a href="mailto:support@ryfty.net" style="color: #00915a; text-decoration: none;">support@ryfty.net</a>
+                    </p>
+                </div>
+            </div>
+            
+            <!-- Footer -->
+            <div style="background: #f9fafb; padding: 32px 40px; border-top: 1px solid #f0f0f0;">
+                <div style="text-align: center;">
+                    <img src="{full_logo}" alt="Ryfty" style="height: 50px; width: auto; margin-bottom: 16px; opacity: 0.7;">
+                    <p style="margin: 0 0 8px; font-size: 16px; color: #1f2937; font-weight: 600;">
+                        Ryfty
+                    </p>
+                    <p style="margin: 0 0 16px; font-size: 14px; color: #6b7280;">
+                        In the end, we only keep the experiences. ✨
+                    </p>
+                    <div style="margin-bottom: 16px;">
+                        <a href="https://ryfty.net" style="color: #00915a; text-decoration: none; font-size: 14px; margin: 0 12px;">
+                            Visit Website
+                        </a>
+                        <a href="mailto:support@ryfty.net" style="color: #00915a; text-decoration: none; font-size: 14px; margin: 0 12px;">
+                            Contact Support
+                        </a>
+                        <a href="https://ryfty.net/help" style="color: #00915a; text-decoration: none; font-size: 14px; margin: 0 12px;">
+                            Help Center
+                        </a>
+                    </div>
+                    <div style="border-top: 1px solid #e5e7eb; padding-top: 16px;">
+                        <p style="margin: 0; font-size: 12px; color: #9ca3af;">
+                            © 2025 Ryfty. All rights reserved.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </body>
+    """

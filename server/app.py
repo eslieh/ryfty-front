@@ -27,7 +27,7 @@ from resources.mpesa_callback import MpesaCallbackResource, MpesaB2bDisbursement
 from resources.provider_reservations import ProviderReservationsOptimized
 from resources.refund_resource import RefundRequest, RefundRequestLists, RefundInitiate
 from resources.wallet_resource import WalletResource, PaymentMethodResource, DisbursementResource
-from resources.test import TestSendReservation
+from resources.test import TestSendPayoutConfirmation,TestSendReservation
 from resources.review_resource import ExperienceReviewsResource, PostReviewResource, ExperienceStatsResource
 
 import sqlalchemy.pool
@@ -166,6 +166,7 @@ def create_app():
     
     # test resource
     api.add_resource(TestSendReservation, "/api/test/send_reservation_mail")
+    api.add_resource(TestSendPayoutConfirmation, "/api/test/send_payout")
     return app
 
 

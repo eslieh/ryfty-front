@@ -81,8 +81,7 @@ class User(db.Model):
     payment_methods = db.relationship("PaymentMethod", back_populates="user")
     ledger = db.relationship("UsersLedger", back_populates="user")
     refunds = db.relationship("ReservationRefund", back_populates="user")
-    
-
+    reviews = db.relationship("Review", back_populates="user", cascade="all, delete-orphan")  # Changed from 'review' to 'reviews'
     def __repr__(self):
         return f"<User {self.email} ({self.role})>"
 
@@ -248,6 +247,7 @@ class Reservation(db.Model):
     experience = db.relationship("Experience", back_populates="reservations")
     transactions = db.relationship("ReservationTxn", back_populates="reservation")
     refunds = db.relationship("ReservationRefund", back_populates="reservation")
+    reviews = db.relationship("Review", back_populates="reservation")  # Add this line
 
     def __repr__(self):
         return f"<Reservation {self.id} ({self.status})>"
@@ -451,7 +451,7 @@ class SettlementTxn(db.Model):
     amount = db.Column(db.Numeric(8, 2), nullable=False, index=True)
     checkout_id = db.Column(db.Text, nullable=False, unique=True, index=True)
     txn_id = db.Column(db.Text, nullable=False, unique=True, index=True)
-    status = db.Column(db.Text, nullable=False, unique=True)
+    status = db.Column(db.Text, nullable=False)
     service_fee = db.Column(db.Numeric(8, 2), nullable=False, index=True)
     platform = db.Column(db.Boolean, nullable=True, index=True)
     date_done = db.Column(db.DateTime(timezone=True), default=datetime.utcnow, nullable=False)
@@ -521,9 +521,9 @@ class Review(db.Model):
         Index('idx_reviews_user_experience', 'user_id', 'experience_id'),
     )
 
-    user = db.relationship("User", backref="reviews")
-    experience = db.relationship("Experience", backref="reviews")
-    reservation = db.relationship("Reservation", backref="review", uselist=False)
+    user = db.relationship("User", back_populates="reviews")        # Changed to 'reviews'
+    experience = db.relationship("Experience", back_populates="reviews")  # Changed to 'reviews'
+    reservation = db.relationship("Reservation", back_populates="reviews") # Changed to 'reviews'
 
     def __repr__(self):
         return f"<Review {self.rating}★ by {self.user_id} on {self.experience_id}>"
