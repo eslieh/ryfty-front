@@ -22,12 +22,13 @@ from resources.user_info import UserInfo
 from resources.experiences import ExperienceList, ExperienceDetail, SlotList, SlotDetail
 from resources.checkin_resource import CheckinResource
 from resources.experiences_public import PublicExperienceList, PublicExperienceDetail, TrendingExperiences
-from resources.public_reservation_resource import PublicReservationResource, InstallmentReservationResource
+from resources.public_reservation_resource import PublicReservationResource, GetReservationsPublic, InstallmentReservationResource
 from resources.mpesa_callback import MpesaCallbackResource, MpesaB2bDisbursementCallback, MpesaB2cDisbursementCallback
 from resources.provider_reservations import ProviderReservationsOptimized
 from resources.refund_resource import RefundRequest, RefundRequestLists, RefundInitiate
 from resources.wallet_resource import WalletResource, PaymentMethodResource, DisbursementResource
 from resources.test import TestSendReservation
+from resources.review_resource import ExperienceReviewsResource, PostReviewResource, ExperienceStatsResource
 
 import sqlalchemy.pool
 from celery_app import celery
@@ -132,6 +133,7 @@ def create_app():
     api.add_resource(PublicExperienceList, "/public/experiences")
     api.add_resource(PublicExperienceDetail, "/public/experiences/<uuid:experience_id>")
     api.add_resource(TrendingExperiences, "/public/experiences/trending")
+    api.add_resource(GetReservationsPublic, "/public/experiences/my", "/public/experiences/my/<uuid:reservation_id>")
     
     
     # Public reservation endpoint
@@ -157,6 +159,10 @@ def create_app():
     # checkin resource 
     api.add_resource(CheckinResource, '/experiences/<uuid:experience_id>/checkin', '/experiences/<uuid:experience_id>/checkin/<uuid:slot_id>')
     
+    # reviews endpoints
+    api.add_resource(PostReviewResource, '/experiences/<uuid:experience_id>/reviews/post')
+    api.add_resource(ExperienceReviewsResource, '/experiences/<uuid:experience_id>/reviews')
+    api.add_resource(ExperienceStatsResource, '/experiences/<uuid:experience_id>/stats')
     
     # test resource
     api.add_resource(TestSendReservation, "/api/test/send_reservation_mail")

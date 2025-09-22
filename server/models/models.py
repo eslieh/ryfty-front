@@ -1,7 +1,7 @@
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.dialects.postgresql import UUID, JSON
 from datetime import datetime
-from sqlalchemy import CheckConstraint, Index
+from sqlalchemy import CheckConstraint, Index, func
 from models import db
 import uuid
 
@@ -114,6 +114,10 @@ class Experience(db.Model):
     end_date = db.Column(db.Date, nullable=True, index=True)  # Index for date range queries
     status = db.Column(db.String(255), nullable=False, index=True)  # Index for status filtering
     meeting_point = db.Column(JSON, nullable=False)
+    
+        # Aggregate review fields
+    avg_rating = db.Column(db.Float, nullable=True, default=0.0)
+    reviews_count = db.Column(db.Integer, nullable=True, default=0)
     created_at = db.Column(db.DateTime(timezone=True), default=datetime.utcnow, nullable=False, index=True)
     updated_at = db.Column(db.DateTime(timezone=True), default=datetime.utcnow,
                            onupdate=datetime.utcnow, nullable=False, index=True)
@@ -134,11 +138,25 @@ class Experience(db.Model):
         Index('idx_experiences_published', 'id', 'start_date', postgresql_where=db.text("status = 'published'")),
     )
 
+    reviews = db.relationship("Review", back_populates="experience", lazy="dynamic")
     provider = db.relationship("User", back_populates="experiences")
     slots = db.relationship("Slot", back_populates="experience")
     reservations = db.relationship("Reservation", back_populates="experience")
     transactions = db.relationship("ReservationTxn", back_populates="experience")
 
+    def update_review_stats(self):
+        """Recalculate avg_rating and reviews_count from reviews table."""
+        if self.reviews.count() > 0:
+            self.reviews_count = self.reviews.count()
+            self.avg_rating = round(
+                db.session.query(func.avg(Review.rating))
+                .filter(Review.experience_id == self.id)
+                .scalar(),
+                2
+            )
+        else:
+            self.reviews_count = 0
+            self.avg_rating = 0.0
     def __repr__(self):
         return f"<Experience {self.title} ({self.status})>"
 
@@ -476,9 +494,40 @@ class PaymentMethod(db.Model):
 
     def __repr__(self):
         return f"<PaymentMethod {self.default_method} for {self.user_id}>"
-    
-    
-    
+
+class Review(db.Model):
+    __tablename__ = "reviews"
+
+    id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+
+    # Relationships
+    user_id = db.Column(UUID(as_uuid=True), db.ForeignKey("users.id"), nullable=False, index=True)
+    experience_id = db.Column(UUID(as_uuid=True), db.ForeignKey("experiences.id"), nullable=False, index=True)
+    reservation_id = db.Column(UUID(as_uuid=True), db.ForeignKey("reservations.id"), nullable=True, index=True)
+
+    # Review details
+    rating = db.Column(db.Integer, nullable=False, index=True)  # 1–5 stars
+    comment = db.Column(db.Text, nullable=True)
+    images = db.Column(JSON, nullable=True)  # optional list of review images
+
+    # Metadata
+    created_at = db.Column(db.DateTime(timezone=True), default=datetime.utcnow, nullable=False, index=True)
+    updated_at = db.Column(db.DateTime(timezone=True), default=datetime.utcnow,
+                           onupdate=datetime.utcnow, nullable=False, index=True)
+
+    __table_args__ = (
+        CheckConstraint("rating >= 1 AND rating <= 5", name="check_review_rating"),
+        Index('idx_reviews_experience_rating', 'experience_id', 'rating'),
+        Index('idx_reviews_user_experience', 'user_id', 'experience_id'),
+    )
+
+    user = db.relationship("User", backref="reviews")
+    experience = db.relationship("Experience", backref="reviews")
+    reservation = db.relationship("Reservation", backref="review", uselist=False)
+
+    def __repr__(self):
+        return f"<Review {self.rating}★ by {self.user_id} on {self.experience_id}>"
+
     
 # note
 

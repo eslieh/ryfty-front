@@ -4,11 +4,18 @@ from flask_restful import Resource
 from sqlalchemy import func, desc
 from sqlalchemy.orm import joinedload
 from flask_jwt_extended import jwt_required, get_jwt_identity
-from flask_jwt_extended import jwt_required
+from sqlalchemy import func, desc, and_, update
+from sqlalchemy.orm import joinedload, selectinload, contains_eager
+from sqlalchemy.exc import SQLAlchemyError, IntegrityError
+from sqlalchemy.dialects.postgresql import JSONB
 from workers.initiate_mpesa import initiate_payment
 import json
 from decimal import Decimal 
 from datetime import datetime, timedelta
+import logging
+
+# Configure logging for performance monitoring
+logger = logging.getLogger(__name__)
 
 class PublicReservationResource(Resource):
     @jwt_required()
@@ -118,3 +125,87 @@ class InstallmentReservationResource(Resource):
         # For simplicity, we'll just simulate this action
 
         return {"message": "partial reservation request was successfull, initiating mpesa"}, 201
+    
+    
+class GetReservationsPublic(Resource):
+    @jwt_required()
+    def get(self, reservation_id=None):
+        try:
+            user_id = get_jwt_identity()
+            cache = current_app.cache
+
+            # Build cache key
+            if reservation_id:
+                cache_key = f"reservation:{user_id}:{reservation_id}"
+            else:
+                cache_key = f"reservations:{user_id}"
+
+            # Try to get from cache
+            cached_data = cache.get(cache_key)
+            if cached_data:
+                return cached_data, 200
+
+            # Query DB
+            query = db.session.query(Reservation).options(
+                joinedload(Reservation.experience).load_only(
+                    Experience.id,
+                    Experience.title,
+                    Experience.description,
+                    Experience.meeting_point,
+                    Experience.poster_image_url
+                ),
+                joinedload(Reservation.slot).load_only(
+                    Slot.id,
+                    Slot.name,
+                    Slot.date,
+                    Slot.start_time,
+                    Slot.end_time
+                )
+            )
+
+            if reservation_id:
+                query = query.filter(
+                    and_(
+                        Reservation.id == reservation_id,
+                        Reservation.user_id == user_id,
+                        # Reservation.status.in_(['confirmed', 'pending']),
+                    )
+                )
+            else:
+                query = query.filter(Reservation.user_id == user_id)
+
+            reservations = query.order_by(Reservation.created_at).all()
+
+            # Format response for fast rendering
+            reservation_list = []
+            for res in reservations:
+                reservation_list.append({
+                    'id': str(res.id),
+                    'experience': {
+                        'id': str(res.experience.id),
+                        'title': res.experience.title,
+                        'description': res.experience.description,
+                        'meeting_point': res.experience.meeting_point,  # JSON column works fine
+                        'poster_image_url': res.experience.poster_image_url
+                    },
+                    'quantity': res.quantity,
+                    'status': res.status,
+                    'amount_paid': float(res.amount_paid),
+                    'checked_in': res.checked_in,
+                    'checked_in_at': res.update_at.isoformat() if res.checked_in and res.update_at else None,
+                    'total_price': float(res.total_price)
+                })
+
+            response = {
+                'reservations': reservation_list,
+                'total_count': len(reservation_list)
+            }
+
+            # Save to cache
+            cache.set(cache_key, response, timeout=3600)
+
+            return response, 200
+
+        except Exception as e:
+            logger.error(f"Error fetching reservations: {e}")
+            return {'error': 'Failed to fetch reservations.'}, 500

@@ -13,4 +13,4 @@ metadata = MetaData(naming_convention={
 db = SQLAlchemy(metadata=metadata)
 
 # Import models so they are registered with SQLAlchemy
-from models.models import User, Experience, Slot, Reservation, ReservationTxn, ReservationRefund, UserWallet, VerificationToken, PlatformWallet, UsersLedger, SettlementTxn, PaymentMethod, ApiCollection, ApiDisbursement
+from models.models import User, Experience, Slot, Reservation, ReservationTxn, ReservationRefund, UserWallet, VerificationToken, PlatformWallet, UsersLedger, SettlementTxn, PaymentMethod, ApiCollection, Review, ApiDisbursement
