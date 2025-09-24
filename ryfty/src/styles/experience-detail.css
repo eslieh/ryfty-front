@@ -1,0 +1,534 @@
+/* Experience Detail Page Styles - Airbnb Inspired */
+
+/* Import CSS Variables */
+:root {
+  --primary: #00915a;
+  --primary-hover: #007a4c;
+  --primary-light: #e8f5f0;
+  --primary-dark: #005a38;
+}
+
+.experience-detail-container {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 2rem 1.5rem;
+}
+
+/* Back Button */
+.back-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: none;
+  border: none;
+  color: #222222;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  padding: 0.5rem 0;
+  margin-bottom: 1.5rem;
+  transition: color 0.2s ease;
+}
+
+.back-button:hover {
+  color: #717171;
+}
+
+/* Experience Header */
+.experience-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 1.5rem;
+  gap: 1rem;
+}
+
+.experience-title-section {
+  flex: 1;
+}
+
+.experience-detail-title {
+  font-size: 2rem;
+  font-weight: 600;
+  color: #222222;
+  margin: 0 0 0.5rem 0;
+  line-height: 1.2;
+}
+
+.experience-meta {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.rating-section {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.star-icon {
+  color: var(--primary);
+}
+
+.rating-text {
+  font-size: 0.875rem;
+  color: #222222;
+  font-weight: 500;
+}
+
+.location-text {
+  font-size: 0.875rem;
+  color: #717171;
+  text-decoration: underline;
+}
+
+.experience-detail-heart {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0.5rem;
+  border-radius: 50%;
+  transition: background-color 0.2s ease;
+  color: #717171;
+}
+
+.experience-detail-heart:hover {
+  background-color: #f7f7f7;
+}
+
+.experience-detail-heart.favorited {
+  color: var(--primary);
+}
+
+/* Image Gallery */
+.image-gallery {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem;
+  height: 400px;
+  border-radius: 12px;
+  overflow: hidden;
+  margin-bottom: 3rem;
+}
+
+.main-image {
+  position: relative;
+  grid-row: span 2;
+}
+
+.gallery-grid {
+  display: grid;
+  grid-template-rows: 1fr 1fr;
+  gap: 0.5rem;
+}
+
+.gallery-item {
+  position: relative;
+}
+
+.gallery-image {
+  border-radius: 0;
+  transition: transform 0.3s ease;
+}
+
+.gallery-image:hover {
+  transform: scale(1.02);
+}
+
+/* Content Section */
+.experience-content-section {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 4rem;
+  align-items: start;
+}
+
+.main-content {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+/* Host Section */
+.host-section {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding-bottom: 2rem;
+  border-bottom: 1px solid #DDDDDD;
+}
+
+.host-avatar {
+  position: relative;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  overflow: hidden;
+}
+
+.host-image {
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.host-info {
+  flex: 1;
+}
+
+.host-name {
+  font-size: 1.375rem;
+  font-weight: 600;
+  color: #222222;
+  margin: 0 0 0.25rem 0;
+}
+
+.host-experience {
+  font-size: 0.875rem;
+  color: #717171;
+  margin: 0;
+}
+
+/* Description Section */
+.description-section {
+  padding-bottom: 2rem;
+  border-bottom: 1px solid #DDDDDD;
+}
+
+.section-title {
+  font-size: 1.375rem;
+  font-weight: 600;
+  color: #222222;
+  margin: 0 0 1rem 0;
+}
+
+.description-text {
+  font-size: 1rem;
+  line-height: 1.6;
+  color: #222222;
+  margin: 0;
+}
+
+/* Highlights Section */
+.highlights-section {
+  padding-bottom: 2rem;
+  border-bottom: 1px solid #DDDDDD;
+}
+
+.highlights-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.highlight-item {
+  font-size: 1rem;
+  color: #222222;
+  position: relative;
+  padding-left: 1.5rem;
+}
+
+.highlight-item::before {
+  content: "•";
+  color: #222222;
+  font-weight: bold;
+  position: absolute;
+  left: 0;
+  top: 0;
+}
+
+/* Booking Card */
+.booking-card {
+  background: #FFFFFF;
+  border: 1px solid #DDDDDD;
+  border-radius: 12px;
+  padding: 1.5rem;
+  position: sticky;
+  top: 2rem;
+  height: fit-content;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12);
+}
+
+.price-section {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.price-amount {
+  font-size: 1.375rem;
+  font-weight: 600;
+  color: #222222;
+}
+
+.price-per {
+  font-size: 1rem;
+  color: #717171;
+}
+
+.booking-details {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-bottom: 1.5rem;
+  padding-bottom: 1.5rem;
+  border-bottom: 1px solid #DDDDDD;
+}
+
+.detail-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.detail-label {
+  font-size: 0.875rem;
+  color: #717171;
+}
+
+.detail-value {
+  font-size: 0.875rem;
+  color: #222222;
+  font-weight: 500;
+}
+
+.cancellation-policy {
+  margin-bottom: 1rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid #DDDDDD;
+}
+
+.cancellation-policy span {
+  font-size: 0.875rem;
+  color: #222222;
+  font-weight: 500;
+}
+
+.book-button {
+  width: 100%;
+  background: var(--primary);
+  color: white;
+  border: none;
+  border-radius: 40px;
+  padding: 0.875rem 1.5rem;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.book-button:hover {
+  background: var(--primary-hover);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 145, 90, 0.2);
+}
+
+.book-button:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 4px rgba(0, 145, 90, 0.2);
+}
+
+/* Error State */
+.min-h-screen {
+  min-height: 100vh;
+}
+
+.btn {
+  padding: 0.75rem 1.5rem;
+  border-radius: 40px;
+  font-weight: 500;
+  text-decoration: none;
+  display: inline-block;
+  transition: all 0.2s ease;
+  cursor: pointer;
+  border: none;
+}
+
+.btn-primary {
+  background: var(--primary);
+  color: white;
+}
+
+.btn-primary:hover {
+  background: var(--primary-hover);
+}
+
+/* Responsive Design */
+@media (max-width: 1024px) {
+  .experience-content-section {
+    grid-template-columns: 1fr;
+    gap: 2rem;
+  }
+  
+  .booking-card {
+    position: relative;
+    top: 0;
+  }
+}
+
+@media (max-width: 768px) {
+  .experience-detail-container {
+    padding: 1rem;
+  }
+  
+  .experience-detail-title {
+    font-size: 1.5rem;
+  }
+  
+  .experience-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1rem;
+  }
+  
+  .image-gallery {
+    grid-template-columns: 1fr;
+    height: 300px;
+  }
+  
+  .gallery-grid {
+    display: none;
+  }
+  
+  .main-image {
+    grid-row: span 1;
+  }
+  
+  .experience-meta {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .experience-detail-container {
+    padding: 0.75rem;
+  }
+  
+  .booking-card {
+    padding: 1rem;
+  }
+  
+  .host-section {
+    flex-direction: column;
+    align-items: flex-start;
+    text-align: center;
+  }
+}
+
+/* Meeting Section */
+.meeting-section {
+  padding-bottom: 2rem;
+  border-bottom: 1px solid #DDDDDD;
+}
+
+.meeting-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.meeting-point {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #222222;
+  margin: 0;
+}
+
+.meeting-details {
+  font-size: 1rem;
+  color: #717171;
+  margin: 0;
+}
+
+/* Host Description Section */
+.host-description-section {
+  padding-bottom: 2rem;
+  border-bottom: 1px solid #DDDDDD;
+}
+
+.host-description {
+  font-size: 1rem;
+  line-height: 1.6;
+  color: #222222;
+  margin: 0;
+}
+
+/* Reviews Section */
+.reviews-section {
+  padding-bottom: 2rem;
+}
+
+.reviews-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 2rem;
+  margin-top: 1.5rem;
+}
+
+.review-item {
+  padding: 1.5rem;
+  background: #f9f9f9;
+  border-radius: 12px;
+  border: 1px solid #EEEEEE;
+}
+
+.review-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+  flex-wrap: wrap;
+}
+
+.reviewer-name {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #222222;
+}
+
+.reviewer-location {
+  font-size: 0.875rem;
+  color: #717171;
+}
+
+.review-time {
+  font-size: 0.875rem;
+  color: #717171;
+  margin-left: auto;
+}
+
+.review-text {
+  font-size: 0.875rem;
+  line-height: 1.5;
+  color: #222222;
+  margin: 0;
+}
+
+/* Responsive Reviews */
+@media (max-width: 768px) {
+  .reviews-grid {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+  
+  .review-item {
+    padding: 1rem;
+  }
+  
+  .review-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.25rem;
+  }
+  
+  .review-time {
+    margin-left: 0;
+  }
+}

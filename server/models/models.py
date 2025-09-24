@@ -101,20 +101,25 @@ class Experience(db.Model):
     __tablename__ = "experiences"
 
     id = db.Column(UUID(as_uuid=True), primary_key=True)
-    provider_id = db.Column(UUID(as_uuid=True), db.ForeignKey("users.id"), nullable=False, index=True)  # Index for provider queries
-    title = db.Column(db.Text, nullable=False, index=True)  # Index for title searches
+    provider_id = db.Column(UUID(as_uuid=True), db.ForeignKey("users.id"), nullable=False, index=True)
+    title = db.Column(db.Text, nullable=False, index=True)
     description = db.Column(db.Text, nullable=False)
     destinations = db.Column(JSON, nullable=False)
     activities = db.Column(JSON, nullable=False)
     inclusions = db.Column(JSON, nullable=False)
     exclusions = db.Column(JSON, nullable=False)
-    poster_image_url = db.Column(db.Text, nullable=False)
-    start_date = db.Column(db.Date, nullable=False, index=True)  # Index for date range queries
-    end_date = db.Column(db.Date, nullable=True, index=True)  # Index for date range queries
-    status = db.Column(db.String(255), nullable=False, index=True)  # Index for status filtering
-    meeting_point = db.Column(JSON, nullable=False)
     
-        # Aggregate review fields
+    # New: multiple images stored in JSON (array of URLs or objects)
+    images = db.Column(JSON, nullable=True, default=list)  
+
+    # Keep poster_image_url for cover/thumbnail
+    poster_image_url = db.Column(db.Text, nullable=False)
+
+    start_date = db.Column(db.Date, nullable=False, index=True)
+    end_date = db.Column(db.Date, nullable=True, index=True)
+    status = db.Column(db.String(255), nullable=False, index=True)
+    meeting_point = db.Column(JSON, nullable=False)
+
     avg_rating = db.Column(db.Float, nullable=True, default=0.0)
     reviews_count = db.Column(db.Integer, nullable=True, default=0)
     created_at = db.Column(db.DateTime(timezone=True), default=datetime.utcnow, nullable=False, index=True)
@@ -126,14 +131,11 @@ class Experience(db.Model):
             f"status IN ('{ExperienceStatus.DRAFT}', '{ExperienceStatus.PUBLISHED}', '{ExperienceStatus.CLOSED}')",
             name='check_experience_status'
         ),
-        # Composite indexes for common query patterns
         Index('idx_experiences_provider_status', 'provider_id', 'status'),
         Index('idx_experiences_status_dates', 'status', 'start_date', 'end_date'),
         Index('idx_experiences_date_range', 'start_date', 'end_date'),
-        # Full-text search index on title and description (PostgreSQL specific)
         Index('idx_experiences_search', db.text("to_tsvector('english', title || ' ' || description)"), 
               postgresql_using='gin'),
-        # Partial index for published experiences
         Index('idx_experiences_published', 'id', 'start_date', postgresql_where=db.text("status = 'published'")),
     )
 
@@ -156,6 +158,7 @@ class Experience(db.Model):
         else:
             self.reviews_count = 0
             self.avg_rating = 0.0
+
     def __repr__(self):
         return f"<Experience {self.title} ({self.status})>"
 

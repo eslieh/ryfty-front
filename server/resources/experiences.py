@@ -53,6 +53,18 @@ class CachedUser:
         )
 
 # --- Serialization Schemas ---
+class CoordinatesSchema(Schema):
+    latitude = fields.Float(required=True)
+    longitude = fields.Float(required=True)
+
+
+class MeetingPointSchema(Schema):
+    name = fields.Str(required=True, validate=validate.Length(min=2, max=200))
+    address = fields.Str(required=True, validate=validate.Length(min=2, max=500))
+    coordinates = fields.Nested(CoordinatesSchema, required=True)
+    instructions = fields.Str(required=False, allow_none=True, validate=validate.Length(max=1000))
+
+
 class ExperienceSchema(Schema):
     id = fields.Str(dump_only=True)
     title = fields.Str(required=True, validate=validate.Length(min=3, max=200))
@@ -61,20 +73,24 @@ class ExperienceSchema(Schema):
     activities = fields.List(fields.Str(), missing=list)
     inclusions = fields.List(fields.Str(), missing=list)
     exclusions = fields.List(fields.Str(), missing=list)
+
+    images = fields.List(fields.Dict(), missing=list)
     poster_image_url = fields.Url(required=True)
+
     start_date = fields.Date(required=True)
     end_date = fields.Date(allow_none=True)
     status = fields.Str(missing="draft", validate=validate.OneOf(["draft", "published", "archived"]))
-    meeting_point = fields.Dict(missing=dict)
+
+    meeting_point = fields.Nested(MeetingPointSchema, required=True)  # ✅ Explicit nested schema
+
     provider_id = fields.Str(dump_only=True)
     created_at = fields.DateTime(dump_only=True)
     updated_at = fields.DateTime(dump_only=True)
+
     def validate_dates(self, data, **kwargs):
-        """Validate that end_date is after start_date"""
         if data.get("end_date") and data.get("start_date"):
             if data["end_date"] < data["start_date"]:
                 raise ValidationError("End date must be after start date")
-
 
 
 class ExperienceListSchema(Schema):
@@ -84,6 +100,7 @@ class ExperienceListSchema(Schema):
     start_date = fields.Date()
     end_date = fields.Date()
     poster_image_url = fields.Url()
+    images = fields.List(fields.Dict())
     created_at = fields.DateTime()
 
 class SlotSchema(Schema):

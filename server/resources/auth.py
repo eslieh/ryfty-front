@@ -8,8 +8,12 @@ import phonenumbers
 from datetime import datetime, timedelta
 from workers.email_worker import send_verification_email, send_reset_email
 import secrets
+import os
 from urllib.parse import urlencode
+import dotenv
 
+dotenv.load_dotenv()
+FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:3000")
 bcrypt = Bcrypt()
 class GoogleAuth(Resource):
     def get(self):
@@ -34,9 +38,9 @@ class GoogleAuth(Resource):
 
         # Create JWT token
         access_token = create_access_token(identity=str(user.id))
-        # redirect_url = f"https://blubbb.vercel.app/auth?{urlencode({'token': access_token, 'email': user.email, 'id': user.id, 'name': user.name, 'avatar_url': user.avatar_url})}"
-        # return redirect(redirect_url)
-        return {"access_token": access_token, "user": {"id": str(user.id), "email": user.email, "avatar_url":user.avatar_url, "name": user.name}}, 200
+        redirect_url = f"{FRONTEND_URL}/auth/callback?{urlencode({'token': access_token, 'email': user.email, 'id': user.id, 'name': user.name, 'avatar_url': user.avatar_url, 'role': user.role})}"
+        return redirect(redirect_url)
+        # return {"access_token": access_token, "user": {"id": str(user.id), "email": user.email, "avatar_url":user.avatar_url, "name": user.name}}, 200
 
 
 class Login(Resource):
@@ -150,8 +154,12 @@ class Register(Resource):
 class Verify(Resource):
     def post(self):
         args = request.get_json()
-        token = args.get("token")
+        token = args.get("token")        
+        email = args.get("email")
         
+        user = User.query.filter_by(email=email).first()
+        if not user:
+            return {"error": "Invalid email"}, 404
         verification = VerificationToken.query.filter_by(token=token, used=False).first()
         if not verification:
             return {"error": "Invalid or expired token"}, 400
@@ -168,7 +176,18 @@ class Verify(Resource):
         verification.used = True
         db.session.commit()
 
-        return {"message": f"{verification.type.capitalize()} verified successfully"}, 200
+        access_token = create_access_token(identity=str(user.id))
+        return {
+            "access_token": access_token,
+            "user": {
+                "id": str(user.id),
+                "email": user.email,
+                "phone": user.phone,
+                "name": user.name,
+                "avatar_url": user.avatar_url
+            },
+            "message": f"{verification.type.capitalize()} verified successfully"
+        }, 200
 
 
 class RequestPasswordReset(Resource):
@@ -205,13 +224,19 @@ class RequestPasswordReset(Resource):
 class ResetPassword(Resource):
     def post(self):
         args = request.get_json()
+        email = args.get("email")
         token = args.get("token")
         new_password = args.get("password")
 
-        if not token or not new_password:
-            return {"error": "Token and new password required"}, 400
+        if not email or not token or not new_password:
+            return {"error": "Email, token and new password required"}, 400
+
+        user = User.query.filter_by(email=email).first()
+        if not user:
+            return {"error": "Invalid email"}, 404
 
         verification = VerificationToken.query.filter_by(
+            user_id=user.id,
             token=token,
             used=False,
             type="reset"
@@ -225,8 +250,8 @@ class ResetPassword(Resource):
 
         # Update password
         hashed_password = bcrypt.generate_password_hash(new_password).decode("utf-8")
-        verification.user.password = hashed_password
-        verification.user.is_email_verified = True  # optionally mark verified on reset
+        user.password = hashed_password
+        user.is_email_verified = True  # optionally mark verified
 
         verification.used = True
         db.session.commit()

@@ -6,6 +6,7 @@ from decimal import Decimal
 import logging
 from workers.wallet_logger import logg_wallet, wallet_settlement, refund_settlement  # Celery task
 from workers.email_worker import send_payout_confirmation
+import pytz
 # from workers.send_webhook import send_webhook
 logger = logging.getLogger(__name__)
 from utils.subscribe_manager import push_to_queue
@@ -113,12 +114,18 @@ class MpesaB2cDisbursementCallback(Resource):
                 service_fee = get_b2c_business_charge(float(api_disbursement.amount))
                 db.session.commit()
                 if api_disbursement.disbursement_type == "settlement":
+                    nairobi_tz = pytz.timezone("Africa/Nairobi")
+
+                    # Current time in Nairobi
+                    timestamp = datetime.now(nairobi_tz).isoformat()
+
                     send_payout_confirmation.delay(
                         user_id=user_id,
                         amount=api_disbursement.amount,
                         transaction_id=transaction_id,
-                        timestamp=datetime.utcnow().isoformat()  # current UTC timestamp
+                        timestamp=timestamp
                     )
+                    
                     wallet_settlement.delay(
                         user_id=user_id,
                         amount=float(api_disbursement.amount),
@@ -182,6 +189,7 @@ class MpesaB2bDisbursementCallback(Resource):
                 api_disbursement.transaction_reference = transaction_id
                 service_fee = get_b2c_business_charge(float(api_disbursement.amount))
                 db.session.commit()
+                
                 send_payout_confirmation.delay(
                     user_id=user_id,
                     amount=api_disbursement.amount,
