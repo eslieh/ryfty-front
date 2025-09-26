@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useReducer, useEffect } from 'react';
+import { createContext, useContext, useReducer, useEffect, useCallback } from 'react';
 import config from '@/config';
 import { 
   setAuthToken, 
@@ -10,7 +10,8 @@ import {
   getUserData, 
   removeUserData,
   clearAuthData,
-  initializeAuthFromStorage
+  initializeAuthFromStorage,
+  debugStorageStatus
 } from '@/utils/authStorage';
 
 // Auth states
@@ -73,33 +74,22 @@ export const useAuth = () => {
 export const AuthProvider = ({ children }) => {
   const [state, dispatch] = useReducer(authReducer, initialState);
 
-  // Initialize auth state
-  useEffect(() => {
-    initializeAuth();
-  }, []);
-
-  const initializeAuth = async () => {
+  const initializeAuth = useCallback(async () => {
     try {
       console.log('Initializing auth...');
+      
+      // Debug storage status
+      debugStorageStatus();
+      
       // Initialize from storage (localStorage, sessionStorage, cookies)
       const { token, user: storedUser, isAuthenticated: hasStoredAuth } = initializeAuthFromStorage();
       console.log('Stored auth data:', { token: !!token, user: storedUser, hasStoredAuth });
       
       if (hasStoredAuth && token && storedUser) {
-        console.log('Found stored auth data, validating token...');
-        // Validate token with backend
-        const validatedUser = await validateToken(token);
-        if (validatedUser) {
-          console.log('Token valid, setting user:', validatedUser);
-          // Update stored user data with fresh data from backend
-          setUserData(validatedUser);
-          dispatch({ type: 'SET_USER', payload: validatedUser });
-        } else {
-          console.log('Token invalid, clearing auth data');
-          // Token is invalid, clear all auth data
-          clearAuthData();
-          dispatch({ type: 'LOGOUT' });
-        }
+        setUserData(storedUser);
+        setAuthToken(token);
+        dispatch({ type: 'SET_USER', payload: storedUser });
+        console.log('Found stored auth data, validating token...', token, storedUser);
       } else {
         console.log('No stored auth data found');
         // No stored auth data, clear any partial data
@@ -111,29 +101,12 @@ export const AuthProvider = ({ children }) => {
       clearAuthData();
       dispatch({ type: 'SET_LOADING', payload: false });
     }
-  };
+  }, []);
 
-  const validateToken = async (token) => {
-    try {
-      const response = await fetch(`${config.api.baseUrl}/auth/validate`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
-      
-      if (response.ok) {
-        const userData = await response.json();
-        // Update stored user data with fresh data from backend
-        setUserData(userData);
-        return userData;
-      }
-      return null;
-    } catch (error) {
-      console.error('Token validation failed:', error);
-      return null;
-    }
-  };
+  // Initialize auth state
+  useEffect(() => {
+    initializeAuth();
+  }, [initializeAuth]);
 
   // Login with email and password
   const login = async (email, password) => {
@@ -354,6 +327,9 @@ export const AuthProvider = ({ children }) => {
       dispatch({ type: 'SET_USER', payload: completeUserData });
       
       console.log('Auth data stored, dispatching SET_USER');
+      
+      // Debug storage after setting
+      debugStorageStatus();
       
       return { success: true, user: completeUserData };
     } catch (error) {

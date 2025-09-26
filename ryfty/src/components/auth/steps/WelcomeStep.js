@@ -36,7 +36,7 @@ export default function WelcomeStep({ nextStep, setMode, onGoogleSuccess, formDa
     <div className="welcome-step">
       {/* Header */}
       <div className="step-header">
-        <motion.img 
+        <img 
           src="/main.png" 
           alt="Ryfty" 
           className="auth-logo"

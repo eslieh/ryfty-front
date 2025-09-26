@@ -11,6 +11,8 @@ export default function Header() {
   const menuRef = useRef(null);
   const { isAuthenticated, user, logout, isProvider, isCustomer } = useAuth();
   const router = useRouter();
+  console.log(user);
+  
 
   const toggleMenu = () => {
     setIsMenuOpen(!isMenuOpen);

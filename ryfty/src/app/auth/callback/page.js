@@ -84,7 +84,7 @@ export default function AuthCallback() {
             if (state.redirect) {
               redirectUrl = state.redirect;
             } else if (userRole === 'provider' || state.userType === 'provider') {
-              redirectUrl = '/provider/dashboard';
+              redirectUrl = '/provider';
             }
             // Clean up stored state
             sessionStorage.removeItem('ryfty-auth-state');
@@ -92,7 +92,7 @@ export default function AuthCallback() {
             console.error('Error parsing auth state:', e);
           }
         } else if (userRole === 'provider') {
-          redirectUrl = '/provider/dashboard';
+          redirectUrl = '/provider';
         }
 
         // Redirect after a short delay
