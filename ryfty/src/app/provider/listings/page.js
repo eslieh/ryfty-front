@@ -201,6 +201,7 @@ export default function ListingsPage() {
           </div>
           <motion.button
             className="btn btn-primary create-btn"
+            onClick={() => router.push('/provider/listings/create')}
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
           >

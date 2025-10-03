@@ -1,15 +1,35 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 
-export default function SearchExperience() {
+export default function SearchExperience({ onSearch }) {
   const [searchData, setSearchData] = useState({
     where: "",
     when: "",
   });
   const [activeField, setActiveField] = useState(null);
   const [showSuggestions, setShowSuggestions] = useState(false);
+  const [isScrolled, setIsScrolled] = useState(false);
+
+  // Scroll detection
+  useEffect(() => {
+    const handleScroll = () => {
+      const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+      setIsScrolled(scrollTop > 0);
+    };
+
+    // Add scroll event listener
+    window.addEventListener('scroll', handleScroll);
+    
+    // Check initial scroll position
+    handleScroll();
+
+    // Cleanup event listener on unmount
+    return () => {
+      window.removeEventListener('scroll', handleScroll);
+    };
+  }, []);
 
   // Sample destination suggestions
   const destinationSuggestions = [
@@ -57,10 +77,25 @@ export default function SearchExperience() {
   const handleSearch = () => {
     if (searchData.where || searchData.when) {
       console.log("Searching with:", searchData);
-      // Here you would typically call your search API
-      alert(`Searching for experiences in: ${searchData.where || 'Any location'} ${searchData.when ? `on ${searchData.when}` : ''}`);
+      
+      // Create search query string
+      let searchQuery = "";
+      if (searchData.where) {
+        searchQuery = searchData.where;
+      }
+      if (searchData.when) {
+        searchQuery += (searchQuery ? " " : "") + searchData.when;
+      }
+      
+      // Call the onSearch prop to update the parent component
+      if (onSearch) {
+        onSearch(searchQuery.trim());
+      }
     } else {
-      alert("Please enter a destination or date to search");
+      // If no search criteria, show all experiences
+      if (onSearch) {
+        onSearch("");
+      }
     }
   };
 
@@ -69,7 +104,7 @@ export default function SearchExperience() {
   };
 
   return (
-    <div className="search-experience-container">
+    <div className={`search-experience-container ${isScrolled ? 'scrolled' : ''}`}>
       <motion.div 
         className="search-experience-bar"
         initial={{ opacity: 0, y: 20 }}

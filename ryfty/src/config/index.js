@@ -7,6 +7,7 @@ const config = {
     version: 'v1'
   },
 
+  defaultAvatar: 'https://i.pinimg.com/736x/9d/16/4e/9d164e4e074d11ce4de0a508914537a8.jpg',
   // Authentication Configuration
   auth: {
     // JWT Configuration

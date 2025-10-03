@@ -35,7 +35,7 @@ class PublicReservationResource(Resource):
         if not slot:
             return {"error": "Slot not found"}, 404
 
-        if (slot.capacity - slot.booked) < num_people:
+        if int(slot.capacity - slot.booked) < int(num_people):
             return {"error": "Not enough available spots"}, 400
         
         api_collection = ApiCollection(
@@ -44,7 +44,7 @@ class PublicReservationResource(Resource):
             experience_id=experience_id,
             quantity=num_people,
             mpesa_number=mpesa_number,
-            amount=Decimal(amount) * num_people,
+            amount=Decimal(amount) * Decimal(num_people),
             status="PENDING"
         )
         try:

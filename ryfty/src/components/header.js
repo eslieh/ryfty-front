@@ -5,13 +5,14 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@/contexts/AuthContext";
 import { useRouter } from "next/navigation";
 import "../styles/header.css";
+import config from "@/config";
 
 export default function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const menuRef = useRef(null);
   const { isAuthenticated, user, logout, isProvider, isCustomer } = useAuth();
   const router = useRouter();
-  console.log(user);
+  // console.log(user);
   
 
   const toggleMenu = () => {
@@ -105,8 +106,8 @@ export default function Header() {
                 {isAuthenticated && user?.avatar_url ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img 
-                    src={user.avatar_url} 
-                    alt={user.name || 'User'} 
+                    src={user?.avatar_url || config.defaultAvatar} 
+                    alt={user?.name || 'User'} 
                     className="user-avatar"
                   />
                 ) : (

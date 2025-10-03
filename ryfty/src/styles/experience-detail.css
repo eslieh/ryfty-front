@@ -119,9 +119,10 @@
 }
 
 .gallery-grid {
-  display: grid;
-  grid-template-rows: 1fr 1fr;
-  gap: 0.5rem;
+  gap: .3rem;
+  display: grid
+;
+  grid-row: span 2;
 }
 
 .gallery-item {
@@ -333,6 +334,116 @@
   box-shadow: 0 2px 4px rgba(0, 145, 90, 0.2);
 }
 
+.book-button.disabled {
+  background: #dddddd;
+  color: #717171;
+  cursor: not-allowed;
+}
+
+.book-button.disabled:hover {
+  background: #dddddd;
+  transform: none;
+  box-shadow: none;
+}
+
+/* Slots Section */
+.slots-section {
+  margin: 1.5rem 0;
+}
+
+.slots-title {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: #222222;
+  margin-bottom: 1rem;
+}
+
+.slots-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.slot-item {
+  border: 1px solid #dddddd;
+  border-radius: 8px;
+  padding: 1rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  background: white;
+}
+
+.slot-item:hover:not(.unavailable) {
+  border-color: #222222;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.slot-item.selected {
+  border-color: var(--primary);
+  background: var(--primary-light);
+}
+
+.slot-item.unavailable {
+  opacity: 0.6;
+  cursor: not-allowed;
+  background: #f7f7f7;
+}
+
+.slot-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 0.5rem;
+}
+
+.slot-name {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #222222;
+  flex: 1;
+}
+
+.slot-price {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--primary);
+}
+
+.slot-details {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  margin-bottom: 0.5rem;
+}
+
+.slot-date {
+  font-size: 0.75rem;
+  color: #717171;
+  font-weight: 500;
+}
+
+.slot-time {
+  font-size: 0.75rem;
+  color: #717171;
+}
+
+.slot-availability {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.available-text {
+  font-size: 0.75rem;
+  color: var(--primary);
+  font-weight: 500;
+}
+
+.unavailable-text {
+  font-size: 0.75rem;
+  color: #717171;
+  font-weight: 500;
+}
+
 /* Error State */
 .min-h-screen {
   min-height: 100vh;
@@ -447,6 +558,24 @@
   margin: 0;
 }
 
+.meeting-instructions {
+  font-size: 1rem;
+  color: #717171;
+  margin: 0;
+}
+
+/* Map Container */
+.map-container {
+  margin-top: 1.5rem;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.map-container iframe {
+  border-radius: 12px;
+}
+
 /* Host Description Section */
 .host-description-section {
   padding-bottom: 2rem;
@@ -530,5 +659,14 @@
   
   .review-time {
     margin-left: 0;
+  }
+  
+  /* Map responsive styles */
+  .map-container {
+    margin-top: 1rem;
+  }
+  
+  .map-container iframe {
+    height: 250px;
   }
 }

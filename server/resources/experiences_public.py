@@ -27,6 +27,7 @@ class CachedExperience:
     title: str
     description: str
     destinations: List[str]
+    # images: List[str] = None
     activities: List[str]
     poster_image_url: str
     start_date: str  # ISO format

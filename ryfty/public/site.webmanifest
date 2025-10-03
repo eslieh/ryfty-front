@@ -1,0 +1,36 @@
+{
+  "name": "Ryfty - Endless experiences awaits you",
+  "short_name": "Ryfty",
+  "description": "Endless experiences awaits you ✨",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#000000",
+  "theme_color": "#00915a",
+  "icons": [
+    {
+      "src": "/dot.png",
+      "sizes": "16x16",
+      "type": "image/png"
+    },
+    {
+      "src": "/dot.png",
+      "sizes": "32x32",
+      "type": "image/png"
+    },
+    {
+      "src": "/dot.png",
+      "sizes": "180x180",
+      "type": "image/png"
+    },
+    {
+      "src": "/dot.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/dot.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

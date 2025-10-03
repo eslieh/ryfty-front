@@ -310,13 +310,26 @@ html {
 
 /* ===== SEARCH EXPERIENCE COMPONENT ===== */
 
+.search-experience-container.scrolled {
+  position: fixed;
+  top: 0rem;
+  z-index: 5;
+  background: transparent;
+  width: 100%;
+  backdrop-filter: blur(16px);
+  padding: 1rem 0;
+  transition: all 
+ease 0.6s;
+}
 .search-experience-container {
-  display: flex;
+  background: var(--background);
   justify-content: center;
   padding: 2rem 0;
-  background: var(--background);
+  display: flex
+;
+  transition: all 
+ease 0.6s;
 }
-
 .search-experience-bar {
   display: flex;
   align-items: center;
@@ -628,6 +641,17 @@ html {
   color: #222;
 }
 
+/* ===== LOCATION ===== */
+.experience-location {
+  margin-bottom: 8px;
+}
+
+.location-text {
+  font-family: "Figtree", sans-serif;
+  font-size: 14px;
+  color: #717171;
+}
+
 /* ===== PRICING ===== */
 .experience-price {
   display: flex;
@@ -648,6 +672,193 @@ html {
   color: #717171;
 }
 
+/* ===== LOADING STATES ===== */
+.skeleton {
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 200% 100%;
+  animation: skeleton-loading 1.5s infinite;
+  border-radius: 4px;
+  display: inline-block;
+}
+
+@keyframes skeleton-loading {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+/* Enhanced shimmer effect for experience cards */
+.skeleton-shimmer {
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(90deg, #f6f7f8 25%, #edeef1 50%, #f6f7f8 75%);
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 2s infinite;
+}
+
+@keyframes skeleton-shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+.skeleton-image {
+  background: #f0f0f0;
+  border-radius: 12px;
+}
+
+.skeleton-text {
+  background: #f0f0f0;
+  border-radius: 4px;
+  height: 16px;
+  margin-bottom: 8px;
+}
+
+.skeleton-title {
+  height: 20px;
+  width: 80%;
+}
+
+.skeleton-details {
+  height: 16px;
+  width: 60%;
+}
+
+.skeleton-price {
+  height: 18px;
+  width: 40%;
+}
+
+/* Skeleton group animations */
+.skeleton-group .skeleton:nth-child(1) { animation-delay: 0s; }
+.skeleton-group .skeleton:nth-child(2) { animation-delay: 0.1s; }
+.skeleton-group .skeleton:nth-child(3) { animation-delay: 0.2s; }
+.skeleton-group .skeleton:nth-child(4) { animation-delay: 0.3s; }
+.skeleton-group .skeleton:nth-child(5) { animation-delay: 0.4s; }
+.skeleton-group .skeleton:nth-child(6) { animation-delay: 0.5s; }
+
+/* Skeleton fade in effect */
+.skeleton-fade-in {
+  animation: skeleton-fade-in 0.5s ease-in-out;
+}
+
+@keyframes skeleton-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Dark mode skeleton */
+@media (prefers-color-scheme: dark) {
+  .skeleton {
+    background: linear-gradient(90deg, #2a2a2a 25%, #3a3a3a 50%, #2a2a2a 75%);
+    background-size: 200% 100%;
+  }
+  
+  .skeleton-shimmer {
+    background: linear-gradient(90deg, #2a2a2a 25%, #3a3a3a 50%, #2a2a2a 75%);
+    background-size: 200% 100%;
+  }
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .skeleton, .skeleton-shimmer {
+    animation: none;
+    background: #f0f0f0;
+  }
+  
+  @media (prefers-color-scheme: dark) {
+    .skeleton, .skeleton-shimmer {
+      background: #2a2a2a;
+    }
+  }
+}
+
+/* ===== SEARCH INDICATOR ===== */
+.search-indicator {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(8px);
+  border-radius: 12px;
+  margin-bottom: 1rem;
+  padding: 1rem;
+  border: 1px solid #e5e7eb;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.search-indicator-content {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  font-family: "Figtree", sans-serif;
+  font-size: 14px;
+  color: #6b7280;
+  font-weight: 500;
+}
+
+.search-spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid #e5e7eb;
+  border-top: 2px solid var(--primary);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.experience-grid.searching {
+  transition: opacity 0.3s ease;
+}
+
+/* ===== ERROR AND EMPTY STATES ===== */
+.error-message, .no-experiences {
+  text-align: center;
+  padding: 3rem 2rem;
+  color: #717171;
+}
+
+.error-message p, .no-experiences p {
+  font-family: "Figtree", sans-serif;
+  font-size: 16px;
+  margin-bottom: 1rem;
+}
+
+.error-message button {
+  background: var(--primary);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  padding: 0.75rem 1.5rem;
+  font-family: "Figtree", sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.error-message button:hover {
+  background: var(--primary-hover);
+}
+
 /* ===== RESPONSIVE EXPERIENCE GRID ===== */
 @media (max-width: 1128px) {
   .experience-list-container {
@@ -657,6 +868,15 @@ html {
   .experience-grid {
     grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
     gap: 20px;
+  }
+  
+  .search-indicator {
+    margin: 0 0 1rem 0;
+    padding: 0.75rem;
+  }
+  
+  .search-indicator-content {
+    font-size: 13px;
   }
 }
 

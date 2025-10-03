@@ -12,21 +12,6 @@ export default function ProviderPage() {
   const { isAuthenticated, user, isProvider } = useAuth();
   const router = useRouter();
 
-  // Redirect if not authenticated or not a provider
-  useEffect(() => {
-    if (!isAuthenticated || !isProvider()) {
-      router.push('/auth?mode=login');
-    }
-  }, [isAuthenticated, isProvider, router]);
-
-  if (!isAuthenticated || !isProvider()) {
-    return (
-      <div className="provider-loading">
-        <div className="spinner large"></div>
-        <p>Redirecting to login...</p>
-      </div>
-    );
-  }
 
   return (
     <div className="provider-main-page">
