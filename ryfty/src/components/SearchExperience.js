@@ -11,6 +11,20 @@ export default function SearchExperience({ onSearch }) {
   const [activeField, setActiveField] = useState(null);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+  const [showMobileSearch, setShowMobileSearch] = useState(false);
+
+  // Mobile detection
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth <= 768);
+    };
+    
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   // Scroll detection
   useEffect(() => {
@@ -75,42 +89,93 @@ export default function SearchExperience({ onSearch }) {
   };
 
   const handleSearch = () => {
-    if (searchData.where || searchData.when) {
-      console.log("Searching with:", searchData);
-      
-      // Create search query string
-      let searchQuery = "";
-      if (searchData.where) {
-        searchQuery = searchData.where;
-      }
-      if (searchData.when) {
-        searchQuery += (searchQuery ? " " : "") + searchData.when;
-      }
-      
-      // Call the onSearch prop to update the parent component
-      if (onSearch) {
-        onSearch(searchQuery.trim());
-      }
-    } else {
-      // If no search criteria, show all experiences
-      if (onSearch) {
-        onSearch("");
-      }
+    console.log("Searching with:", searchData);
+    
+    // Create search query string - date is optional
+    let searchQuery = "";
+    if (searchData.where) {
+      searchQuery = searchData.where;
     }
+    if (searchData.when) {
+      const date = new Date(searchData.when).toLocaleDateString('en-US', { 
+        month: 'short', 
+        day: 'numeric' 
+      });
+      searchQuery += (searchQuery ? " " : "") + date;
+    }
+    
+    // Call the onSearch prop to update the parent component
+    if (onSearch) {
+      onSearch(searchQuery.trim());
+    }
+    
+    // Hide mobile search after search
+    if (isMobile) {
+      setShowMobileSearch(false);
+    }
+  };
+
+  const toggleMobileSearch = () => {
+    setShowMobileSearch(!showMobileSearch);
   };
 
   const formatDatePlaceholder = () => {
     return searchData.when ? new Date(searchData.when).toLocaleDateString() : "Add dates";
   };
 
+  const getDynamicSearchText = () => {
+    if (searchData.where && searchData.when) {
+      const date = new Date(searchData.when).toLocaleDateString('en-US', { 
+        month: 'short', 
+        day: 'numeric' 
+      });
+      return `${searchData.where} • ${date}`;
+    } else if (searchData.where) {
+      return searchData.where;
+    } else if (searchData.when) {
+      const date = new Date(searchData.when).toLocaleDateString('en-US', { 
+        month: 'short', 
+        day: 'numeric' 
+      });
+      return date;
+    }
+    return "Start your search";
+  };
+
   return (
     <div className={`search-experience-container ${isScrolled ? 'scrolled' : ''}`}>
-      <motion.div 
-        className="search-experience-bar"
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.6, ease: "easeOut" }}
-      >
+      {/* Mobile Start Search Button */}
+      {isMobile && !showMobileSearch && (
+        <motion.button 
+          className="start-search-button"
+          onClick={toggleMobileSearch}
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, ease: "easeOut" }}
+          whileHover={{ scale: 1.02 }}
+          whileTap={{ scale: 0.98 }}
+        >
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+            <path 
+              d="M21 21L16.514 16.506L21 21ZM19 10.5C19 15.194 15.194 19 10.5 19C5.806 19 2 15.194 2 10.5C2 5.806 5.806 2 10.5 2C15.194 2 19 5.806 19 10.5Z" 
+              stroke="currentColor" 
+              strokeWidth="2" 
+              strokeLinecap="round" 
+              strokeLinejoin="round"
+            />
+          </svg>
+          <span className="search-button-text">{getDynamicSearchText()}</span>
+        </motion.button>
+      )}
+
+      {/* Search Bar - Hidden on mobile unless showMobileSearch is true */}
+      {(!isMobile || showMobileSearch) && (
+        <motion.div 
+          className="search-experience-bar"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, ease: "easeOut" }}
+        >
         {/* Where Section */}
         <motion.div 
           className={`search-experience-item ${activeField === 'where' ? 'active' : ''}`}
@@ -200,7 +265,21 @@ export default function SearchExperience({ onSearch }) {
             />
           </svg>
         </motion.button>
+
+        {/* Mobile Close Button */}
+        {isMobile && (
+          <motion.button 
+            className="mobile-search-close"
+            onClick={() => setShowMobileSearch(false)}
+            whileTap={{ scale: 0.95 }}
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+              <path d="M18 6L6 18M6 6L18 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+          </motion.button>
+        )}
       </motion.div>
+      )}
     </div>
   );
 }

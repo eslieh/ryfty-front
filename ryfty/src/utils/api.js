@@ -163,3 +163,83 @@ export const deleteSlot = async (slotId) => {
     method: 'DELETE'
   });
 };
+
+/**
+ * Fetch wallet data (requires authentication)
+ * @returns {Promise<Object>} - Wallet data including balance, payment methods, settlements, and refunds
+ */
+export const fetchWalletData = async () => {
+  return await apiCall('/wallet');
+};
+
+/**
+ * Create a new payment method (requires authentication)
+ * @param {Object} paymentData - Payment method data
+ * @returns {Promise<Object>} - Created payment method data
+ */
+export const createPaymentMethod = async (paymentData) => {
+  return await apiCall('/wallet/payment-method', {
+    method: 'POST',
+    body: JSON.stringify(paymentData)
+  });
+};
+
+/**
+ * Update an existing payment method (requires authentication)
+ * @param {string} methodId - Payment method ID
+ * @param {Object} paymentData - Updated payment method data
+ * @returns {Promise<Object>} - Updated payment method data
+ */
+export const updatePaymentMethod = async (methodId, paymentData) => {
+  return await apiCall(`/wallet/payment-method/${methodId}`, {
+    method: 'PUT',
+    body: JSON.stringify(paymentData)
+  });
+};
+
+/**
+ * Delete a payment method (requires authentication)
+ * @param {string} methodId - Payment method ID
+ * @returns {Promise<Object>} - Deletion confirmation
+ */
+export const deletePaymentMethod = async (methodId) => {
+  return await apiCall(`/wallet/payment-method/${methodId}`, {
+    method: 'DELETE'
+  });
+};
+
+/**
+ * Fetch user profile data (requires authentication)
+ * @returns {Promise<Object>} - User profile data
+ */
+export const fetchUserProfile = async () => {
+  return await apiCall('/user');
+};
+
+/**
+ * Update user profile data (requires authentication)
+ * @param {Object} profileData - Updated profile data
+ * @returns {Promise<Object>} - Updated user profile data
+ */
+export const updateUserProfile = async (profileData) => {
+  return await apiCall('/user', {
+    method: 'PUT',
+    body: JSON.stringify(profileData)
+  });
+};
+
+// Reservations API functions
+export const fetchUserReservations = async (page = 1, perPage = 10) => {
+  return await apiCall(`/public/experiences/my?page=${page}&per_page=${perPage}`);
+};
+
+export const fetchReservationDetail = async (reservationId) => {
+  return await apiCall(`/public/experiences/my/${reservationId}`);
+};
+
+export const completePayment = async (reservationId, paymentData) => {
+  return await apiCall(`/public/experiences/my/${reservationId}/payment`, {
+    method: 'POST',
+    body: JSON.stringify(paymentData)
+  });
+};

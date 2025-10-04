@@ -17,7 +17,6 @@ export default function ExperienceDetailClient({ id }) {
   const { user, isAuthenticated } = useAuth();
   
   // Experience states
-  const [isFavorited, setIsFavorited] = useState(false);
   const [selectedSlot, setSelectedSlot] = useState(null);
   const [experience, setExperience] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -35,6 +34,17 @@ export default function ExperienceDetailClient({ id }) {
     customerPhone: ''
   });
 
+
+  const [isMobile, setIsMobile] = useState(false);
+
+  // Mobile detection
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth <= 768);
+    };
+    
+    checkMobile();
+  }, []);
   useEffect(() => {
     const fetchExperience = async () => {
       try {
@@ -134,26 +144,28 @@ export default function ExperienceDetailClient({ id }) {
     }
   };
 
-  // useEffect(() => {
-  //   // Check if favorited (in real app, this would come from user preferences)
-  //   const favorites = JSON.parse(localStorage.getItem('favorites') || '[]');
-  //   setIsFavorited(favorites.includes(experience.id));
-  // }, [experience.id]);
+  const handleShare = async () => {
+    const currentUrl = window.location.href;
+    const shareData = {
+      title: experience?.title || 'Experience',
+      text: experience?.description || 'Check out this amazing experience!',
+      url: currentUrl
+    };
 
-  const toggleFavorite = () => {
-    if (!experience?.id) return;
-    
-    const favorites = JSON.parse(localStorage.getItem('favorites') || '[]');
-    let newFavorites;
-    
-    if (isFavorited) {
-      newFavorites = favorites.filter(favId => favId !== experience.id);
-    } else {
-      newFavorites = [...favorites, experience.id];
+    try {
+      if (navigator.share && navigator.canShare && navigator.canShare(shareData)) {
+        // Use native Web Share API if available
+        await navigator.share(shareData);
+      } else {
+        // Fallback: copy to clipboard
+        await navigator.clipboard.writeText(currentUrl);
+        alert('Link copied to clipboard!');
+      }
+    } catch (err) {
+      console.error('Error sharing:', err);
+      // Final fallback: show URL for manual copying
+      alert(`Share this link: ${currentUrl}`);
     }
-    
-    localStorage.setItem('favorites', JSON.stringify(newFavorites));
-    setIsFavorited(!isFavorited);
   };
 
   // Reservation helper functions
@@ -325,8 +337,7 @@ export default function ExperienceDetailClient({ id }) {
 
   return (
     <div className="min-h-screen bg-white">
-      <Header />
-      
+      {!isMobile && <Header />}
       <div className="experience-detail-container">
         {/* Back Button */}
         <motion.button
@@ -353,24 +364,24 @@ export default function ExperienceDetailClient({ id }) {
             <h1 className="experience-detail-title">{experience?.title || 'Experience'}</h1>
             <div className="experience-meta">
               <span className="location-text">{experience?.destinations?.join(', ') || 'Location not specified'}</span>
-              <span className="status-text">{experience?.status || 'Available'}</span>
+              {/* <span className="status-text">{experience?.status || 'Available'}</span> */}
             </div>
           </div>
           
           <motion.button
-            className={`experience-detail-heart ${isFavorited ? 'favorited' : ''}`}
-            onClick={toggleFavorite}
+            className="experience-detail-share"
+            onClick={handleShare}
             whileHover={{ scale: 1.1 }}
             whileTap={{ scale: 0.9 }}
+            title="Share this experience"
           >
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
               <path
-                d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"
+                d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 1 1 0-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 1 1 5.367-2.684 3 3 0 0 1-5.367 2.684zm0 9.316a3 3 0 1 1 5.367-2.684 3 3 0 0 1-5.367 2.684z"
                 stroke="currentColor"
                 strokeWidth="2"
                 strokeLinecap="round"
                 strokeLinejoin="round"
-                fill={isFavorited ? "currentColor" : "none"}
               />
             </svg>
           </motion.button>
@@ -378,7 +389,7 @@ export default function ExperienceDetailClient({ id }) {
 
         {/* Image Gallery */}
         <motion.div 
-          className="image-gallery"
+          className={`image-gallery ${!experience?.images || experience.images.length === 0 ? 'single-image' : ''}`}
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.1 }}
@@ -429,7 +440,7 @@ export default function ExperienceDetailClient({ id }) {
                 />
               </div>
               <div className="host-info">
-                <h3 className="host-name">Hosted by {experience?.provider?.name || 'Unknown Host'}</h3>
+                <h3 className="host-name">Provided by {experience?.provider?.name || 'Unknown Host'}</h3>
                 <p className="host-experience">{experience?.provider?.bio || 'No bio available'}</p>
               </div>
             </motion.div>

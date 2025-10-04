@@ -17,7 +17,7 @@ class UserInfo(Resource):
             # If already dict (e.g., memory cache returned object directly)
             if isinstance(cached_data, dict):
                 return cached_data  
-
+    
         user = User.query.get(user_id)
         if not user:
             return None

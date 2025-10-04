@@ -196,6 +196,27 @@ export default function ManageExperiencePage() {
     }
   };
 
+  const handleDeleteSlot = async (slotId) => {
+    if (!confirm('Are you sure you want to delete this slot? This action cannot be undone.')) {
+      return;
+    }
+    
+    try {
+      await deleteSlot(slotId);
+      
+      // Refresh slots data
+      const response = await fetchExperienceSlots(params.id);
+      if (response && response.slots) {
+        setSlots(response.slots);
+      }
+      
+      alert('Slot deleted successfully');
+    } catch (err) {
+      console.error('Error deleting slot:', err);
+      alert('Failed to delete slot. Please try again.');
+    }
+  };
+
   if (!isAuthenticated || !isProvider()) {
     return (
       <div className="provider-loading">
@@ -698,7 +719,20 @@ export default function ManageExperiencePage() {
     >
       <div className="slots-section">
         <div className="slots-header">
-          <h3 className="section-title">Slot Management</h3>
+          <div className="slots-header-left">
+            <h3 className="section-title">Slot Management</h3>
+            <div className="slots-stats">
+              <span className="stat-item">
+                <strong>{slots.length}</strong> Total Slots
+              </span>
+              <span className="stat-item">
+                <strong>{slots.reduce((sum, slot) => sum + slot.capacity, 0)}</strong> Total Capacity
+              </span>
+              <span className="stat-item">
+                <strong>{slots.reduce((sum, slot) => sum + slot.booked, 0)}</strong> Booked
+              </span>
+            </div>
+          </div>
           <button 
             className="btn btn-primary"
             onClick={() => setShowSlotForm(true)}
@@ -748,6 +782,20 @@ export default function ManageExperiencePage() {
                       <path d="M18.5 2.5C18.8978 2.10218 19.4374 1.87868 20 1.87868C20.5626 1.87868 21.1022 2.10218 21.5 2.5C21.8978 2.89782 22.1213 3.43739 22.1213 4C22.1213 4.56261 21.8978 5.10218 21.5 5.5L12 15L8 16L9 12L18.5 2.5Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
                     </svg>
                     Edit
+                  </button>
+                  <button 
+                    className="btn btn-danger btn-sm"
+                    onClick={() => handleDeleteSlot(slot.id)}
+                    disabled={slot.booked > 0}
+                    title={slot.booked > 0 ? "Cannot delete slot with existing bookings" : "Delete slot"}
+                  >
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                      <path d="M3 6H5H21" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                      <path d="M8 6V4C8 3.46957 8.21071 2.96086 8.58579 2.58579C8.96086 2.21071 9.46957 2 10 2H14C14.5304 2 15.0391 2.21071 15.4142 2.58579C15.7893 2.96086 16 3.46957 16 4V6M19 6V20C19 20.5304 18.7893 21.0391 18.4142 21.4142C18.0391 21.7893 17.5304 22 17 22H7C6.46957 22 5.96086 21.7893 5.58579 21.4142C5.21071 21.0391 5 20.5304 5 20V6H19Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                      <path d="M10 11V17" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                      <path d="M14 11V17" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                    Delete
                   </button>
                 </div>
               </div>

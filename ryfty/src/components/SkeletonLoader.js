@@ -97,12 +97,16 @@ export const ExperienceDetailSkeleton = () => {
             <div className="highlights-section" style={{ marginBottom: '40px' }}>
               <SkeletonLoader width="150px" height="28px" borderRadius="6px" className="skeleton-section-title" />
               <div style={{ marginTop: '16px' }}>
-                {[1, 2, 3, 4].map((item) => (
-                  <div key={item} style={{ display: 'flex', alignItems: 'center', marginBottom: '12px' }}>
-                    <SkeletonLoader width="8px" height="8px" variant="circular" style={{ marginRight: '12px' }} />
-                    <SkeletonLoader width={`${Math.random() * 40 + 40}%`} height="16px" borderRadius="4px" />
-                  </div>
-                ))}
+                {[1, 2, 3, 4].map((item) => {
+                  // Create deterministic widths to avoid hydration issues
+                  const widths = ['75%', '60%', '85%', '70%'];
+                  return (
+                    <div key={item} style={{ display: 'flex', alignItems: 'center', marginBottom: '12px' }}>
+                      <SkeletonLoader width="8px" height="8px" variant="circular" style={{ marginRight: '12px' }} />
+                      <SkeletonLoader width={widths[item - 1]} height="16px" borderRadius="4px" />
+                    </div>
+                  );
+                })}
               </div>
             </div>
 

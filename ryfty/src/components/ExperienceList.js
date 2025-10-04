@@ -6,6 +6,7 @@ import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { fetchExperiences } from "../utils/api";
 import "../styles/skeleton.css";
+import "../styles/experience-list.css";
 
 export default function ExperienceList({ searchQuery = "" }) {
   const router = useRouter();
@@ -89,8 +90,30 @@ export default function ExperienceList({ searchQuery = "" }) {
   };
 
   // Helper function to generate rating (since API doesn't provide it)
-  const generateRating = () => {
-    return (4.8 + Math.random() * 0.2).toFixed(2);
+  const generateRating = (experienceId) => {
+    // Create a deterministic rating based on experience ID to avoid hydration issues
+    const hash = experienceId.split('').reduce((a, b) => {
+      a = ((a << 5) - a) + b.charCodeAt(0);
+      return a & a;
+    }, 0);
+    const normalizedHash = Math.abs(hash) % 100;
+    return (4.5 + (normalizedHash / 100) * 0.5).toFixed(1);
+  };
+
+  // Helper function to convert USD to KES
+  const convertToKES = (usdAmount) => {
+    const exchangeRate = 130; // Approximate USD to KES rate
+    return Math.round(usdAmount * exchangeRate);
+  };
+
+  // Helper function to format KES price
+  const formatKESPrice = (amount) => {
+    return new Intl.NumberFormat('en-KE', {
+      style: 'currency',
+      currency: 'KES',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0
+    }).format(amount);
   };
 
   // Placeholder image for experiences without poster images
@@ -123,42 +146,19 @@ export default function ExperienceList({ searchQuery = "" }) {
               {/* Skeleton Content */}
               <div className="experience-content">
                 {/* Title skeleton */}
-                <div className="skeleton skeleton-shimmer" style={{ 
-                  height: '20px', 
-                  width: '85%', 
-                  marginBottom: '12px',
-                  borderRadius: '4px'
-                }}></div>
+                <div className="skeleton skeleton-shimmer skeleton-title"></div>
                 
                 {/* Details skeleton */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-                  <div className="skeleton skeleton-shimmer" style={{ 
-                    height: '16px', 
-                    width: '60px',
-                    borderRadius: '4px'
-                  }}></div>
-                  <div className="skeleton skeleton-shimmer" style={{ 
-                    height: '16px', 
-                    width: '40px',
-                    marginLeft: 'auto',
-                    borderRadius: '4px'
-                  }}></div>
+                <div className="skeleton-details-container">
+                  <div className="skeleton skeleton-shimmer skeleton-duration"></div>
+                  <div className="skeleton skeleton-shimmer skeleton-rating"></div>
                 </div>
                 
                 {/* Location skeleton */}
-                <div className="skeleton skeleton-shimmer" style={{ 
-                  height: '16px', 
-                  width: '70%', 
-                  marginBottom: '8px',
-                  borderRadius: '4px'
-                }}></div>
+                <div className="skeleton skeleton-shimmer skeleton-location"></div>
                 
                 {/* Price skeleton */}
-                <div className="skeleton skeleton-shimmer" style={{ 
-                  height: '18px', 
-                  width: '50%',
-                  borderRadius: '4px'
-                }}></div>
+                <div className="skeleton skeleton-shimmer skeleton-price"></div>
               </div>
             </motion.div>
           ))}
@@ -234,26 +234,21 @@ export default function ExperienceList({ searchQuery = "" }) {
                 className="experience-image"
                 fill
                 sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-                style={{ objectFit: 'cover' }}
               />
               
-              {/* Heart Icon */}
+              {/* Share Button */}
               <motion.button
-                className={`experience-heart ${favorites.has(experience.id) ? 'favorited' : ''}`}
-                onClick={(e) => toggleFavorite(experience.id, e)}
+                className="experience-share"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  // Handle share functionality
+                }}
                 whileHover={{ scale: 1.1 }}
                 whileTap={{ scale: 0.9 }}
                 transition={{ type: "spring", stiffness: 400, damping: 10 }}
               >
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-                  <path
-                    d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    fill={favorites.has(experience.id) ? "currentColor" : "none"}
-                  />
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                  <path d="M18 8C19.6569 8 21 6.65685 21 5C21 3.34315 19.6569 2 18 2C16.3431 2 15 3.34315 15 5C15 5.12549 15.0077 5.24919 15.0227 5.37063L8.08331 9.17063C7.51839 8.46543 6.66631 8 5.66667 8C3.91005 8 2.5 9.41005 2.5 11.1667C2.5 12.9233 3.91005 14.3333 5.66667 14.3333C6.66631 14.3333 7.51839 13.8679 8.08331 13.1627L15.0227 16.9627C15.0077 17.0841 15 17.2078 15 17.3333C15 19.09 16.4101 20.5 18.1667 20.5C19.9233 20.5 21.3333 19.09 21.3333 17.3333C21.3333 15.5767 19.9233 14.1667 18.1667 14.1667C17.1663 14.1667 16.3142 14.6321 15.7493 15.3373L8.80993 11.5373C8.82493 11.4159 8.83267 11.2922 8.83267 11.1667C8.83267 11.0411 8.82493 10.9174 8.80993 10.796L15.7493 6.996C16.3142 7.7012 17.1663 8.16667 18.1667 8.16667L18 8Z" fill="currentColor"/>
                 </svg>
               </motion.button>
             </div>
@@ -262,31 +257,26 @@ export default function ExperienceList({ searchQuery = "" }) {
             <div className="experience-content">
               <h3 className="experience-title">{experience.title}</h3>
               
-              <div className="experience-details">
-                <span className="experience-duration">
-                  {calculateDuration(experience.start_date, experience.end_date)}
-                </span>
-                <div className="experience-rating">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" className="star-icon">
-                    <path
-                      d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"
-                      fill="currentColor"
-                    />
-                  </svg>
-                  <span className="rating-score">{generateRating()}</span>
-                </div>
-              </div>
-              
               <div className="experience-location">
                 <span className="location-text">{getPrimaryLocation(experience.destinations)}</span>
               </div>
               
               <div className="experience-price">
                 <span className="price-amount">
-                  ${experience.min_price}
-                  {experience.max_price !== experience.min_price && ` - $${experience.max_price}`}
+                  From {formatKESPrice(convertToKES(experience.min_price))}
+                  {experience.max_price !== experience.min_price && ` - ${formatKESPrice(convertToKES(experience.max_price))}`}
                 </span>
-                <span className="price-person">per person</span>
+                <span className="price-person">/ guest</span>
+              </div>
+              
+              <div className="experience-rating">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" className="star-icon">
+                  <path
+                    d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"
+                    fill="currentColor"
+                  />
+                </svg>
+                <span className="rating-score">{generateRating(experience.id)}</span>
               </div>
             </div>
           </motion.div>
