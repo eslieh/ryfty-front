@@ -78,7 +78,8 @@ class Login(Resource):
                     "email": user.email,
                     "phone": user.phone,
                     "name": user.name,
-                    "avatar_url": user.avatar_url
+                    "avatar_url": user.avatar_url,
+                    "role": user.role
                 }
             }, 200
 
@@ -184,7 +185,8 @@ class Verify(Resource):
                 "email": user.email,
                 "phone": user.phone,
                 "name": user.name,
-                "avatar_url": user.avatar_url
+                "avatar_url": user.avatar_url,
+                "role": user.role
             },
             "message": f"{verification.type.capitalize()} verified successfully"
         }, 200

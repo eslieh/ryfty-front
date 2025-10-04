@@ -15,26 +15,8 @@ export default function CreateListingPage() {
   const [showDraftModal, setShowDraftModal] = useState(false);
   const [lastSaved, setLastSaved] = useState(null);
   const autoSaveTimerRef = useRef(null);
-  const debounceTimerRef = useRef(null);
   
-  // Local input states for immediate UI updates
-  const [localInputs, setLocalInputs] = useState({
-    title: '',
-    description: '',
-    status: 'draft',
-    meeting_point: {
-      name: '',
-      address: '',
-      coordinates: {
-        latitude: null,
-        longitude: null
-      },
-      instructions: ''
-    },
-    start_date: '',
-    end_date: ''
-  });
-  
+  // Single form state - optimized to prevent flickering
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -79,7 +61,7 @@ export default function CreateListingPage() {
     }
   }, [isAuthenticated, isProvider]);
 
-  // Auto-save functionality
+  // Optimized auto-save - only saves when user stops typing
   const scheduleAutoSave = useCallback(() => {
     if (autoSaveTimerRef.current) {
       clearTimeout(autoSaveTimerRef.current);
@@ -87,41 +69,21 @@ export default function CreateListingPage() {
     
     autoSaveTimerRef.current = setTimeout(() => {
       if (currentStep === 'experience') {
-        // Clear any pending debounced updates first
-        if (debounceTimerRef.current) {
-          clearTimeout(debounceTimerRef.current);
-        }
-        
-        // Merge local inputs with form data for saving (localInputs has the most recent values)
-        const dataToSave = {
-          ...formData,
-          ...localInputs
-        };
-        saveFormData(dataToSave, formStep);
+        saveFormData(formData, formStep);
         setLastSaved(new Date().toLocaleString());
       }
-    }, 10000); // 10 seconds
-  }, [localInputs, formStep, currentStep, formData]);
+    }, 2000); // Save 2 seconds after user stops typing
+  }, [formData, formStep, currentStep]);
 
   // Manual save function for Next button clicks
   const saveCurrentStep = useCallback(() => {
     if (currentStep === 'experience') {
-      // Clear any pending debounced updates first
-      if (debounceTimerRef.current) {
-        clearTimeout(debounceTimerRef.current);
-      }
-      
-      // Merge local inputs with form data for saving (localInputs has the most recent values)
-      const dataToSave = {
-        ...formData,
-        ...localInputs
-      };
-      saveFormData(dataToSave, formStep);
+      saveFormData(formData, formStep);
       setLastSaved(new Date().toLocaleString());
     }
-  }, [localInputs, formStep, currentStep, formData]);
+  }, [formData, formStep, currentStep]);
 
-  // Schedule auto-save when form data changes
+  // Schedule auto-save when form data changes (but debounced)
   useEffect(() => {
     if (currentStep === 'experience') {
       scheduleAutoSave();
@@ -134,74 +96,31 @@ export default function CreateListingPage() {
     };
   }, [formData, scheduleAutoSave, currentStep]);
 
-  // Debounced form data updates to prevent shuttering
-  const debouncedUpdateFormData = useCallback((field, value) => {
-    if (debounceTimerRef.current) {
-      clearTimeout(debounceTimerRef.current);
-    }
-    
-    debounceTimerRef.current = setTimeout(() => {
-      setFormData(prev => ({
+  // Optimized input handlers - prevent unnecessary re-renders
+  const handleInputChange = useCallback((field, value) => {
+    setFormData(prev => {
+      // Only update if value actually changed to prevent unnecessary re-renders
+      if (prev[field] === value) return prev;
+      return {
         ...prev,
         [field]: value
-      }));
-    }, 300); // 300ms delay to prevent shuttering
+      };
+    });
   }, []);
 
-  const debouncedUpdateNestedFormData = useCallback((parent, field, value) => {
-    if (debounceTimerRef.current) {
-      clearTimeout(debounceTimerRef.current);
-    }
-    
-    debounceTimerRef.current = setTimeout(() => {
-      setFormData(prev => ({
+  const handleNestedInputChange = useCallback((parent, field, value) => {
+    setFormData(prev => {
+      // Only update if value actually changed to prevent unnecessary re-renders
+      if (prev[parent][field] === value) return prev;
+      return {
         ...prev,
         [parent]: {
           ...prev[parent],
           [field]: value
         }
-      }));
-    }, 300); // 300ms delay to prevent shuttering
+      };
+    });
   }, []);
-
-  // Cleanup timers on unmount
-  useEffect(() => {
-    return () => {
-      if (autoSaveTimerRef.current) {
-        clearTimeout(autoSaveTimerRef.current);
-      }
-      if (debounceTimerRef.current) {
-        clearTimeout(debounceTimerRef.current);
-      }
-    };
-  }, []);
-
-
-  // Immediate local input handlers
-  const handleInputChange = useCallback((field, value) => {
-    // Update local state immediately for UI responsiveness
-    setLocalInputs(prev => ({
-      ...prev,
-      [field]: value
-    }));
-    
-    // Debounce the form data update to prevent shuttering
-    debouncedUpdateFormData(field, value);
-  }, [debouncedUpdateFormData]);
-
-  const handleNestedInputChange = useCallback((parent, field, value) => {
-    // Update local state immediately for UI responsiveness
-    setLocalInputs(prev => ({
-      ...prev,
-      [parent]: {
-        ...prev[parent],
-        [field]: value
-      }
-    }));
-    
-    // Debounce the form data update to prevent shuttering
-    debouncedUpdateNestedFormData(parent, field, value);
-  }, [debouncedUpdateNestedFormData]);
 
   const handleArrayInputChange = useCallback((field, value, action = 'add') => {
     setFormData(prev => ({
@@ -217,19 +136,6 @@ export default function CreateListingPage() {
     const draftData = loadFormData();
     if (draftData) {
       setFormData(draftData.formData);
-      setLocalInputs({
-        title: draftData.formData.title || '',
-        description: draftData.formData.description || '',
-        status: draftData.formData.status || 'draft',
-        meeting_point: draftData.formData.meeting_point || {
-          name: '',
-          address: '',
-          coordinates: { latitude: null, longitude: null },
-          instructions: ''
-        },
-        start_date: draftData.formData.start_date || '',
-        end_date: draftData.formData.end_date || ''
-      });
       setFormStep(draftData.currentStep);
       setCurrentStep('experience');
       setShowDraftModal(false);
@@ -466,7 +372,7 @@ export default function CreateListingPage() {
           <input
             type="text"
             id="title"
-            value={localInputs.title}
+            value={formData.title}
             onChange={(e) => handleInputChange('title', e.target.value)}
             placeholder="e.g., Sunset Safari Adventure"
             required
@@ -477,7 +383,7 @@ export default function CreateListingPage() {
           <label htmlFor="description">Description *</label>
           <textarea
             id="description"
-            value={localInputs.description}
+            value={formData.description}
             onChange={(e) => handleInputChange('description', e.target.value)}
             placeholder="Describe your experience in detail..."
             rows={6}
@@ -489,7 +395,7 @@ export default function CreateListingPage() {
           <label htmlFor="status">Status</label>
           <select
             id="status"
-            value={localInputs.status}
+            value={formData.status}
             onChange={(e) => handleInputChange('status', e.target.value)}
           >
             <option value="draft">Draft</option>
@@ -1257,7 +1163,7 @@ export default function CreateListingPage() {
           <input
             type="text"
             id="meeting_point_name"
-            value={localInputs.meeting_point.name}
+            value={formData.meeting_point.name}
             onChange={(e) => handleNestedInputChange('meeting_point', 'name', e.target.value)}
             placeholder="e.g., Nairobi National Park Gate"
             required
@@ -1269,7 +1175,7 @@ export default function CreateListingPage() {
           <input
             type="text"
             id="meeting_point_address"
-            value={localInputs.meeting_point.address}
+            value={formData.meeting_point.address}
             onChange={(e) => handleNestedInputChange('meeting_point', 'address', e.target.value)}
             placeholder="e.g., Langata Rd, Nairobi, Kenya"
             required
@@ -1280,7 +1186,7 @@ export default function CreateListingPage() {
           <label htmlFor="meeting_point_instructions">Meeting Instructions</label>
           <textarea
             id="meeting_point_instructions"
-            value={localInputs.meeting_point.instructions}
+            value={formData.meeting_point.instructions}
             onChange={(e) => handleNestedInputChange('meeting_point', 'instructions', e.target.value)}
             placeholder="e.g., Please arrive 30 minutes early. Look for the jeep with our logo."
             rows={3}
@@ -1293,7 +1199,7 @@ export default function CreateListingPage() {
             <input
               type="date"
               id="start_date"
-              value={localInputs.start_date}
+              value={formData.start_date}
               onChange={(e) => handleInputChange('start_date', e.target.value)}
               required
             />
@@ -1304,7 +1210,7 @@ export default function CreateListingPage() {
             <input
               type="date"
               id="end_date"
-              value={localInputs.end_date}
+              value={formData.end_date}
               onChange={(e) => handleInputChange('end_date', e.target.value)}
               required
             />
@@ -1318,7 +1224,7 @@ export default function CreateListingPage() {
               type="number"
               step="any"
               placeholder="Latitude"
-              value={localInputs.meeting_point.coordinates.latitude || ''}
+              value={formData.meeting_point.coordinates.latitude || ''}
               onChange={(e) => handleNestedInputChange('meeting_point', 'coordinates', {
                 ...formData.meeting_point.coordinates,
                 latitude: parseFloat(e.target.value) || null
@@ -1328,7 +1234,7 @@ export default function CreateListingPage() {
               type="number"
               step="any"
               placeholder="Longitude"
-              value={localInputs.meeting_point.coordinates.longitude || ''}
+              value={formData.meeting_point.coordinates.longitude || ''}
               onChange={(e) => handleNestedInputChange('meeting_point', 'coordinates', {
                 ...formData.meeting_point.coordinates,
                 longitude: parseFloat(e.target.value) || null

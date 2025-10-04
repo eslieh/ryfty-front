@@ -6,12 +6,14 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 import TabNavigation from '@/components/provider/TabNavigation';
 import ProviderHeader from '@/components/provider/ProviderHeader';
-import '../../../styles/provider.css';
+import { fetchProviderExperiences } from '@/utils/api';
+import '@/styles/provider.css';
 
 export default function ListingsPage() {
   const [activeTab, setActiveTab] = useState('experiences');
   const [experiences, setExperiences] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const { isAuthenticated, user, isProvider } = useAuth();
   const router = useRouter();
 
@@ -23,58 +25,32 @@ export default function ListingsPage() {
   }, [isAuthenticated, isProvider, router]);
 
   useEffect(() => {
-    // Simulate API call to fetch experiences
     const fetchExperiences = async () => {
+      if (!isAuthenticated || !isProvider()) return;
+      
       setLoading(true);
+      setError(null);
       
-      // Simulate API delay
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // Mock data - replace with actual API calls
-      setExperiences([
-        {
-          id: 1,
-          title: 'Nairobi National Park Safari',
-          description: 'Experience the wildlife of Nairobi National Park with our expert guides.',
-          price: 15000,
-          duration: '4 hours',
-          maxGuests: 6,
-          status: 'active',
-          bookings: 45,
-          rating: 4.8,
-          image: '/images/safari.jpg'
-        },
-        {
-          id: 2,
-          title: 'Cultural Village Tour',
-          description: 'Immerse yourself in local culture and traditions.',
-          price: 8500,
-          duration: '3 hours',
-          maxGuests: 12,
-          status: 'active',
-          bookings: 23,
-          rating: 4.6,
-          image: '/images/cultural.jpg'
-        },
-        {
-          id: 3,
-          title: 'Mountain Hiking Adventure',
-          description: 'Conquer the peaks with our experienced mountain guides.',
-          price: 12000,
-          duration: '6 hours',
-          maxGuests: 8,
-          status: 'draft',
-          bookings: 0,
-          rating: 0,
-          image: '/images/hiking.jpg'
+      try {
+        const response = await fetchProviderExperiences();
+        
+        // Handle the API response structure
+        if (response && response.experiences) {
+          setExperiences(response.experiences);
+        } else {
+          setExperiences([]);
         }
-      ]);
-
-      setLoading(false);
+      } catch (err) {
+        console.error('Error fetching experiences:', err);
+        setError(err.message || 'Failed to fetch experiences');
+        setExperiences([]);
+      } finally {
+        setLoading(false);
+      }
     };
 
     fetchExperiences();
-  }, []);
+  }, [isAuthenticated, isProvider]);
 
   const ExperienceCard = ({ experience }) => (
     <motion.div
@@ -84,7 +60,11 @@ export default function ListingsPage() {
       transition={{ duration: 0.3 }}
     >
       <div className="experience-poster">
-        <img src={experience.image} alt={experience.title} className="poster-image" />
+        <img 
+          src={experience.poster_image_url || '/images/placeholder.jpg'} 
+          alt={experience.title} 
+          className="poster-image" 
+        />
         <div className={`experience-status experience-status-${experience.status}`}>
           {experience.status}
         </div>
@@ -92,48 +72,50 @@ export default function ListingsPage() {
       
       <div className="experience-content">
         <h3 className="experience-title">{experience.title}</h3>
-        <p className="experience-description">{experience.description}</p>
+        <p className="experience-description">{experience.description || 'No description available'}</p>
         
         <div className="experience-metrics">
           <div className="metric-item">
-            <div className="metric-label">Average Rating</div>
+            <div className="metric-label">Created</div>
             <div className="metric-value">
-              {experience.rating > 0 ? (
-                <div className="rating-display">
-                  <span className="rating-number">{experience.rating}</span>
-                  <span className="rating-max">/5</span>
-                  <div className="rating-stars">
-                    {[...Array(5)].map((_, i) => (
-                      <svg 
-                        key={i} 
-                        width="12" 
-                        height="12" 
-                        viewBox="0 0 24 24" 
-                        fill={i < Math.floor(experience.rating) ? "currentColor" : "none"}
-                        className={i < Math.floor(experience.rating) ? "star-filled" : "star-empty"}
-                      >
-                        <path d="M12 2L15.09 8.26L22 9L17 14L18.18 21L12 17.77L5.82 21L7 14L2 9L8.91 8.26L12 2Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                      </svg>
-                    ))}
-                  </div>
-                </div>
-              ) : (
-                <span className="no-rating">No rating yet</span>
-              )}
+              <span className="created-date">
+                {new Date(experience.created_at).toLocaleDateString()}
+              </span>
             </div>
           </div>
           
           <div className="metric-item">
-            <div className="metric-label">Bookings</div>
+            <div className="metric-label">Duration</div>
             <div className="metric-value">
-              <span className="booking-count">{experience.bookings}</span>
+              <span className="duration">
+                {experience.start_date && experience.end_date 
+                  ? `${new Date(experience.start_date).toLocaleDateString()} - ${new Date(experience.end_date).toLocaleDateString()}`
+                  : 'No dates set'
+                }
+              </span>
             </div>
           </div>
         </div>
         
         <div className="experience-actions">
-          <button className="btn btn-secondary">Edit</button>
-          <button className="btn btn-primary">View Details</button>
+          <button 
+            className="btn btn-secondary"
+            onClick={() => router.push(`/provider/listings/manage/${experience.id}`)}
+          >
+            Manage
+          </button>
+          <button 
+            className="btn btn-primary"
+            onClick={() => router.push(`/provider/bookings`)}
+          >
+            View Bookings
+          </button>
+          <button 
+            className="btn btn-outline"
+            onClick={() => router.push(`/experience/${experience.id}`)}
+          >
+            View Public
+          </button>
         </div>
       </div>
     </motion.div>
@@ -161,6 +143,37 @@ export default function ListingsPage() {
             <div className="experiences-loading">
               <div className="spinner large"></div>
               <p>Loading experiences...</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="provider-main-page">
+        <ProviderHeader variant="main" />
+        <div className="provider-layout-content">
+          <TabNavigation
+            className="provider-left-nav"
+            orientation="vertical"
+          />
+          <div className="provider-main-content">
+            <div className="error-state">
+              <div className="error-icon">
+                <svg width="64" height="64" viewBox="0 0 24 24" fill="none">
+                  <path d="M12 9V13M12 17H12.01M21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              </div>
+              <h3 className="error-title">Failed to Load Experiences</h3>
+              <p className="error-description">{error}</p>
+              <button 
+                className="btn btn-primary"
+                onClick={() => window.location.reload()}
+              >
+                Try Again
+              </button>
             </div>
           </div>
         </div>
@@ -267,7 +280,10 @@ export default function ListingsPage() {
                   <p className="empty-description">
                     Create your first experience to start hosting guests
                   </p>
-                  <button className="btn btn-primary">
+                  <button 
+                    className="btn btn-primary"
+                    onClick={() => router.push('/provider/listings/create')}
+                  >
                     Create Your First Experience
                   </button>
                 </motion.div>

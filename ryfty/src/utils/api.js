@@ -64,3 +64,102 @@ export const fetchExperiences = async (search = '') => {
 export const fetchExperience = async (id) => {
   return await apiCall(`/public/experiences/${id}`);
 };
+
+/**
+ * Fetch provider's experiences (requires authentication)
+ * @returns {Promise<Object>} - Provider's experiences data
+ */
+export const fetchProviderExperiences = async () => {
+  return await apiCall('/experiences');
+};
+
+/**
+ * Fetch a single experience by ID (requires authentication)
+ * @param {string} id - Experience ID
+ * @returns {Promise<Object>} - Experience data
+ */
+export const fetchProviderExperience = async (id) => {
+  return await apiCall(`/experiences/${id}`);
+};
+
+/**
+ * Update an experience (requires authentication)
+ * @param {string} id - Experience ID
+ * @param {Object} data - Experience data to update
+ * @returns {Promise<Object>} - Updated experience data
+ */
+export const updateExperience = async (id, data) => {
+  return await apiCall(`/experiences/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(data)
+  });
+};
+
+/**
+ * Fetch reservations for a specific experience (requires authentication)
+ * @param {string} experienceId - Experience ID
+ * @param {number} page - Page number (default: 1)
+ * @param {number} perPage - Items per page (default: 10)
+ * @returns {Promise<Object>} - Reservations data with pagination
+ */
+export const fetchExperienceReservations = async (experienceId, page = 1, perPage = 10) => {
+  return await apiCall(`/provider/reservations/${experienceId}?page=${page}&per_page=${perPage}`);
+};
+
+/**
+ * Fetch reservations for a specific slot (requires authentication)
+ * @param {string} experienceId - Experience ID
+ * @param {string} slotId - Slot ID
+ * @param {number} page - Page number (default: 1)
+ * @param {number} perPage - Items per page (default: 10)
+ * @returns {Promise<Object>} - Reservations data with pagination
+ */
+export const fetchSlotReservations = async (experienceId, slotId, page = 1, perPage = 10) => {
+  return await apiCall(`/provider/reservations/${experienceId}/${slotId}?page=${page}&per_page=${perPage}`);
+};
+
+/**
+ * Fetch slots for a specific experience (requires authentication)
+ * @param {string} experienceId - Experience ID
+ * @returns {Promise<Object>} - Slots data
+ */
+export const fetchExperienceSlots = async (experienceId) => {
+  return await apiCall(`/experiences/${experienceId}/slots`);
+};
+
+/**
+ * Create a new slot for an experience (requires authentication)
+ * @param {string} experienceId - Experience ID
+ * @param {Object} slotData - Slot data
+ * @returns {Promise<Object>} - Created slot data
+ */
+export const createSlot = async (experienceId, slotData) => {
+  return await apiCall(`/experiences/${experienceId}/slots`, {
+    method: 'POST',
+    body: JSON.stringify(slotData)
+  });
+};
+
+/**
+ * Update a slot (requires authentication)
+ * @param {string} slotId - Slot ID
+ * @param {Object} slotData - Updated slot data
+ * @returns {Promise<Object>} - Updated slot data
+ */
+export const updateSlot = async (slotId, slotData) => {
+  return await apiCall(`/slots/${slotId}`, {
+    method: 'PATCH',
+    body: JSON.stringify(slotData)
+  });
+};
+
+/**
+ * Delete a slot (requires authentication)
+ * @param {string} slotId - Slot ID
+ * @returns {Promise<Object>} - Deletion confirmation
+ */
+export const deleteSlot = async (slotId) => {
+  return await apiCall(`/slots/${slotId}`, {
+    method: 'DELETE'
+  });
+};

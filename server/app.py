@@ -127,7 +127,7 @@ def create_app():
     api.add_resource(SlotList, "/experiences/<uuid:experience_id>/slots")
     api.add_resource(SlotDetail, "/slots/<uuid:slot_id>")
     # experience reservations for providers
-    api.add_resource(ProviderReservationsOptimized, "/provider/reservations/<uuid:experience_id>")
+    api.add_resource(ProviderReservationsOptimized, "/provider/reservations/<uuid:experience_id>/<uuid:slot_id>")
 
     # Public experience endpoints
     api.add_resource(PublicExperienceList, "/public/experiences")

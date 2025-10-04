@@ -43,7 +43,7 @@ def initiate_payment(self, api_collection_id):
         phone_number = api_collection.mpesa_number
         amount = api_collection.amount
         experience_id = api_collection.experience_id
-        call_back_url = f"https://bgrtfdl5-5000.uks1.devtunnels.ms/payment/mpesa/call_back/{experience_id}/{api_collection.slot_id}/{api_collection_id}"
+        call_back_url = f"https://rhtr3fc9-5000.uks1.devtunnels.ms/payment/mpesa/call_back/{experience_id}/{api_collection.slot_id}/{api_collection_id}"
 
         if not phone_number or not amount:
             logger.error(f"Missing phone number or amount for ApiCollection {api_collection_id}.")
@@ -156,10 +156,10 @@ def initiate_disbursement(self, api_disbursement_id):
         
         amount = api_disbursement.amount
         user_id = api_disbursement.user_id
-        b2c_result_url = f"https://bgrtfdl5-5000.uks1.devtunnels.ms/payment/mpesa/b2c/disburse_call_back/{user_id}/{api_disbursement_id}/result"
-        b2c_timeout_url = f"https://bgrtfdl5-5000.uks1.devtunnels.ms/payment/mpesa/b2c/disburse_call_back/{user_id}/{api_disbursement_id}/timeout"
-        b2b_result_url = f"https://bgrtfdl5-5000.uks1.devtunnels.ms/payment/mpesa/b2b/disburse_call_back/{user_id}/{api_disbursement_id}/result"
-        b2b_timeout_url = f"https://bgrtfdl5-5000.uks1.devtunnels.ms/payment/mpesa/b2b/disburse_call_back/{user_id}/{api_disbursement_id}/timeout"
+        b2c_result_url = f"https://rhtr3fc9-5000.uks1.devtunnels.ms/payment/mpesa/b2c/disburse_call_back/{user_id}/{api_disbursement_id}/result"
+        b2c_timeout_url = f"https://rhtr3fc9-5000.uks1.devtunnels.ms/payment/mpesa/b2c/disburse_call_back/{user_id}/{api_disbursement_id}/timeout"
+        b2b_result_url = f"https://rhtr3fc9-5000.uks1.devtunnels.ms/payment/mpesa/b2b/disburse_call_back/{user_id}/{api_disbursement_id}/result"
+        b2b_timeout_url = f"https://rhtr3fc9-5000.uks1.devtunnels.ms/payment/mpesa/b2b/disburse_call_back/{user_id}/{api_disbursement_id}/timeout"
 
         # Determine API URL based on command type
         if command_type == "BusinessPayBill":

@@ -231,7 +231,7 @@ class ProviderReservationsOptimized(Resource):
     
     @jwt_required()
     @cache_result(timeout=300, key_prefix="provider_reservations_optimized")
-    def get(self, experience_id):
+    def get(self, experience_id, slot_id):
         user_id = get_jwt_identity()
         
         # Validate access (reuse methods from above class)
@@ -257,7 +257,8 @@ class ProviderReservationsOptimized(Resource):
         ).filter(
             and_(
                 Experience.provider_id == user_id,
-                Reservation.experience_id == experience_id
+                Reservation.experience_id == experience_id,
+                Reservation.slot_id == slot_id
             )
         )
         
