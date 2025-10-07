@@ -48,6 +48,38 @@ export const apiCall = async (endpoint, options = {}) => {
  * @param {string} search - Optional search query
  * @returns {Promise<Object>} - Experiences data
  */
+export const createExperience = async (experienceData) => {
+  try {
+    const token = getAuthToken();
+    
+    const headers = {};
+    
+    // Add auth header if token exists
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+
+    // Don't set Content-Type for FormData - let browser set it with boundary
+    if (!(experienceData instanceof FormData)) {
+      headers['Content-Type'] = 'application/json';
+    }
+    console.log('Experience data:', experienceData);
+    const response = await fetch(`${config.api.baseUrl}/experiences`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(experienceData),
+    });
+    console.log('Response:', response);
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    return await response.json();
+  } catch (error) {
+    console.error('Error creating experience:', error);
+    throw error;
+  }
+};
+
 export const fetchExperiences = async (search = '') => {
   const endpoint = search 
     ? `/public/experiences?search=${encodeURIComponent(search)}`
@@ -63,14 +95,6 @@ export const fetchExperiences = async (search = '') => {
  */
 export const fetchExperience = async (id) => {
   return await apiCall(`/public/experiences/${id}`);
-};
-
-/**
- * Fetch provider's experiences (requires authentication)
- * @returns {Promise<Object>} - Provider's experiences data
- */
-export const fetchProviderExperiences = async () => {
-  return await apiCall('/experiences');
 };
 
 /**
@@ -106,25 +130,36 @@ export const fetchExperienceReservations = async (experienceId, page = 1, perPag
   return await apiCall(`/provider/reservations/${experienceId}?page=${page}&per_page=${perPage}`);
 };
 
-/**
- * Fetch reservations for a specific slot (requires authentication)
- * @param {string} experienceId - Experience ID
- * @param {string} slotId - Slot ID
- * @param {number} page - Page number (default: 1)
- * @param {number} perPage - Items per page (default: 10)
- * @returns {Promise<Object>} - Reservations data with pagination
- */
-export const fetchSlotReservations = async (experienceId, slotId, page = 1, perPage = 10) => {
-  return await apiCall(`/provider/reservations/${experienceId}/${slotId}?page=${page}&per_page=${perPage}`);
-};
 
 /**
  * Fetch slots for a specific experience (requires authentication)
  * @param {string} experienceId - Experience ID
- * @returns {Promise<Object>} - Slots data
+ * @param {number} page - Page number (default: 1)
+ * @param {Object} filters - Filter options (start_date, end_date, sort)
+ * @returns {Promise<Object>} - Slots data with pagination
  */
-export const fetchExperienceSlots = async (experienceId) => {
-  return await apiCall(`/experiences/${experienceId}/slots`);
+export const fetchExperienceSlots = async (experienceId, page = 1, filters = {}, perPage = 20) => {
+  const params = new URLSearchParams();
+  
+  // Add pagination
+  params.append('page', page.toString());
+  params.append('per_page', perPage.toString());
+  
+  // Add filters
+  if (filters.start_date) {
+    params.append('start_date', filters.start_date);
+  }
+  if (filters.end_date) {
+    params.append('end_date', filters.end_date);
+  }
+  if (filters.sort) {
+    params.append('sort', filters.sort);
+  }
+  
+  const queryString = params.toString();
+  const url = `/experiences/${experienceId}/slots${queryString ? `?${queryString}` : ''}`;
+  
+  return await apiCall(url);
 };
 
 /**
@@ -134,6 +169,7 @@ export const fetchExperienceSlots = async (experienceId) => {
  * @returns {Promise<Object>} - Created slot data
  */
 export const createSlot = async (experienceId, slotData) => {
+  console.log('Creating slot:', slotData);
   return await apiCall(`/experiences/${experienceId}/slots`, {
     method: 'POST',
     body: JSON.stringify(slotData)
@@ -242,4 +278,57 @@ export const completePayment = async (reservationId, paymentData) => {
     method: 'POST',
     body: JSON.stringify(paymentData)
   });
+};
+
+// Provider API functions
+export const fetchProviderExperiences = async (page = 1, perPage = 20, filters = {}) => {
+  const params = new URLSearchParams();
+  
+  // Add pagination
+  params.append('page', page.toString());
+  params.append('per_page', perPage.toString());
+  
+  // Add filters
+  if (filters.status) {
+    params.append('status', filters.status);
+  }
+  if (filters.search) {
+    params.append('search', filters.search);
+  }
+  if (filters.sort) {
+    params.append('sort', filters.sort);
+  }
+  
+  const queryString = params.toString();
+  const url = `/experiences${queryString ? `?${queryString}` : ''}`;
+  
+  return await apiCall(url);
+};
+
+/**
+ * Fetch slot reservations for a specific experience and slot (requires authentication)
+ * @param {string} experienceId - Experience ID
+ * @param {string} slotId - Slot ID
+ * @param {number} page - Page number
+ * @param {number} perPage - Items per page
+ * @returns {Promise<Object>} - Reservations data with pagination
+ */
+export const fetchSlotReservations = async (experienceId, slotId, page = 1, perPage = 10) => {
+  const params = new URLSearchParams();
+  params.append('page', page.toString());
+  params.append('per_page', perPage.toString());
+  
+  const queryString = params.toString();
+  const url = `/provider/reservations/${experienceId}/${slotId}${queryString ? `?${queryString}` : ''}`;
+  
+  return await apiCall(url);
+};
+
+/**
+ * Fetch slot details (requires authentication)
+ * @param {string} slotId - Slot ID
+ * @returns {Promise<Object>} - Slot details
+ */
+export const fetchSlotDetails = async (slotId) => {
+  return await apiCall(`/provider/slots/${slotId}`);
 };

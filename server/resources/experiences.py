@@ -403,6 +403,7 @@ class ExperienceDetail(Resource):
         
         return {"message": "Experience deleted successfully"}, 200
 
+
 # --- Slot Management ---
 class SlotList(Resource):
     
@@ -424,10 +425,10 @@ class SlotList(Resource):
             data = request.get_json()
             if not data:
                 return {"error": "No JSON data provided"}, 400
-            
             validated_data = slot_schema.load(data)
         except ValidationError as e:
-            return {"error": "Validation failed", "details": e.messages}, 400
+            print(e.messages)
+            return {"error": "Validation failed", "details": e.messages}, 406
         
         # Check if experience exists and belongs to user
         experience = Experience.query.filter_by(
@@ -453,6 +454,7 @@ class SlotList(Resource):
             **validated_data
         )
         
+        experience.status = "published"
         db.session.add(slot)
         db.session.commit()
         
@@ -469,7 +471,7 @@ class SlotList(Resource):
     @jwt_required()
     @handle_db_errors
     def get(self, experience_id):
-        """Get all slots for an experience"""
+        """Get all slots for an experience with date-based pagination and filtering"""
         
         # Get current user
         user = get_current_user()
@@ -487,11 +489,58 @@ class SlotList(Resource):
         if not experience:
             return {"error": "Experience not found"}, 404
         
-        slots = Slot.query.filter_by(experience_id=experience_id).order_by(Slot.date).all()
+        # Parse query parameters
+        page = int(request.args.get('page', 1))
+        per_page = min(int(request.args.get('per_page', 50)), 100)  # Max 100 per page
+        
+        # Date filtering parameters
+        start_date = request.args.get('start_date')  # Format: YYYY-MM-DD
+        end_date = request.args.get('end_date')      # Format: YYYY-MM-DD
+        
+        # Build query
+        query = Slot.query.filter_by(experience_id=experience_id)
+        
+        # Apply date filters if provided
+        if start_date:
+            try:
+                start_date_obj = datetime.strptime(start_date, '%Y-%m-%d').date()
+                query = query.filter(Slot.date >= start_date_obj)
+            except ValueError:
+                return {"error": "Invalid start_date format. Use YYYY-MM-DD"}, 400
+        
+        if end_date:
+            try:
+                end_date_obj = datetime.strptime(end_date, '%Y-%m-%d').date()
+                query = query.filter(Slot.date <= end_date_obj)
+            except ValueError:
+                return {"error": "Invalid end_date format. Use YYYY-MM-DD"}, 400
+        
+        # Order by date (ascending by default, can be changed to descending)
+        sort_order = request.args.get('sort', 'asc')
+        if sort_order == 'desc':
+            query = query.order_by(Slot.date.desc(), Slot.start_time.desc())
+        else:
+            query = query.order_by(Slot.date.asc(), Slot.start_time.asc())
+        
+        # Get total count before pagination
+        total_count = query.count()
+        
+        # Apply pagination
+        slots = query.offset((page - 1) * per_page).limit(per_page).all()
         
         return {
             "slots": slot_schema.dump(slots, many=True),
-            "total": len(slots)
+            "pagination": {
+                "page": page,
+                "per_page": per_page,
+                "total": total_count,
+                "pages": (total_count + per_page - 1) // per_page
+            },
+            "filters": {
+                "start_date": start_date,
+                "end_date": end_date,
+                "sort": sort_order
+            }
         }, 200
 
 class SlotDetail(Resource):

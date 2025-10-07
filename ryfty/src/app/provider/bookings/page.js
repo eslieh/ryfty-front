@@ -6,7 +6,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 import TabNavigation from '@/components/provider/TabNavigation';
 import ProviderHeader from '@/components/provider/ProviderHeader';
-import { fetchProviderExperiences, fetchExperienceSlots, fetchSlotReservations } from '@/utils/api';
+import { fetchProviderExperiences, fetchExperienceSlots } from '@/utils/api';
 import '@/styles/provider.css';
 import '@/styles/manage-experience.css';
 import '@/styles/reservations.css';
@@ -14,34 +14,37 @@ import '@/styles/reservations.css';
 export default function BookingsPage() {
   const [activeTab, setActiveTab] = useState('experiences');
   const [experiences, setExperiences] = useState([]);
-  const [selectedExperience, setSelectedExperience] = useState(null);
-  const [slots, setSlots] = useState([]);
-  const [selectedSlot, setSelectedSlot] = useState(null);
-  const [reservations, setReservations] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [currentView, setCurrentView] = useState('experiences'); // 'experiences', 'slots', 'reservations'
+  
+  // Calendar view states
+  const [selectedExperience, setSelectedExperience] = useState(null);
+  const [showCalendar, setShowCalendar] = useState(false);
+  const [currentMonth, setCurrentMonth] = useState(new Date());
+  const [selectedDate, setSelectedDate] = useState(null);
+  const [allMonthSlots, setAllMonthSlots] = useState([]);
+  const [calendarLoading, setCalendarLoading] = useState(false);
+  const [slotsError, setSlotsError] = useState(null);
   
   const { isAuthenticated, user, isProvider } = useAuth();
   const router = useRouter();
 
   // Redirect if not authenticated or not a provider
-  useEffect(() => {
-    if (!isAuthenticated || !isProvider()) {
-      router.push('/auth?mode=login');
-    }
-  }, [isAuthenticated, isProvider, router]);
+ 
 
-  // Fetch experiences data
+  // Fetch experiences
   useEffect(() => {
-    const fetchExperiencesData = async () => {
+    const fetchExperiences = async () => {
       if (!isAuthenticated || !isProvider()) return;
       
       setLoading(true);
       setError(null);
       
       try {
-        const response = await fetchProviderExperiences();
+        const response = await fetchProviderExperiences(1, 20, {
+          status: 'active',
+          sort: 'created_at_desc'
+        });
         
         if (response && response.experiences) {
           setExperiences(response.experiences);
@@ -57,116 +60,197 @@ export default function BookingsPage() {
       }
     };
 
-    fetchExperiencesData();
+    fetchExperiences();
   }, [isAuthenticated, isProvider]);
 
-  // Fetch slots when experience is selected
+  // Fetch slots for calendar when experience is selected
   useEffect(() => {
-    const fetchSlotsData = async () => {
+    const fetchCalendarSlots = async () => {
       if (!selectedExperience) return;
       
       try {
-        const response = await fetchExperienceSlots(selectedExperience.id);
+        setCalendarLoading(true);
+        setSlotsError(null);
+        
+        // Get current month start and end dates
+        const startDate = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1);
+        const endDate = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 0);
+        
+        const startDateStr = startDate.toISOString().split('T')[0];
+        const endDateStr = endDate.toISOString().split('T')[0];
+        
+        const response = await fetchExperienceSlots(selectedExperience.id, 1, {
+          start_date: startDateStr,
+          end_date: endDateStr,
+          sort: 'asc'
+        }, 100);
         
         if (response && response.slots) {
-          setSlots(response.slots);
-          setCurrentView('slots');
+          setAllMonthSlots(response.slots);
         } else {
-          setSlots([]);
+          setAllMonthSlots([]);
         }
       } catch (err) {
-        console.error('Error fetching slots:', err);
-        setSlots([]);
+        console.error('Error fetching calendar slots:', err);
+        setSlotsError(err.message || 'Failed to fetch slots');
+        setAllMonthSlots([]);
+      } finally {
+        setCalendarLoading(false);
       }
     };
 
-    fetchSlotsData();
-  }, [selectedExperience]);
+    fetchCalendarSlots();
+  }, [selectedExperience, currentMonth]);
 
-  // Fetch reservations when slot is selected
-  useEffect(() => {
-    const fetchReservationsData = async () => {
-      if (!selectedExperience || !selectedSlot) return;
-      
-      try {
-        const response = await fetchSlotReservations(selectedExperience.id, selectedSlot.id);
-        
-        if (response && response.reservations) {
-          setReservations(response.reservations);
-          setCurrentView('reservations');
-        } else {
-          setReservations([]);
-        }
-      } catch (err) {
-        console.error('Error fetching reservations:', err);
-        setReservations([]);
-      }
-    };
-
-    fetchReservationsData();
-  }, [selectedExperience, selectedSlot]);
-
+  // Helper functions
   const formatDate = (dateString) => {
-    if (!dateString) return 'Not set';
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric'
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', { 
+      weekday: 'long', 
+      year: 'numeric', 
+      month: 'long', 
+      day: 'numeric' 
     });
   };
 
+  const formatTime = (timeString) => {
+    const [hours, minutes] = timeString.split(':');
+    const hour = parseInt(hours);
+    const ampm = hour >= 12 ? 'PM' : 'AM';
+    const displayHour = hour % 12 || 12;
+    return `${displayHour}:${minutes} ${ampm}`;
+  };
+
   const formatCurrency = (amount) => {
-    return new Intl.NumberFormat('en-KE', {
-      style: 'currency',
-      currency: 'KES'
-    }).format(amount);
+    return `KSh ${amount?.toLocaleString() || '0'}`;
   };
 
-  const handleExperienceSelect = (experience) => {
+  // Calendar helper functions
+  const getDaysInMonth = (date) => {
+    return new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
+  };
+
+  const getFirstDayOfMonth = (date) => {
+    return new Date(date.getFullYear(), date.getMonth(), 1).getDay();
+  };
+
+  const getSlotsForDate = (dateStr) => {
+    return allMonthSlots.filter(slot => slot.date === dateStr);
+  };
+
+  const navigateMonth = (direction) => {
+    setCurrentMonth(prev => {
+      const newMonth = new Date(prev);
+      newMonth.setMonth(prev.getMonth() + direction);
+      return newMonth;
+    });
+  };
+
+  const isToday = (date) => {
+    const today = new Date();
+    return date.toDateString() === today.toDateString();
+  };
+
+  const isPastDate = (date) => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return date < today;
+  };
+
+  // Navigation functions
+  const openCalendar = (experience) => {
     setSelectedExperience(experience);
-    setSelectedSlot(null);
-    setReservations([]);
+    setShowCalendar(true);
+    setSelectedDate(null);
   };
 
-  const handleSlotSelect = (slot) => {
-    setSelectedSlot(slot);
-  };
-
-  const handleBackToExperiences = () => {
+  const closeCalendar = () => {
+    setShowCalendar(false);
     setSelectedExperience(null);
-    setSelectedSlot(null);
-    setReservations([]);
-    setCurrentView('experiences');
+    setSelectedDate(null);
   };
 
-  const handleBackToSlots = () => {
-    setSelectedSlot(null);
-    setReservations([]);
-    setCurrentView('slots');
+  const handleSlotClick = (slot) => {
+    if (slot.booked < slot.capacity) {
+      router.push(`/provider/bookings/slot/${selectedExperience.id}/${slot.id}`);
+    }
   };
 
-  if (!isAuthenticated || !isProvider()) {
-    return (
-      <div className="provider-loading">
-        <div className="spinner large"></div>
-        <p>Redirecting to login...</p>
+  // Experience Card Component
+  const ExperienceCard = ({ experience }) => (
+    <motion.div
+      className="experience-card"
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3 }}
+    >
+      <div className="experience-poster">
+        <img 
+          src={experience.poster_image_url || '/images/placeholder.jpg'} 
+          alt={experience.title} 
+          className="poster-image" 
+        />
+        <div className={`experience-status experience-status-${experience.status}`}>
+          {experience.status}
+        </div>
       </div>
-    );
-  }
+      
+      <div className="experience-content">
+        <h3 className="experience-title">{experience.title}</h3>
+        <p className="experience-description">{experience.description || 'No description available'}</p>
+        
+        <div className="experience-metrics">
+          <div className="metric-item">
+            <div className="metric-label">Created</div>
+            <div className="metric-value">
+              <span className="created-date">
+                {new Date(experience.created_at).toLocaleDateString()}
+              </span>
+            </div>
+          </div>
+          
+          <div className="metric-item">
+            <div className="metric-label">Price Range</div>
+            <div className="metric-value">
+              <span className="price-range">
+                {experience.min_price && experience.max_price 
+                  ? `KSh ${experience.min_price.toLocaleString()} - KSh ${experience.max_price.toLocaleString()}`
+                  : 'Price not set'
+                }
+              </span>
+            </div>
+          </div>
+        </div>
+        
+        <div className="experience-actions">
+          <button 
+            className="btn btn-primary"
+            onClick={() => openCalendar(experience)}
+          >
+            View Bookings
+          </button>
+          <button 
+            className="btn btn-secondary"
+            onClick={() => router.push(`/provider/listings/manage/${experience.id}`)}
+          >
+            Manage
+          </button>
+        </div>
+      </div>
+    </motion.div>
+  );
 
+  // Loading state
   if (loading) {
     return (
       <div className="provider-main-page">
         <ProviderHeader variant="main" />
         <div className="provider-layout-content">
-          <TabNavigation
-            className="provider-left-nav"
-            orientation="vertical"
-          />
+          <TabNavigation className="provider-left-nav" orientation="vertical" />
           <div className="provider-main-content">
             <div className="experiences-loading">
               <div className="spinner large"></div>
-              <p>Loading bookings...</p>
+              <p>Loading experiences...</p>
             </div>
           </div>
         </div>
@@ -174,15 +258,13 @@ export default function BookingsPage() {
     );
   }
 
+  // Error state
   if (error) {
     return (
       <div className="provider-main-page">
         <ProviderHeader variant="main" />
         <div className="provider-layout-content">
-          <TabNavigation
-            className="provider-left-nav"
-            orientation="vertical"
-          />
+          <TabNavigation className="provider-left-nav" orientation="vertical" />
           <div className="provider-main-content">
             <div className="error-state">
               <div className="error-icon">
@@ -190,7 +272,7 @@ export default function BookingsPage() {
                   <path d="M12 9V13M12 17H12.01M21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
                 </svg>
               </div>
-              <h3 className="error-title">Failed to Load Bookings</h3>
+              <h3 className="error-title">Failed to Load Experiences</h3>
               <p className="error-description">{error}</p>
               <button 
                 className="btn btn-primary"
@@ -204,155 +286,6 @@ export default function BookingsPage() {
       </div>
     );
   }
-
-  const ExperienceCard = ({ experience }) => (
-    <motion.div
-      className="experience-card"
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.3 }}
-      onClick={() => handleExperienceSelect(experience)}
-    >
-      <div className="experience-poster">
-        <img
-          src={experience.poster_image_url || '/images/placeholder.jpg'}
-          alt={experience.title}
-          className="poster-image"
-        />
-        <div className={`experience-status experience-status-${experience.status}`}>
-          {experience.status}
-        </div>
-      </div>
-
-      <div className="experience-content">
-        <h3 className="experience-title">{experience.title}</h3>
-        <p className="experience-description">{experience.description || 'No description available'}</p>
-
-        <div className="experience-metrics">
-          <div className="metric-item">
-            <div className="metric-label">Created</div>
-            <div className="metric-value">
-              <span className="created-date">
-                {new Date(experience.created_at).toLocaleDateString()}
-              </span>
-            </div>
-          </div>
-
-          <div className="metric-item">
-            <div className="metric-label">Duration</div>
-            <div className="metric-value">
-              <span className="duration">
-                {experience.start_date && experience.end_date
-                  ? `${new Date(experience.start_date).toLocaleDateString()} - ${new Date(experience.end_date).toLocaleDateString()}`
-                  : 'No dates set'
-                }
-              </span>
-            </div>
-          </div>
-        </div>
-
-        <div className="experience-actions">
-          <button className="btn btn-primary">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-              <path d="M8 2V5M16 2V5M3.5 9.09H20.5M21 8.5V17C21 18.1046 20.1046 19 19 19H5C3.89543 19 3 18.1046 3 17V8.5C3 7.39543 3.89543 6.5 5 6.5H19C20.1046 6.5 21 7.39543 21 8.5Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-            </svg>
-            View Bookings
-          </button>
-        </div>
-      </div>
-    </motion.div>
-  );
-
-  const SlotCard = ({ slot }) => (
-    <motion.div
-      key={slot.id}
-      className={`slot-card ${selectedSlot?.id === slot.id ? 'selected' : ''}`}
-      onClick={() => handleSlotSelect(slot)}
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.3 }}
-    >
-      <div className="slot-header">
-        <h4 className="slot-name">{slot.name}</h4>
-        <div className="slot-price">{formatCurrency(slot.price)}</div>
-      </div>
-      
-      <div className="slot-details">
-        <div className="slot-detail">
-          <span className="detail-label">Date:</span>
-          <span className="detail-value">{formatDate(slot.date)}</span>
-        </div>
-        <div className="slot-detail">
-          <span className="detail-label">Time:</span>
-          <span className="detail-value">{slot.start_time} - {slot.end_time}</span>
-        </div>
-        <div className="slot-detail">
-          <span className="detail-label">Capacity:</span>
-          <span className="detail-value">{slot.booked}/{slot.capacity}</span>
-        </div>
-        <div className="slot-detail">
-          <span className="detail-label">Available:</span>
-          <span className="detail-value">{slot.capacity - slot.booked}</span>
-        </div>
-      </div>
-    </motion.div>
-  );
-
-  const ReservationRow = ({ reservation }) => (
-    <motion.tr
-      className="reservation-row"
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.3 }}
-    >
-      <td className="user-cell">
-        <div className="user-info">
-          <div className="user-avatar">
-            {reservation.user.avatar_url ? (
-              <img src={reservation.user.avatar_url} alt={reservation.user.name} />
-            ) : (
-              <div className="avatar-placeholder">
-                {reservation.user.name.charAt(0).toUpperCase()}
-              </div>
-            )}
-          </div>
-          <div className="user-details">
-            <div className="user-name">{reservation.user.name}</div>
-            <div className="user-email">{reservation.user.email}</div>
-            {reservation.user.phone && (
-              <div className="user-phone">{reservation.user.phone}</div>
-            )}
-          </div>
-        </div>
-      </td>
-      
-      <td className="people-cell">
-        <div className="people-count">
-          {reservation.num_people} {reservation.num_people === 1 ? 'person' : 'people'}
-        </div>
-      </td>
-      
-      <td className="price-cell">
-        <div className="price-info">
-          <div className="total-price">{formatCurrency(reservation.total_price)}</div>
-          <div className="amount-paid">{formatCurrency(reservation.amount_paid)}</div>
-        </div>
-      </td>
-      
-      <td className="status-cell">
-        <div className={`reservation-status status-${reservation.status.toLowerCase()}`}>
-          <div className="status-dot"></div>
-          <span>{reservation.status}</span>
-        </div>
-      </td>
-      
-      <td className="date-cell">
-        <div className="booking-date">
-          {formatDate(reservation.created_at)}
-        </div>
-      </td>
-    </motion.tr>
-  );
 
   return (
     <div className="provider-main-page">
@@ -371,180 +304,250 @@ export default function BookingsPage() {
           transition={{ duration: 0.5, delay: 0.2 }}
         >
           <div className="content-wrapper">
-            {/* Header */}
-            <div className="manage-header">
-              <div className="header-left">
-                {currentView !== 'experiences' && (
-                  <button 
-                    className="btn btn-secondary back-btn"
-                    onClick={currentView === 'slots' ? handleBackToExperiences : handleBackToSlots}
-                  >
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                      <path d="M19 12H5M12 19L5 12L12 5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                    </svg>
-                    Back
-                  </button>
-                )}
-                <div className="page-title-section">
-                  <h1 className="page-title">Bookings Management</h1>
-                  <p className="page-subtitle">
-                    {currentView === 'experiences' && 'Select an experience to view bookings'}
-                    {currentView === 'slots' && selectedExperience && `Select a slot for "${selectedExperience.title}"`}
-                    {currentView === 'reservations' && selectedSlot && `Reservations for "${selectedSlot.name}"`}
-                  </p>
+            <div className="provider-experiences">
+              {/* Header */}
+              <motion.div
+                className="experiences-header"
+                initial={{ opacity: 0, y: -20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5 }}
+              >
+                <div className="header-content">
+                  <h1 className="page-title">Bookings</h1>
+                  <p className="page-subtitle">Manage your experience bookings and reservations</p>
                 </div>
-              </div>
-            </div>
+              </motion.div>
 
-            {/* Tab Navigation */}
-            <div className="manage-tabs">
-              <div className="tab-buttons">
-                <button
-                  className={`tab-button ${activeTab === 'experiences' ? 'active' : ''}`}
-                  onClick={() => setActiveTab('experiences')}
-                >
-                  <span className="tab-label">Experiences</span>
-                  <span className="tab-count">{experiences.length}</span>
-                </button>
-                <button
-                  className={`tab-button ${activeTab === 'services' ? 'active' : ''}`}
-                  onClick={() => setActiveTab('services')}
-                >
-                  <span className="tab-label">Services</span>
-                  <span className="tab-count">0</span>
-                </button>
-              </div>
-            </div>
+              {/* Tab Navigation */}
+              <motion.div
+                className="listings-tabs"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5, delay: 0.1 }}
+              >
+                <div className="tab-buttons">
+                  <button
+                    className={`tab-button ${activeTab === 'experiences' ? 'active' : ''}`}
+                    onClick={() => setActiveTab('experiences')}
+                  >
+                    Experiences
+                  </button>
+                  <button
+                    className={`tab-button ${activeTab === 'services' ? 'active' : ''}`}
+                    onClick={() => setActiveTab('services')}
+                  >
+                    Services
+                  </button>
+                </div>
+              </motion.div>
 
-            {/* Content */}
-            {activeTab === 'experiences' && (
-              <>
-                {currentView === 'experiences' && (
-                  <div className="experiences-grid">
+              {/* Tab Content */}
+              {activeTab === 'experiences' && (
+                <>
+                  {/* Experiences Grid */}
+                  <motion.div 
+                    className="experiences-grid"
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.5, delay: 0.3 }}
+                  >
                     {experiences.length > 0 ? (
                       experiences.map((experience) => (
                         <ExperienceCard key={experience.id} experience={experience} />
                       ))
                     ) : (
-                      <div className="empty-state">
+                      <motion.div
+                        className="empty-state"
+                        initial={{ opacity: 0, scale: 0.9 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        transition={{ duration: 0.5 }}
+                      >
                         <div className="empty-icon">
                           <svg width="64" height="64" viewBox="0 0 24 24" fill="none">
-                            <path d="M12 2L2 7L12 12L22 7L12 2Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                            <path d="M2 17L12 22L22 17" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                            <path d="M2 12L12 17L22 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                            <path d="M8 2V5M16 2V5M3.5 9.09H20.5M21 8.5V17C21 18.1046 20.1046 19 19 19H5C3.89543 19 3 18.1046 3 17V8.5C3 7.39543 3.89543 6.5 5 6.5H19C20.1046 6.5 21 7.39543 21 8.5Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
                           </svg>
                         </div>
                         <h3 className="empty-title">No experiences yet</h3>
                         <p className="empty-description">
-                          Create your first experience to start accepting bookings
+                          Create your first experience to start managing bookings
                         </p>
-                        <button
+                        <button 
                           className="btn btn-primary"
                           onClick={() => router.push('/provider/listings/create')}
                         >
                           Create Your First Experience
                         </button>
-                      </div>
+                      </motion.div>
                     )}
-                  </div>
-                )}
+                  </motion.div>
+                </>
+              )}
 
-                {currentView === 'slots' && selectedExperience && (
-                  <div className="slots-section">
-                    <div className="slots-header">
-                      <h3 className="section-title">Available Slots</h3>
-                      <p className="section-subtitle">Select a slot to view reservations</p>
+              {activeTab === 'services' && (
+                <motion.div
+                  className="services-coming-soon"
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ duration: 0.5 }}
+                >
+                  <div className="coming-soon-content">
+                    <div className="coming-soon-icon">
+                      <svg width="80" height="80" viewBox="0 0 24 24" fill="none">
+                        <path d="M3 3H21L19 21H5L3 3Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                        <path d="M8 12H16" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                        <path d="M8 16H16" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                      </svg>
                     </div>
-
-                    {slots.length > 0 ? (
-                      <div className="slots-grid">
-                        {slots.map((slot) => (
-                          <SlotCard key={slot.id} slot={slot} />
-                        ))}
-                      </div>
-                    ) : (
-                      <div className="empty-state">
-                        <div className="empty-icon">
-                          <svg width="64" height="64" viewBox="0 0 24 24" fill="none">
-                            <path d="M8 2V5M16 2V5M3.5 9.09H20.5M21 8.5V17C21 18.1046 20.1046 19 19 19H5C3.89543 19 3 18.1046 3 17V8.5C3 7.39543 3.89543 6.5 5 6.5H19C20.1046 6.5 21 7.39543 21 8.5Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                          </svg>
-                        </div>
-                        <h3 className="empty-title">No slots available</h3>
-                        <p className="empty-description">
-                          This experience doesn't have any slots created yet.
-                        </p>
-                        <button
-                          className="btn btn-primary"
-                          onClick={() => router.push(`/provider/listings/manage/${selectedExperience.id}`)}
-                        >
-                          Manage Experience & Create Slots
-                        </button>
-                      </div>
-                    )}
+                    <h2 className="coming-soon-title">Services Coming Soon</h2>
+                    <p className="coming-soon-description">
+                      We're working on bringing you a comprehensive services platform.
+                      Soon you'll be able to manage bookings for various services like transportation,
+                      photography, catering, and more.
+                    </p>
                   </div>
-                )}
-
-                {currentView === 'reservations' && selectedSlot && (
-                  <div className="reservations-content">
-                    {reservations.length > 0 ? (
-                      <div className="reservations-table-container">
-                        <table className="reservations-table">
-                          <thead>
-                            <tr>
-                              <th className="user-header">Guest</th>
-                              <th className="people-header">People</th>
-                              <th className="price-header">Price</th>
-                              <th className="status-header">Status</th>
-                              <th className="date-header">Booked</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {reservations.map((reservation) => (
-                              <ReservationRow key={reservation.id} reservation={reservation} />
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    ) : (
-                      <div className="empty-state">
-                        <div className="empty-icon">
-                          <svg width="64" height="64" viewBox="0 0 24 24" fill="none">
-                            <path d="M8 2V5M16 2V5M3.5 9.09H20.5M21 8.5V17C21 18.1046 20.1046 19 19 19H5C3.89543 19 3 18.1046 3 17V8.5C3 7.39543 3.89543 6.5 5 6.5H19C20.1046 6.5 21 7.39543 21 8.5Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                          </svg>
-                        </div>
-                        <h3 className="empty-title">No reservations found</h3>
-                        <p className="empty-description">
-                          No reservations have been made for this slot yet.
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </>
-            )}
-
-            {activeTab === 'services' && (
-              <div className="services-coming-soon">
-                <div className="coming-soon-content">
-                  <div className="coming-soon-icon">
-                    <svg width="80" height="80" viewBox="0 0 24 24" fill="none">
-                      <path d="M3 3H21L19 21H5L3 3Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                      <path d="M8 12H16" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                      <path d="M8 16H16" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                    </svg>
-                  </div>
-                  <h2 className="coming-soon-title">Services Coming Soon</h2>
-                  <p className="coming-soon-description">
-                    We're working on bringing you a comprehensive services platform.
-                    Soon you'll be able to manage bookings for various services like transportation,
-                    photography, catering, and more.
-                  </p>
-                </div>
-              </div>
-            )}
+                </motion.div>
+              )}
+            </div>
           </div>
         </motion.main>
       </div>
+
+      {/* Calendar Modal */}
+      {showCalendar && selectedExperience && (
+        <div className="calendar-modal-overlay" onClick={closeCalendar}>
+          <div className="calendar-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="calendar-modal-header">
+              <h2 className="calendar-modal-title">
+                Booking Calendar - {selectedExperience.title}
+              </h2>
+              <button
+                onClick={closeCalendar}
+                className="calendar-modal-close"
+              >
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                  <path d="M18 6L6 18M6 6L18 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              </button>
+            </div>
+
+            <div className="calendar-modal-content">
+              {calendarLoading ? (
+                <div className="calendar-loading">
+                  <div className="loading-spinner"></div>
+                  <p>Loading calendar slots...</p>
+                </div>
+              ) : slotsError ? (
+                <div className="calendar-error">
+                  <div className="error-icon">
+                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none">
+                      <path d="M12 9V13M12 17H12.01M21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                  </div>
+                  <h3>Error Loading Slots</h3>
+                  <p>{slotsError}</p>
+                  <button 
+                    className="btn btn-primary"
+                    onClick={() => window.location.reload()}
+                  >
+                    Try Again
+                  </button>
+                </div>
+              ) : (
+                <div className="calendar-container">
+                  <div className="calendar-header">
+                    <button onClick={() => navigateMonth(-1)} className="calendar-nav-btn">
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                        <path d="M15 18L9 12L15 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                      </svg>
+                    </button>
+                    <h3 className="calendar-month">
+                      {currentMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+                    </h3>
+                    <button onClick={() => navigateMonth(1)} className="calendar-nav-btn">
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                        <path d="M9 18L15 12L9 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                      </svg>
+                    </button>
+                  </div>
+                  
+                  <div className="calendar-grid">
+                    {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
+                      <div key={day} className="calendar-day-header">{day}</div>
+                    ))}
+                    
+                    {Array.from({ length: getFirstDayOfMonth(currentMonth) }, (_, i) => (
+                      <div key={`empty-${i}`} className="calendar-day empty"></div>
+                    ))}
+                    
+                    {Array.from({ length: getDaysInMonth(currentMonth) }, (_, i) => {
+                      const day = i + 1;
+                      const date = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), day);
+                      const dateStr = date.toISOString().split('T')[0];
+                      const daySlots = getSlotsForDate(dateStr);
+                      const hasSlots = daySlots.length > 0;
+                      const isSelected = selectedDate === dateStr;
+                      
+                      return (
+                        <div
+                          key={day}
+                          className={`calendar-day ${hasSlots ? 'has-slots' : ''} ${isToday(date) ? 'today' : ''} ${isPastDate(date) ? 'past' : ''} ${isSelected ? 'selected' : ''}`}
+                          onClick={() => hasSlots && !isPastDate(date) && setSelectedDate(dateStr)}
+                        >
+                          <span className="day-number">{day}</span>
+                          {hasSlots && (
+                            <div className="slots-indicator">
+                              <span className="slots-count">{daySlots.length}</span>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                  
+                  {/* Selected Date Slots */}
+                  {selectedDate && (
+                    <div className="selected-date-slots">
+                      <h4 className="selected-date-title">
+                        Available Slots for {new Date(selectedDate).toLocaleDateString('en-US', { 
+                          weekday: 'long', 
+                          month: 'long', 
+                          day: 'numeric' 
+                        })}
+                      </h4>
+                      <div className="date-slots-list">
+                        {getSlotsForDate(selectedDate).map((slot) => (
+                          <motion.div
+                            key={slot.id}
+                            className={`slot-item ${slot.booked >= slot.capacity ? 'unavailable' : ''}`}
+                            onClick={() => slot.booked < slot.capacity && handleSlotClick(slot)}
+                            whileHover={slot.booked < slot.capacity ? { scale: 1.02 } : {}}
+                            whileTap={slot.booked < slot.capacity ? { scale: 0.98 } : {}}
+                          >
+                            <div className="slot-header">
+                              <span className="slot-name">{slot.name}</span>
+                              <span className="slot-price">{formatCurrency(slot.price)}</span>
+                            </div>
+                            <div className="slot-details">
+                              <span className="slot-time">{slot.start_time} - {slot.end_time}</span>
+                            </div>
+                            <div className="slot-availability">
+                              {slot.booked < slot.capacity ? (
+                                <span className="available-text">{slot.capacity - slot.booked} spots left</span>
+                              ) : (
+                                <span className="unavailable-text">Fully booked</span>
+                              )}
+                            </div>
+                          </motion.div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

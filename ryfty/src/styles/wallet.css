@@ -552,43 +552,6 @@
   border-top: 1px solid #f3f4f6;
 }
 
-.btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.75rem 1.5rem;
-  border-radius: 0.5rem;
-  font-size: 0.875rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  border: none;
-  text-decoration: none;
-}
-
-.btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.btn-primary {
-  background: #3b82f6;
-  color: white;
-}
-
-.btn-primary:hover:not(:disabled) {
-  background: #2563eb;
-}
-
-.btn-secondary {
-  background: #f3f4f6;
-  color: #374151;
-  border: 1px solid #d1d5db;
-}
-
-.btn-secondary:hover:not(:disabled) {
-  background: #e5e7eb;
-}
 
 .spinner {
   width: 1rem;
@@ -665,12 +628,11 @@
 
 /* Responsive Design */
 @media (max-width: 768px) {
-  .balance-card,
-  .balance-cards.wallet {
+  .balance-card, .balance-cards.wallet {
+    text-align: start;
     flex-direction: column;
-    text-align: center;
     gap: 1rem;
-  }
+}
 
   .balance-amount {
     font-size: 2rem;

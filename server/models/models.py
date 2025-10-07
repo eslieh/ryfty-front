@@ -104,7 +104,7 @@ class Experience(db.Model):
     provider_id = db.Column(UUID(as_uuid=True), db.ForeignKey("users.id"), nullable=False, index=True)
     title = db.Column(db.Text, nullable=False, index=True)
     description = db.Column(db.Text, nullable=False)
-    destinations = db.Column(JSON, nullable=False)
+    destinations = db.Column(JSON, nullable=True)
     activities = db.Column(JSON, nullable=False)
     inclusions = db.Column(JSON, nullable=False)
     exclusions = db.Column(JSON, nullable=False)

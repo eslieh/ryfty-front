@@ -298,6 +298,41 @@
   box-shadow: 0 6px 16px rgba(220, 53, 69, 0.4);
 }
 
+/* Mobile Provider Switch Button */
+.btn-provider-switch {
+  background: var(--primary, #ff385c);
+  color: white;
+  justify-content: center;
+  display: none; /* Hidden by default */
+}
+
+.btn-provider-switch:hover:not(:disabled) {
+  background: var(--primary-hover, #e31c5f);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(255, 56, 92, 0.4);
+}
+
+/* Show provider switch button only on mobile */
+@media (max-width: 768px) {
+  .mobile-only {
+    display: flex !important;
+  }
+}
+
+/* Mobile Customer Switch Button */
+.btn-customer-switch {
+  background: #28a745;
+  color: white;
+  justify-content: center;
+  display: none; /* Hidden by default */
+}
+
+.btn-customer-switch:hover:not(:disabled) {
+  background: #218838;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(40, 167, 69, 0.4);
+}
+
 /* ===== PROFILE INFO (View Mode) ===== */
 .profile-info {
   display: flex;

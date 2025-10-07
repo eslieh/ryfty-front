@@ -33,11 +33,7 @@ export default function ReservationsPage() {
   const params = useParams();
 
   // Redirect if not authenticated or not a provider
-  useEffect(() => {
-    if (!isAuthenticated || !isProvider()) {
-      router.push('/auth?mode=login');
-    }
-  }, [isAuthenticated, isProvider, router]);
+ 
 
   // Fetch experience data
   useEffect(() => {

@@ -9,45 +9,6 @@ from functools import wraps
 from datetime import datetime, timedelta
 
 
-def cache_result(timeout=300, key_prefix=""):
-    """Decorator for caching API responses with better error handling"""
-    def decorator(f):
-        @wraps(f)
-        def decorated_function(*args, **kwargs):
-            cache = current_app.cache
-            
-            # Generate cache key including query parameters
-            query_params = request.args.to_dict() if request else {}
-            cache_key = f"{key_prefix}:{':'.join(map(str, args[1:]))}:{':'.join(f'{k}={v}' for k, v in query_params.items())}"
-            
-            # Try to get from cache
-            try:
-                cached_data = cache.get(cache_key)
-                if cached_data:
-                    current_app.logger.debug(f"Cache hit for key: {cache_key}")
-                    if isinstance(cached_data, (str, bytes, bytearray)):
-                        return {"reservations": json.loads(cached_data)}, 200
-                    if isinstance(cached_data, dict):
-                        return cached_data, 200
-            except Exception as e:
-                current_app.logger.warning(f"Cache retrieval error: {e}")
-            
-            # Execute function and cache result
-            result = f(*args, **kwargs)
-            
-            # Cache successful responses
-            if result[1] == 200:
-                try:
-                    cache.set(cache_key, result[0], timeout=timeout)
-                    current_app.logger.debug(f"Cached result for key: {cache_key}")
-                except Exception as e:
-                    current_app.logger.warning(f"Cache storage error: {e}")
-            
-            return result
-        return decorated_function
-    return decorator
-
-
 class ProviderReservations(Resource):
     
     @staticmethod
@@ -132,6 +93,26 @@ class ProviderReservations(Resource):
         return query.scalar()
     
     @staticmethod
+    def _get_total_revenue(user_id, experience_id, status_filter=None):
+        """Calculate total revenue from reservations using ORM"""
+        query = db.session.query(
+            func.coalesce(func.sum(Reservation.amount_paid), 0)
+        ).join(
+            Experience, Reservation.experience_id == Experience.id
+        ).filter(
+            and_(
+                Experience.provider_id == user_id,
+                Reservation.experience_id == experience_id
+            )
+        )
+        
+        if status_filter:
+            query = query.filter(Reservation.status == status_filter)
+        
+        total = query.scalar()
+        return float(total) if total else 0.0
+    
+    @staticmethod
     def _format_reservation_data(reservations):
         """Format reservation data for JSON response"""
         result = []
@@ -165,7 +146,6 @@ class ProviderReservations(Resource):
         return result
     
     @jwt_required()
-    @cache_result(timeout=300, key_prefix="provider_reservations")
     def get(self, experience_id):
         user_id = get_jwt_identity()
         
@@ -204,8 +184,9 @@ class ProviderReservations(Resource):
             selectinload(Reservation.slot)
         ).order_by(desc(Reservation.created_at))
         
-        # Get total count before applying pagination
+        # Get total count and revenue before applying pagination
         total_count = self._get_reservation_count(user_id, experience_id, status_filter)
+        total_revenue = self._get_total_revenue(user_id, experience_id, status_filter)
         
         # Apply pagination using ORM
         reservations = query.offset((page - 1) * per_page).limit(per_page).all()
@@ -215,6 +196,7 @@ class ProviderReservations(Resource):
         
         response_data = {
             "reservations": result,
+            "total_revenue": total_revenue,
             "pagination": {
                 "page": page,
                 "per_page": per_page,
@@ -229,8 +211,46 @@ class ProviderReservations(Resource):
 # Alternative ORM implementation with even better performance using contains_eager
 class ProviderReservationsOptimized(Resource):
     
+    @staticmethod
+    def _get_reservation_count_for_slot(user_id, experience_id, slot_id, status_filter=None):
+        """Get total reservation count for a specific slot using ORM"""
+        query = db.session.query(func.count(Reservation.id)).join(
+            Experience, Reservation.experience_id == Experience.id
+        ).filter(
+            and_(
+                Experience.provider_id == user_id,
+                Reservation.experience_id == experience_id,
+                Reservation.slot_id == slot_id
+            )
+        )
+        
+        if status_filter:
+            query = query.filter(Reservation.status == status_filter)
+        
+        return query.scalar()
+    
+    @staticmethod
+    def _get_total_revenue_for_slot(user_id, experience_id, slot_id, status_filter=None):
+        """Calculate total revenue from reservations for a specific slot"""
+        query = db.session.query(
+            func.coalesce(func.sum(Reservation.amount_paid), 0)
+        ).join(
+            Experience, Reservation.experience_id == Experience.id
+        ).filter(
+            and_(
+                Experience.provider_id == user_id,
+                Reservation.experience_id == experience_id,
+                Reservation.slot_id == slot_id
+            )
+        )
+        
+        if status_filter:
+            query = query.filter(Reservation.status == status_filter)
+        
+        total = query.scalar()
+        return float(total) if total else 0.0
+    
     @jwt_required()
-    @cache_result(timeout=300, key_prefix="provider_reservations_optimized")
     def get(self, experience_id, slot_id):
         user_id = get_jwt_identity()
         
@@ -274,20 +294,13 @@ class ProviderReservationsOptimized(Resource):
             contains_eager(Reservation.slot)
         ).order_by(desc(Reservation.created_at))
         
-        # Get total count using a separate optimized count query
-        count_query = db.session.query(func.count(Reservation.id)).join(
-            Experience, Reservation.experience_id == Experience.id
-        ).filter(
-            and_(
-                Experience.provider_id == user_id,
-                Reservation.experience_id == experience_id
-            )
+        # Get total count and revenue for this specific slot
+        total_count = self._get_reservation_count_for_slot(
+            user_id, experience_id, slot_id, status_filter
         )
-        
-        if status_filter:
-            count_query = count_query.filter(Reservation.status == status_filter)
-        
-        total_count = count_query.scalar()
+        total_revenue = self._get_total_revenue_for_slot(
+            user_id, experience_id, slot_id, status_filter
+        )
         
         # Apply pagination
         reservations = query.offset((page - 1) * per_page).limit(per_page).all()
@@ -297,6 +310,7 @@ class ProviderReservationsOptimized(Resource):
         
         return {
             "reservations": result,
+            "total_revenue": total_revenue,
             "pagination": {
                 "page": page,
                 "per_page": per_page,
@@ -304,5 +318,3 @@ class ProviderReservationsOptimized(Resource):
                 "pages": (total_count + per_page - 1) // per_page
             }
         }, 200
-
-

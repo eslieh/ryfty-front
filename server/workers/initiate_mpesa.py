@@ -8,6 +8,7 @@ import base64
 import re
 from datetime import datetime
 from flask import current_app
+from utils.subscribe_manager import push_to_queue
 import os
 
 from celery_app import celery
@@ -92,6 +93,7 @@ def initiate_payment(self, api_collection_id):
             if response.status_code == 200:
                 api_collection.mpesa_checkout_request_id = response_data.get("CheckoutRequestID")
                 api_collection.status = "initiated"
+                push_to_queue(api_collection.user_id, {"state": "pending_confirmation"})
                 db.session.commit()
                 logger.info(f"Payment request {api_collection_id} successfully initiated: {response_data}")
             else:

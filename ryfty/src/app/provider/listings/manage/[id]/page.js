@@ -1,11 +1,12 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter, useParams } from 'next/navigation';
 import TabNavigation from '@/components/provider/TabNavigation';
 import ProviderHeader from '@/components/provider/ProviderHeader';
+import SlotForm from '@/components/SlotForm';
 import { fetchProviderExperience, fetchExperienceSlots, createSlot, updateSlot, deleteSlot } from '@/utils/api';
 import '@/styles/provider.css';
 import '@/styles/manage-experience.css';
@@ -18,26 +19,21 @@ export default function ManageExperiencePage() {
   const [activeTab, setActiveTab] = useState('overview');
   const [showSlotForm, setShowSlotForm] = useState(false);
   const [editingSlot, setEditingSlot] = useState(null);
-  const [slotFormData, setSlotFormData] = useState({
-    name: '',
-    capacity: '',
-    price: '',
-    date: '',
-    start_time: '',
-    end_time: '',
-    timezone: 'Africa/Nairobi'
-  });
+  
+  // Form handling state
+  const [formLoading, setFormLoading] = useState(false);
+  const [formError, setFormError] = useState(null);
+  const [formSuccess, setFormSuccess] = useState(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
+  const [shouldResetForm, setShouldResetForm] = useState(false);
   
   const { isAuthenticated, user, isProvider } = useAuth();
   const router = useRouter();
   const params = useParams();
 
   // Redirect if not authenticated or not a provider
-  useEffect(() => {
-    if (!isAuthenticated || !isProvider()) {
-      router.push('/auth?mode=login');
-    }
-  }, [isAuthenticated, isProvider, router]);
+ 
 
   // Fetch experience data
   useEffect(() => {
@@ -115,36 +111,30 @@ export default function ManageExperiencePage() {
     }).format(amount);
   };
 
-  const handleSlotFormChange = (field, value) => {
-    setSlotFormData(prev => ({
-      ...prev,
-      [field]: value
-    }));
-  };
-
   const resetSlotForm = () => {
-    setSlotFormData({
-      name: '',
-      capacity: '',
-      price: '',
-      date: '',
-      start_time: '',
-      end_time: '',
-      timezone: 'Africa/Nairobi'
-    });
     setEditingSlot(null);
     setShowSlotForm(false);
+    setFormError(null);
+    setFormSuccess(null);
+    setFormLoading(false);
+    setShouldResetForm(true);
+    // Reset the flag after a brief moment
+    setTimeout(() => setShouldResetForm(false), 100);
   };
 
-  const handleCreateSlot = async (e) => {
-    e.preventDefault();
+  const handleSlotSubmit = async (formData) => {
+    setFormLoading(true);
+    setFormError(null);
+    setFormSuccess(null);
     
     try {
-      await createSlot(params.id, {
-        ...slotFormData,
-        capacity: parseInt(slotFormData.capacity),
-        price: parseFloat(slotFormData.price)
-      });
+      if (editingSlot) {
+        await updateSlot(editingSlot.id, formData);
+        setFormSuccess('Slot updated successfully!');
+      } else {
+        await createSlot(params.id, formData);
+        setFormSuccess('Slot created successfully!');
+      }
       
       // Refresh slots data
       const response = await fetchExperienceSlots(params.id);
@@ -152,36 +142,39 @@ export default function ManageExperiencePage() {
         setSlots(response.slots);
       }
       
-      resetSlotForm();
+      setTimeout(() => {
+        resetSlotForm();
+      }, 1500);
     } catch (err) {
-      console.error('Error creating slot:', err);
-      alert('Failed to create slot. Please try again.');
+      console.error('Error saving slot:', err);
+      setFormError(err.message || `Failed to ${editingSlot ? 'update' : 'create'} slot. Please try again.`);
+    } finally {
+      setFormLoading(false);
     }
+  };
+
+  const handleSlotCancel = () => {
+    resetSlotForm();
   };
 
   const handleEditSlot = (slot) => {
     setEditingSlot(slot);
-    setSlotFormData({
-      name: slot.name,
-      capacity: slot.capacity.toString(),
-      price: slot.price.toString(),
-      date: slot.date,
-      start_time: slot.start_time,
-      end_time: slot.end_time,
-      timezone: slot.timezone
-    });
     setShowSlotForm(true);
   };
 
-  const handleUpdateSlot = async (e) => {
-    e.preventDefault();
+  const handleDeleteSlot = async (slotId) => {
+    setShowDeleteConfirm(slotId);
+  };
+
+  const confirmDeleteSlot = async () => {
+    if (!showDeleteConfirm) return;
+    
+    setDeleteLoading(true);
+    setFormError(null);
+    setFormSuccess(null);
     
     try {
-      await updateSlot(editingSlot.id, {
-        ...slotFormData,
-        capacity: parseInt(slotFormData.capacity),
-        price: parseFloat(slotFormData.price)
-      });
+      await deleteSlot(showDeleteConfirm);
       
       // Refresh slots data
       const response = await fetchExperienceSlots(params.id);
@@ -189,32 +182,19 @@ export default function ManageExperiencePage() {
         setSlots(response.slots);
       }
       
-      resetSlotForm();
+      setFormSuccess('Slot deleted successfully!');
+      setShowDeleteConfirm(null);
     } catch (err) {
-      console.error('Error updating slot:', err);
-      alert('Failed to update slot. Please try again.');
+      console.error('Error deleting slot:', err);
+      setFormError(err.message || 'Failed to delete slot. Please try again.');
+    } finally {
+      setDeleteLoading(false);
     }
   };
 
-  const handleDeleteSlot = async (slotId) => {
-    if (!confirm('Are you sure you want to delete this slot? This action cannot be undone.')) {
-      return;
-    }
-    
-    try {
-      await deleteSlot(slotId);
-      
-      // Refresh slots data
-      const response = await fetchExperienceSlots(params.id);
-      if (response && response.slots) {
-        setSlots(response.slots);
-      }
-      
-      alert('Slot deleted successfully');
-    } catch (err) {
-      console.error('Error deleting slot:', err);
-      alert('Failed to delete slot. Please try again.');
-    }
+  const cancelDeleteSlot = () => {
+    setShowDeleteConfirm(null);
+    setFormError(null);
   };
 
   if (!isAuthenticated || !isProvider()) {
@@ -711,11 +691,8 @@ export default function ManageExperiencePage() {
   );
 
   const SlotsTab = () => (
-    <motion.div
+    <div
       className="tab-content"
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.3 }}
     >
       <div className="slots-section">
         <div className="slots-header">
@@ -824,18 +801,12 @@ export default function ManageExperiencePage() {
 
       {/* Slot Form Modal */}
       {showSlotForm && (
-        <motion.div
+        <div
           className="modal-overlay"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
           onClick={resetSlotForm}
         >
-          <motion.div
+          <div
             className="modal-content"
-            initial={{ scale: 0.9, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            exit={{ scale: 0.9, opacity: 0 }}
             onClick={(e) => e.stopPropagation()}
           >
             <div className="modal-header">
@@ -847,108 +818,98 @@ export default function ManageExperiencePage() {
               </button>
             </div>
 
-            <form onSubmit={editingSlot ? handleUpdateSlot : handleCreateSlot} className="slot-form">
-              <div className="form-group">
-                <label htmlFor="slot-name">Slot Name *</label>
-                <input
-                  type="text"
-                  id="slot-name"
-                  value={slotFormData.name}
-                  onChange={(e) => handleSlotFormChange('name', e.target.value)}
-                  placeholder="e.g., Morning Session, VIP Experience"
-                  required
-                />
-              </div>
+            <SlotForm
+              editingSlot={editingSlot}
+              onSubmit={handleSlotSubmit}
+              onCancel={handleSlotCancel}
+              formLoading={formLoading}
+              formError={formError}
+              formSuccess={formSuccess}
+              resetForm={shouldResetForm}
+            />
+          </div>
+        </div>
+      )}
 
-              <div className="form-row">
-                <div className="form-group">
-                  <label htmlFor="slot-capacity">Capacity *</label>
-                  <input
-                    type="number"
-                    id="slot-capacity"
-                    value={slotFormData.capacity}
-                    onChange={(e) => handleSlotFormChange('capacity', e.target.value)}
-                    placeholder="20"
-                    min="1"
-                    required
-                  />
+      {/* Delete Confirmation Modal */}
+      {showDeleteConfirm && (
+        <div
+          className="modal-overlay"
+          onClick={cancelDeleteSlot}
+        >
+          <div
+            className="modal-content delete-confirm-modal"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="modal-header">
+              <h3>Delete Slot</h3>
+              <button className="modal-close" onClick={cancelDeleteSlot}>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                  <path d="M18 6L6 18M6 6L18 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              </button>
+            </div>
+
+            <div className="delete-confirm-content">
+              <div className="delete-icon">
+                <svg width="48" height="48" viewBox="0 0 24 24" fill="none">
+                  <path d="M12 9V13M12 17H12.01M21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              </div>
+              
+              <h4>Are you sure you want to delete this slot?</h4>
+              <p>This action cannot be undone. Any existing bookings for this slot will be affected.</p>
+
+              {/* Error Message */}
+              {formError && (
+                <div className="form-message form-error">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                    <path d="M12 9V13M12 17H12.01M21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                  <span>{formError}</span>
                 </div>
+              )}
 
-                <div className="form-group">
-                  <label htmlFor="slot-price">Price (KES) *</label>
-                  <input
-                    type="number"
-                    id="slot-price"
-                    value={slotFormData.price}
-                    onChange={(e) => handleSlotFormChange('price', e.target.value)}
-                    placeholder="1000"
-                    min="0"
-                    step="0.01"
-                    required
-                  />
+              {/* Success Message */}
+              {formSuccess && (
+                <div className="form-message form-success">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                    <path d="M9 12L11 14L15 10M21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                  <span>{formSuccess}</span>
                 </div>
-              </div>
-
-              <div className="form-group">
-                <label htmlFor="slot-date">Date *</label>
-                <input
-                  type="date"
-                  id="slot-date"
-                  value={slotFormData.date}
-                  onChange={(e) => handleSlotFormChange('date', e.target.value)}
-                  required
-                />
-              </div>
-
-              <div className="form-row">
-                <div className="form-group">
-                  <label htmlFor="slot-start-time">Start Time *</label>
-                  <input
-                    type="time"
-                    id="slot-start-time"
-                    value={slotFormData.start_time}
-                    onChange={(e) => handleSlotFormChange('start_time', e.target.value)}
-                    required
-                  />
-                </div>
-
-                <div className="form-group">
-                  <label htmlFor="slot-end-time">End Time *</label>
-                  <input
-                    type="time"
-                    id="slot-end-time"
-                    value={slotFormData.end_time}
-                    onChange={(e) => handleSlotFormChange('end_time', e.target.value)}
-                    required
-                  />
-                </div>
-              </div>
-
-              <div className="form-group">
-                <label htmlFor="slot-timezone">Timezone</label>
-                <select
-                  id="slot-timezone"
-                  value={slotFormData.timezone}
-                  onChange={(e) => handleSlotFormChange('timezone', e.target.value)}
-                >
-                  <option value="Africa/Nairobi">Africa/Nairobi</option>
-                  <option value="UTC">UTC</option>
-                </select>
-              </div>
+              )}
 
               <div className="form-actions">
-                <button type="button" className="btn btn-secondary" onClick={resetSlotForm}>
+                <button 
+                  type="button" 
+                  className="btn btn-secondary" 
+                  onClick={cancelDeleteSlot}
+                  disabled={deleteLoading}
+                >
                   Cancel
                 </button>
-                <button type="submit" className="btn btn-primary">
-                  {editingSlot ? 'Update Slot' : 'Create Slot'}
+                <button 
+                  type="button" 
+                  className="btn btn-danger" 
+                  onClick={confirmDeleteSlot}
+                  disabled={deleteLoading}
+                >
+                  {deleteLoading ? (
+                    <>
+                      <div className="loading-spinner small"></div>
+                      Deleting...
+                    </>
+                  ) : (
+                    'Delete Slot'
+                  )}
                 </button>
               </div>
-            </form>
-          </motion.div>
-        </motion.div>
+            </div>
+          </div>
+        </div>
       )}
-    </motion.div>
+    </div>
   );
 
   const renderTabContent = () => {

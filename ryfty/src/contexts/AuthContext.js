@@ -447,7 +447,7 @@ export const AuthProvider = ({ children }) => {
   const updateProfile = async (profileData) => {
     try {
       const token = getAuthToken();
-      const response = await fetch(`${config.api.baseUrl}/auth/profile`, {
+      const response = await fetch(`${config.api.baseUrl}/user`, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,

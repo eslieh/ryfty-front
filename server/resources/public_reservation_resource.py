@@ -7,12 +7,14 @@ from flask_jwt_extended import jwt_required, get_jwt_identity
 from sqlalchemy import func, desc, and_, update
 from sqlalchemy.orm import joinedload, selectinload, contains_eager
 from sqlalchemy.exc import SQLAlchemyError, IntegrityError
+from utils.subscribe_manager import push_to_queue
 from sqlalchemy.dialects.postgresql import JSONB
 from workers.initiate_mpesa import initiate_payment
 import json
 from decimal import Decimal 
 from datetime import datetime, timedelta
 import logging
+import time
 
 # Configure logging for performance monitoring
 logger = logging.getLogger(__name__)
@@ -38,6 +40,25 @@ class PublicReservationResource(Resource):
         if int(slot.capacity - slot.booked) < int(num_people):
             return {"error": "Not enough available spots"}, 400
         
+        # Step 2: Simulate processing
+        time.sleep(2)
+        push_to_queue(user_id, {"state": "pending_confirmation"})
+
+        # Step 3: Imagine M-Pesa or Paystack callback here...
+        time.sleep(3)
+        success = True  # or False if failed
+
+        if success:
+            push_to_queue(user_id, {
+                "state": "success",
+                "transaction_id": "ABC123XYZ"
+            })
+        else:
+            push_to_queue(user_id, {
+                "state": "failed",
+                "error": "Transaction declined"
+            })
+
         api_collection = ApiCollection(
             user_id=user_id,
             slot_id=slot_id,
@@ -66,7 +87,7 @@ class PublicReservationResource(Resource):
         # For simplicity, we'll just simulate this action
 
         return {"message": "Reservation request was successfull, initiating mpesa"}, 201
-    
+   
 class InstallmentReservationResource(Resource):
     @jwt_required()
     def post(self, reservation_id):
@@ -125,136 +146,6 @@ class InstallmentReservationResource(Resource):
         # For simplicity, we'll just simulate this action
 
         return {"message": "partial reservation request was successfull, initiating mpesa"}, 201
-    
-    
-from models import db, Experience, Slot, User, ApiCollection, Reservation
-from flask import current_app, request
-from flask_restful import Resource
-from sqlalchemy import func, desc
-from sqlalchemy.orm import joinedload
-from flask_jwt_extended import jwt_required, get_jwt_identity
-from sqlalchemy import func, desc, and_, update
-from sqlalchemy.orm import joinedload, selectinload, contains_eager
-from sqlalchemy.exc import SQLAlchemyError, IntegrityError
-from sqlalchemy.dialects.postgresql import JSONB
-from workers.initiate_mpesa import initiate_payment
-import json
-from decimal import Decimal 
-from datetime import datetime, timedelta
-import logging
-
-# Configure logging for performance monitoring
-logger = logging.getLogger(__name__)
-
-class PublicReservationResource(Resource):
-    @jwt_required()
-    def post(self):
-        user_id = get_jwt_identity()
-        args = request.get_json()
-        slot_id = args.get("slot_id")
-        experience_id = args.get("experience_id")
-        num_people = args.get("num_people", 1)
-        amount = args.get("amount", 0.0)
-        mpesa_number = args.get("mpesa_number")
-
-        if not num_people  or not slot_id:
-            return {"error": "Num off people and slot_id are required"}, 400
-
-        slot = Slot.query.get(slot_id)
-        if not slot:
-            return {"error": "Slot not found"}, 404
-
-        if int(slot.capacity - slot.booked) < int(num_people):
-            return {"error": "Not enough available spots"}, 400
-        
-        api_collection = ApiCollection(
-            user_id=user_id,
-            slot_id=slot_id,
-            experience_id=experience_id,
-            quantity=num_people,
-            mpesa_number=mpesa_number,
-            amount=Decimal(amount) * Decimal(num_people),
-            status="PENDING"
-        )
-        try:
-            db.session.add(api_collection)
-            db.session.commit()
-        except Exception as e:
-            db.session.rollback()
-            return {"error": "Failed to create payment request: " + str(e)}, 500
-
-        # -----------------------
-        # Initiate payment asynchronously
-        # -----------------------
-        
-        initiate_payment.delay(api_collection.id)
-        
-        
-
-        # Here you would create a Reservation model instance and save it to the database
-        # For simplicity, we'll just simulate this action
-
-        return {"message": "Reservation request was successfull, initiating mpesa"}, 201
-    
-class InstallmentReservationResource(Resource):
-    @jwt_required()
-    def post(self, reservation_id):
-        user_id = get_jwt_identity()
-        args = request.get_json()
-        amount = args.get("amount", 0.0)
-        mpesa_number = args.get("mpesa_number")
-
-        num_people = 1
-        
-        if not amount  or not reservation_id:
-            return {"error": "Amount and reservation_id are required"}, 400
-        
-        reservation = db.session.query(Reservation).filter_by(id=reservation_id, user_id=user_id).first()
-        if not reservation:
-            return {"error": "Reservation not found"}, 404
-    
-
-        amount_paid = reservation.amount_paid
-        
-        remaining = reservation.total_price - amount_paid
-        
-        if amount_paid >= reservation.total_price:
-            return {"error": "Reservation is already fully paid"}, 400
-        
-        if Decimal(amount)  > remaining:
-            return {"error": f"The amount entered is more than the required, to finish the installment please pay KES{str(remaining)} "}
-        
-        
-        api_collection = ApiCollection(
-            user_id=user_id,
-            slot_id=reservation.slot_id,
-            experience_id=reservation.experience_id,
-            quantity=num_people,
-            mpesa_number=mpesa_number,
-            reservation_id=reservation_id,
-            amount=Decimal(amount) * num_people,
-            status="PENDING"
-        )
-        try:
-            db.session.add(api_collection)
-            db.session.commit()
-        except Exception as e:
-            db.session.rollback()
-            return {"error": "Failed to create payment request: " + str(e)}, 500
-
-        # -----------------------
-        # Initiate payment asynchronously
-        # -----------------------
-        
-        initiate_payment.delay(api_collection.id)
-        
-        
-
-        # Here you would create a Reservation model instance and save it to the database
-        # For simplicity, we'll just simulate this action
-
-        return {"message": "partial reservation request was successfull, initiating mpesa"}, 201
-    
     
 class GetReservationsPublic(Resource):
     @jwt_required()
@@ -412,3 +303,4 @@ class GetReservationsPublic(Resource):
         except Exception as e:
             logger.error(f"Error fetching reservations: {e}")
             return {'error': 'Failed to fetch reservations.'}, 500
+        

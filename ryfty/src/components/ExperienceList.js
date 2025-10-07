@@ -102,7 +102,7 @@ export default function ExperienceList({ searchQuery = "" }) {
 
   // Helper function to convert USD to KES
   const convertToKES = (usdAmount) => {
-    const exchangeRate = 130; // Approximate USD to KES rate
+    const exchangeRate = 1; // Approximate USD to KES rate
     return Math.round(usdAmount * exchangeRate);
   };
 
@@ -131,7 +131,7 @@ export default function ExperienceList({ searchQuery = "" }) {
           {[...Array(6)].map((_, index) => (
             <motion.div
               key={index}
-              className="experience-card skeleton-fade-in"
+              className="experience-card-hm skeleton-fade-in"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ 
@@ -144,7 +144,7 @@ export default function ExperienceList({ searchQuery = "" }) {
               <div className="experience-image-container skeleton skeleton-shimmer"></div>
               
               {/* Skeleton Content */}
-              <div className="experience-content">
+              <div className="experience-content-hm">
                 {/* Title skeleton */}
                 <div className="skeleton skeleton-shimmer skeleton-title"></div>
                 
@@ -215,7 +215,7 @@ export default function ExperienceList({ searchQuery = "" }) {
         {experiences.map((experience, index) => (
           <motion.div
             key={experience.id}
-            className="experience-card"
+            className="experience-card-hm"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ 
@@ -254,15 +254,15 @@ export default function ExperienceList({ searchQuery = "" }) {
             </div>
 
             {/* Card Content */}
-            <div className="experience-content">
-              <h3 className="experience-title">{experience.title}</h3>
+            <div className="experience-content-hm">
+              <h3 className="experience-title-hm">{experience.title}</h3>
               
               <div className="experience-location">
                 <span className="location-text">{getPrimaryLocation(experience.destinations)}</span>
               </div>
               
               <div className="experience-price">
-                <span className="price-amount">
+                <span className="price-amount-experience">
                   From {formatKESPrice(convertToKES(experience.min_price))}
                   {experience.max_price !== experience.min_price && ` - ${formatKESPrice(convertToKES(experience.max_price))}`}
                 </span>

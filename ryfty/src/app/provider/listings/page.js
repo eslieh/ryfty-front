@@ -18,11 +18,7 @@ export default function ListingsPage() {
   const router = useRouter();
 
   // Redirect if not authenticated or not a provider
-  useEffect(() => {
-    if (!isAuthenticated || !isProvider()) {
-      router.push('/auth?mode=login');
-    }
-  }, [isAuthenticated, isProvider, router]);
+ 
 
   useEffect(() => {
     const fetchExperiences = async () => {

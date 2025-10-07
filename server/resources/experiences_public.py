@@ -27,7 +27,9 @@ class CachedExperience:
     title: str
     description: str
     destinations: List[str]
-    # images: List[str] = None
+    inclusions: List[str]
+    exclusions: List[str]
+    images: Dict[str, Any]
     activities: List[str]
     poster_image_url: str
     start_date: str  # ISO format
@@ -54,11 +56,14 @@ class CachedExperience:
             title=experience.title,
             description=experience.description or "",
             destinations=experience.destinations or [],
+            inclusions=experience.inclusions or [],
+            exclusions=experience.exclusions or [],
             activities=experience.activities or [],
             poster_image_url=experience.poster_image_url,
             start_date=experience.start_date.isoformat() if experience.start_date else None,
             end_date=experience.end_date.isoformat() if experience.end_date else None,
             status=experience.status,
+            images = experience.images if experience.images else None,
             meeting_point=experience.meeting_point or {},
             provider_name=provider_data.get('name', '') if provider_data else (experience.provider.name if experience.provider else ''),
             provider_avatar=provider_data.get('avatar_url') if provider_data else (experience.provider.avatar_url if experience.provider else None),
@@ -105,6 +110,9 @@ class PublicExperienceSchema(Schema):
     destinations = fields.List(fields.Str())
     activities = fields.List(fields.Str())
     poster_image_url = fields.Url()
+    images  = fields.Dict()
+    inclusions = fields.List(fields.Str())
+    exclusions = fields.List(fields.Str())
     start_date = fields.Date()
     end_date = fields.Date()
     start_time = fields.Time(required=True)  

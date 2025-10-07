@@ -11,7 +11,7 @@ from flask_migrate import Migrate
 from flask_cors import CORS
 import redis
 import ssl
-
+from events.event_bp import events_bp 
 from config import Config
 from models import db
 from flask_restful import Resource
@@ -96,6 +96,7 @@ def create_app():
         redirect_url="/auth/google",
     )
     app.register_blueprint(google_bp, url_prefix="/login")
+    app.register_blueprint(events_bp)
 
     # ---- API resources ----
     api = Api(app)
@@ -163,10 +164,13 @@ def create_app():
     api.add_resource(PostReviewResource, '/experiences/<uuid:experience_id>/reviews/post')
     api.add_resource(ExperienceReviewsResource, '/experiences/<uuid:experience_id>/reviews')
     api.add_resource(ExperienceStatsResource, '/experiences/<uuid:experience_id>/stats')
+
     
+
     # test resource
     api.add_resource(TestSendReservation, "/api/test/send_reservation_mail")
     api.add_resource(TestSendPayoutConfirmation, "/api/test/send_payout")
+
     return app
 
 

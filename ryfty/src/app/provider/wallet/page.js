@@ -22,11 +22,7 @@ export default function ProviderWallet() {
   const router = useRouter();
 
   // Redirect if not authenticated or not a provider
-  useEffect(() => {
-    if (!isAuthenticated || !isProvider()) {
-      router.push('/auth?mode=login');
-    }
-  }, [isAuthenticated, isProvider, router]);
+ 
 
   // Fetch wallet data
   useEffect(() => {

@@ -26,7 +26,7 @@
 
 /* Card Content */
 
-.experience-content {
+.experience-content-hm {
     flex-direction: column;
     gap: 1px;
     padding-top: 6px;
@@ -34,7 +34,7 @@
 ;
 }
 
-.experience-title {
+.experience-title-hm {
   font-size: 16px;
   font-weight: 600;
   color: #111827;
@@ -188,15 +188,15 @@
     height: 180px;
   }
   
-  .experience-content {
+  .experience-content-hm {
     padding: 12px;
   }
   
-  .experience-title {
+  .experience-title-hm {
     font-size: 14px;
   }
   
-  .price-amount {
+  .price-amount-experience {
     font-size: 12px;
 }
 }

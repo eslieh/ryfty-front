@@ -53,7 +53,10 @@ class MpesaCallbackResource(Resource):
                 api_collection.mpesa_transaction_id = transaction_id
                 db.session.commit()
 
-                
+                push_to_queue(api_collection.user_id, {
+                    "state": "success",
+                    "transaction_id": "ABC123XYZ"
+                })
                 
                 logg_wallet.delay(
                     slot_id=slot_id,
@@ -71,6 +74,10 @@ class MpesaCallbackResource(Resource):
 
             else:
                 # Failed payment
+                push_to_queue(api_collection.user_id, {
+                    "state": "failed",
+                    "error": "Transaction declined"
+                })
                 api_collection.status = "failed"
                 api_collection.desctription = result_desc
                 db.session.commit()

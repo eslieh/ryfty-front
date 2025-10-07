@@ -7,13 +7,14 @@ import NextImage from "next/image";
 import Header from "@/components/header";
 import Footer from "@/components/footer";
 import { useAuth } from "@/contexts/AuthContext";
-import { fetchUserProfile, updateUserProfile } from "@/utils/api";
+import { fetchUserProfile } from "@/utils/api";
+import { compressImageWithPreset, validateImageFile } from '@/utils/imageCompression';
 import config from "@/config";
 import "@/styles/profile.css";
 
 export default function ProfilePage() {
   const router = useRouter();
-  const { isAuthenticated, user, setUserData, logout, isProvider } = useAuth();
+  const { isAuthenticated, user, updateProfile, logout, isProvider, switchRole } = useAuth();
   const [profileData, setProfileData] = useState(null);
   const [formData, setFormData] = useState({
     name: '',
@@ -103,7 +104,7 @@ export default function ProfilePage() {
         });
         
         // Update AuthContext with fresh data
-        setUserData(response.user);
+        await updateProfile(response.user);
       }
     } catch (err) {
       console.error('Error refreshing profile:', err);
@@ -113,59 +114,6 @@ export default function ProfilePage() {
     }
   };
 
-  // Image compression function - returns compressed blob
-  const compressImage = (file, maxWidth = 400, quality = 0.8) => {
-    return new Promise((resolve, reject) => {
-      const canvas = document.createElement('canvas');
-      const ctx = canvas.getContext('2d');
-      const img = new Image();
-      
-      img.onload = () => {
-        try {
-          // Calculate new dimensions maintaining aspect ratio
-          let { width, height } = img;
-          
-          if (width > maxWidth) {
-            height = (height * maxWidth) / width;
-            width = maxWidth;
-          }
-          
-          // Set canvas dimensions
-          canvas.width = width;
-          canvas.height = height;
-          
-          // Draw and compress
-          ctx.drawImage(img, 0, 0, width, height);
-          
-          // Convert to blob with compression
-          canvas.toBlob(
-            (blob) => {
-              if (blob) {
-                console.log('Image compressed:', {
-                  originalSize: file.size,
-                  compressedSize: blob.size,
-                  compressionRatio: Math.round(((file.size - blob.size) / file.size) * 100) + '%'
-                });
-                resolve(blob);
-              } else {
-                reject(new Error('Failed to compress image'));
-              }
-            },
-            'image/jpeg',
-            quality
-          );
-        } catch (error) {
-          reject(error);
-        }
-      };
-      
-      img.onerror = () => {
-        reject(new Error('Failed to load image'));
-      };
-      
-      img.src = URL.createObjectURL(file);
-    });
-  };
 
   // Handle avatar upload with compression and Cloudinary upload
   const handleAvatarUpload = async (event) => {
@@ -174,17 +122,10 @@ export default function ProfilePage() {
 
     console.log('Selected file:', file.name, file.type, file.size);
 
-    // Validate file type
-    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
-    if (!allowedTypes.includes(file.type)) {
-      alert(`Please select a valid image file. Allowed types: ${allowedTypes.join(', ')}`);
-      return;
-    }
-
-    // Validate file size (10MB limit)
-    const maxFileSize = 10 * 1024 * 1024; // 10MB
-    if (file.size > maxFileSize) {
-      alert(`File size must be less than ${Math.round(maxFileSize / (1024 * 1024))}MB`);
+    // Validate file using utility function
+    const validation = validateImageFile(file, 10 * 1024 * 1024); // 10MB limit
+    if (!validation.isValid) {
+      alert(validation.error);
       return;
     }
 
@@ -192,30 +133,11 @@ export default function ProfilePage() {
     setError(null);
 
     try {
-      // Compress image locally
+      // Compress image locally using utility
       console.log('Compressing image locally...');
-      const compressedBase64 = await compressImage(file, 400, 0.8);
-      
-      // Convert base64 to blob with proper MIME type
-      let compressedBlob;
-      try {
-        // Method 1: Manual conversion
-        const byteCharacters = atob(compressedBase64.split(',')[1]);
-        const byteNumbers = new Array(byteCharacters.length);
-        for (let i = 0; i < byteCharacters.length; i++) {
-          byteNumbers[i] = byteCharacters.charCodeAt(i);
-        }
-        const byteArray = new Uint8Array(byteNumbers);
-        compressedBlob = new Blob([byteArray], { type: 'image/jpeg' });
-      } catch (conversionError) {
-        console.warn('Manual conversion failed, trying fetch method:', conversionError);
-        // Method 2: Fetch method as fallback
-        const response = await fetch(compressedBase64);
-        compressedBlob = await response.blob();
-      }
+      const compressedBlob = await compressImageWithPreset(file, 'avatar');
       
       console.log('Compression complete. Original size:', file.size, 'Compressed size:', compressedBlob.size);
-      console.log('Blob type:', compressedBlob.type, 'Blob size:', compressedBlob.size);
 
       // Upload to Cloudinary
       if (!config.upload.cloudinary.cloudName || !config.upload.cloudinary.uploadPreset) {
@@ -262,6 +184,9 @@ export default function ProfilePage() {
         avatar_url: transformedUrl
       }));
       
+      // Update user context immediately
+      await updateProfile({ avatar_url: transformedUrl });
+      
       console.log('Avatar uploaded to Cloudinary successfully:', transformedUrl);
       
     } catch (err) {
@@ -298,26 +223,28 @@ export default function ProfilePage() {
     setError(null);
 
     try {
-      const response = await updateUserProfile(formData);
-      console.log('Profile update response:', response);
-      
-      // Update local state with form data
-      setProfileData(prev => ({
-        ...prev,
-        name: formData.name,
-        bio: formData.bio,
-        avatar_url: formData.avatar_url
-      }));
-      
-      // Update AuthContext
-      setUserData({
-        ...user,
+      // Use AuthContext's updateProfile which handles API call and localStorage sync
+      const result = await updateProfile({
         name: formData.name,
         bio: formData.bio,
         avatar_url: formData.avatar_url
       });
       
-      setIsEditing(false);
+      if (result.success) {
+        console.log('Profile updated successfully:', result.user);
+        
+        // Update local state with the returned user data
+        setProfileData(result.user);
+        setFormData({
+          name: result.user.name || '',
+          bio: result.user.bio || '',
+          avatar_url: result.user.avatar_url || ''
+        });
+        
+        setIsEditing(false);
+      } else {
+        throw new Error(result.error || 'Failed to update profile');
+      }
     } catch (err) {
       console.error('Error updating profile:', err);
       setError(err.message || 'Failed to update profile');
@@ -335,6 +262,21 @@ export default function ProfilePage() {
     });
     setIsEditing(false);
     setError(null);
+  };
+
+  // Handle role switching
+  const handleRoleSwitch = async () => {
+    try {
+      const newRole = 'provider';
+      if (newRole === 'provider') {
+        router.push('/provider');
+      } else {
+        router.push('/');
+      }
+    } catch (err) {
+      console.error('Error switching role:', err);
+      setError('Failed to switch role');
+    }
   };
 
   // Handle logout
@@ -627,6 +569,21 @@ export default function ProfilePage() {
 
                 {/* Action Buttons */}
                 <div className="action-buttons">
+                  {/* Mobile Provider Switch Button - Only visible on mobile for provider role users */}
+                  {isProvider() && (
+                    <button 
+                      className="btn btn-provider-switch mobile-only"
+                      onClick={handleRoleSwitch}
+                    >
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                        <path d="M12 2L2 7L12 12L22 7L12 2Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                        <path d="M2 17L12 22L22 17" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                        <path d="M2 12L12 17L22 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                      </svg>
+                      Switch to Provider Dashboard
+                    </button>
+                  )}
+
                   {!isProvider() && (
                     <button 
                       className="btn btn-primary btn-become-provider"
