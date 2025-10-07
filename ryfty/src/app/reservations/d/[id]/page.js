@@ -38,12 +38,6 @@ export default function ReservationDetailPage() {
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
-  // Redirect if not authenticated
-  useEffect(() => {
-    if (!isAuthenticated) {
-      router.push('/auth?mode=login');
-    }
-  }, [isAuthenticated, router]);
 
   // Fetch reservation details
   useEffect(() => {

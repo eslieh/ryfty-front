@@ -30,6 +30,8 @@ from resources.wallet_resource import WalletResource, PaymentMethodResource, Dis
 from resources.test import TestSendPayoutConfirmation,TestSendReservation
 from resources.review_resource import ExperienceReviewsResource, PostReviewResource, ExperienceStatsResource
 
+# checkin device auth
+from checkin_devices.auth import DeviceAuthorization, CheckIn, DeviceVerification, DeauthorizeDevice, AuthorizedDevices
 import sqlalchemy.pool
 from celery_app import celery
 import json
@@ -77,12 +79,25 @@ def create_app():
     
     # ---- (Optional) direct Redis connection if you need it besides caching ----
     redis_url = app.config.get("CACHE_REDIS_URL")
+
     if redis_url:
-        redis_connection_kwargs = {"decode_responses": True}
+        # Define base connection options
+        redis_connection_kwargs = {
+            "decode_responses": True,  # store as str, not bytes
+        }
+
+        # SSL Support (for rediss://)
         if redis_url.startswith("rediss://"):
-            redis_connection_kwargs["ssl"] = True
-            redis_connection_kwargs["ssl_cert_reqs"] = ssl.CERT_NONE
-        app.redis = redis.Redis.from_url(redis_url, **redis_connection_kwargs)
+            redis_connection_kwargs.update({
+                "ssl": True,
+                "ssl_cert_reqs": ssl.CERT_NONE  # disable strict cert checks (optional)
+            })
+
+        # 🔹 Create a connection pool
+        pool = redis.ConnectionPool.from_url(redis_url, **redis_connection_kwargs)
+
+        # 🔹 Assign Redis client using that pool
+        app.redis = redis.Redis(connection_pool=pool)
     
     # ---- Google OAuth blueprint ----
     google_bp = make_google_blueprint(
@@ -170,6 +185,13 @@ def create_app():
     # test resource
     api.add_resource(TestSendReservation, "/api/test/send_reservation_mail")
     api.add_resource(TestSendPayoutConfirmation, "/api/test/send_payout")
+
+    # checkin device auth resources
+    api.add_resource(DeviceAuthorization, '/device/auth')
+    api.add_resource(DeviceVerification, '/device/verify')
+    api.add_resource(CheckIn, '/device/checkin')
+    api.add_resource(DeauthorizeDevice, '/device/deauthorize')
+    api.add_resource(AuthorizedDevices, '/device/authorized')
 
     return app
 

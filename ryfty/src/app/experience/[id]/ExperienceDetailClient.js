@@ -51,6 +51,7 @@ export default function ExperienceDetailClient({ id }) {
   const [isWaitingForPayment, setIsWaitingForPayment] = useState(false);
   const [eventSource, setEventSource] = useState(null);
   const [reservationLoading, setReservationLoading] = useState(false);
+  const [redirectCountdown, setRedirectCountdown] = useState(0);
 
 
   const [isMobile, setIsMobile] = useState(false);
@@ -404,6 +405,7 @@ export default function ExperienceDetailClient({ id }) {
     setReservationStep(1);
     setIsWaitingForPayment(false);
     setPaymentStatus('');
+    setRedirectCountdown(0);
   };
 
   const handleReservationSubmit = async () => {
@@ -458,7 +460,18 @@ export default function ExperienceDetailClient({ id }) {
         }
         if (data.data?.state === "success") {
           setPaymentStatus("✅ Payment Successful!");
-          // Don't close EventSource or reset states - let user decide when to close
+          // Start countdown for redirect
+          setRedirectCountdown(3);
+          const countdownInterval = setInterval(() => {
+            setRedirectCountdown(prev => {
+              if (prev <= 1) {
+                clearInterval(countdownInterval);
+                router.push('/reservations');
+                return 0;
+              }
+              return prev - 1;
+            });
+          }, 1000);
         }
         if (data.data?.state === "failed") {
           setPaymentStatus("❌ Payment Failed!");
@@ -772,16 +785,58 @@ export default function ExperienceDetailClient({ id }) {
               {/* Map Container */}
               {experience?.meeting_point?.coordinates?.lat && experience?.meeting_point?.coordinates?.lng && (
                 <div className="map-container">
-                  <iframe
-                    src={`https://www.google.com/maps?q=${experience.meeting_point.coordinates.lat},${experience.meeting_point.coordinates.lng}&hl=en&z=15&output=embed`}
-                    width="100%"
-                    height="300"
-                    style={{ border: 0 }}
-                    allowFullScreen=""
-                    loading="lazy"
-                    referrerPolicy="no-referrer-when-downgrade"
-                    title={`Map showing ${experience.meeting_point.name}`}
-                  ></iframe>
+                  <div className="map-header">
+                    <h3 className="map-title">Meeting Location</h3>
+                    <div className="map-actions">
+                      <button
+                        className="directions-btn"
+                        onClick={() => {
+                          const lat = experience.meeting_point.coordinates.lat;
+                          const lng = experience.meeting_point.coordinates.lng;
+                          const address = encodeURIComponent(experience.meeting_point.address || '');
+                          const url = `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}&destination_place_id=${address}`;
+                          window.open(url, '_blank');
+                        }}
+                      >
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                          <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" stroke="currentColor" strokeWidth="2"/>
+                          <circle cx="12" cy="10" r="3" stroke="currentColor" strokeWidth="2"/>
+                        </svg>
+                        Get Directions
+                      </button>
+                      <button
+                        className="map-expand-btn"
+                        onClick={() => {
+                          const lat = experience.meeting_point.coordinates.lat;
+                          const lng = experience.meeting_point.coordinates.lng;
+                          const url = `https://www.google.com/maps?q=${lat},${lng}&hl=en&z=15`;
+                          window.open(url, '_blank');
+                        }}
+                      >
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                          <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3" stroke="currentColor" strokeWidth="2"/>
+                        </svg>
+                        Open in Maps
+                      </button>
+                    </div>
+                  </div>
+                  <div className="map-iframe-container">
+                    <iframe
+                      src={`https://www.google.com/maps?q=${experience.meeting_point.coordinates.lat},${experience.meeting_point.coordinates.lng}&hl=en&z=15&output=embed`}
+                      width="100%"
+                      height="300"
+                      style={{ border: 0, borderRadius: '8px' }}
+                      allowFullScreen=""
+                      loading="lazy"
+                      referrerPolicy="no-referrer-when-downgrade"
+                      title={`Map showing ${experience.meeting_point.name}`}
+                    ></iframe>
+                  </div>
+                  <div className="map-footer">
+                    <p className="map-note">
+                      📍 Click "Get Directions" to navigate to this location using your preferred maps app
+                    </p>
+                  </div>
                 </div>
               )}
             </motion.div>
@@ -1292,22 +1347,31 @@ export default function ExperienceDetailClient({ id }) {
 
                       <div className="reservation-btn-group">
                         {paymentStatus.includes('✅') ? (
-                          <button
-                            onClick={() => {
-                              // Close EventSource when user manually closes
-                              if (eventSource) {
-                                eventSource.close();
-                                setEventSource(null);
+                          <>
+                            <button
+                              onClick={() => {
+                                // Close EventSource when user manually closes
+                                if (eventSource) {
+                                  eventSource.close();
+                                  setEventSource(null);
+                                }
+                                setShowReservation(false);
+                                setReservationStep(1);
+                                setIsWaitingForPayment(false);
+                                setPaymentStatus('');
+                                router.push('/reservations');
+                              }}
+                              className="reservation-btn reservation-btn-success"
+                            >
+                              View My Reservations
+                            </button>
+                            <p className="redirect-notice">
+                              {redirectCountdown > 0 
+                                ? `Redirecting to your reservations in ${redirectCountdown} second${redirectCountdown !== 1 ? 's' : ''}...`
+                                : 'Redirecting now...'
                               }
-                              setShowReservation(false);
-                              setReservationStep(1);
-                              setIsWaitingForPayment(false);
-                              setPaymentStatus('');
-                            }}
-                            className="reservation-btn reservation-btn-success"
-                          >
-                            Close
-                          </button>
+                            </p>
+                          </>
                         ) : paymentStatus.includes('❌') ? (
                           <>
                             <button

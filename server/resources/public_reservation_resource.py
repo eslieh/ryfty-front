@@ -48,16 +48,16 @@ class PublicReservationResource(Resource):
         time.sleep(3)
         success = True  # or False if failed
 
-        if success:
-            push_to_queue(user_id, {
-                "state": "success",
-                "transaction_id": "ABC123XYZ"
-            })
-        else:
-            push_to_queue(user_id, {
-                "state": "failed",
-                "error": "Transaction declined"
-            })
+        # if success:
+        #     push_to_queue(user_id, {
+        #         "state": "success",
+        #         "transaction_id": "ABC123XYZ"
+        #     })
+        # else:
+        #     push_to_queue(user_id, {
+        #         "state": "failed",
+        #         "error": "Transaction declined"
+        #     })
 
         api_collection = ApiCollection(
             user_id=user_id,
@@ -203,6 +203,7 @@ class GetReservationsPublic(Resource):
                     and_(
                         Reservation.id == reservation_id,
                         Reservation.user_id == user_id,
+                        Reservation.revocked != True
                     )
                 )
                 res = query.first()
@@ -240,7 +241,12 @@ class GetReservationsPublic(Resource):
                 }
             else:
                 # List reservations with pagination
-                query = query.filter(Reservation.user_id == user_id)
+                query = query.filter(
+                    and_(
+                        Reservation.user_id == user_id,
+                        Reservation.revocked != True
+                    )
+                )
                 query = query.order_by(desc(Reservation.created_at))
                 
                 # Get total count before pagination

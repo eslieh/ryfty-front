@@ -114,7 +114,6 @@ export default function Header() {
     };
   }, [isMenuOpen]);
 
-  console.log(user);
   return (
     <motion.header 
       className="header"

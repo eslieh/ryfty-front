@@ -1,5 +1,13 @@
 /* Reservation Modal Styles */
 
+.redirect-notice {
+  font-size: 0.875rem;
+  color: #28a745;
+  text-align: center;
+  margin: 0.5rem 0 0 0;
+  font-weight: 500;
+}
+
 :root {
   --primary: #00915a;
   --primary-hover: #007a4c;

@@ -584,10 +584,88 @@
   border-radius: 12px;
   overflow: hidden;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  background: white;
+}
+
+.map-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 1.5rem;
+  background: #f8f9fa;
+  border-bottom: 1px solid #e9ecef;
+}
+
+.map-title {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: #222222;
+  margin: 0;
+}
+
+.map-actions {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.directions-btn,
+.map-expand-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  border: 1px solid #DDDDDD;
+  border-radius: 8px;
+  background: white;
+  color: #222222;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-decoration: none;
+}
+
+.directions-btn:hover,
+.map-expand-btn:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.directions-btn {
+  background: var(--primary);
+  color: white;
+  border-color: var(--primary);
+}
+
+.directions-btn:hover {
+  background: var(--primary-hover);
+  border-color: var(--primary-hover);
+  color: white;
+}
+
+.map-iframe-container {
+  position: relative;
+  width: 100%;
 }
 
 .map-container iframe {
-  border-radius: 12px;
+  border-radius: 0;
+  display: block;
+}
+
+.map-footer {
+  padding: 1rem 1.5rem;
+  background: #f8f9fa;
+  border-top: 1px solid #e9ecef;
+}
+
+.map-note {
+  font-size: 0.875rem;
+  color: #717171;
+  margin: 0;
+  text-align: center;
 }
 
 /* Host Description Section */
@@ -682,6 +760,24 @@
   
   .map-container iframe {
     height: 250px;
+  }
+  
+  .map-header {
+    flex-direction: column;
+    gap: 1rem;
+    align-items: stretch;
+  }
+  
+  .map-actions {
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+  
+  .directions-btn,
+  .map-expand-btn {
+    flex: 1;
+    min-width: 120px;
+    justify-content: center;
   }
 }
 
@@ -930,22 +1026,35 @@
   }
   
   .calendar-day {
-    min-height: 50px;
-  }
+    min-height: 35px;
+}
+
+.calendar-day.has-slots {
+  background: #00915a;
+  border: none;
+  color: white;
+}
   
   .day-number {
     font-size: 12px;
   }
-  
   .slots-indicator {
-    width: 16px;
-    height: 16px;
-    font-size: 9px;
-  }
-  
+    width: 13px;
+    height: 13px;
+    font-size: 7px;
+    background: black;
+}
   .calendar-month {
     font-size: 16px;
   }
+
+.calendar-day-header {
+  text-align: center;
+  color: #6c757d;
+  padding: 11px 4px;
+  font-size: 14px;
+  font-weight: 600;
+}
 }
 
 /* Calendar Modal */

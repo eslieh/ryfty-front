@@ -216,7 +216,7 @@ class Reservation(db.Model):
     experience_id = db.Column(UUID(as_uuid=True), db.ForeignKey("experiences.id"), nullable=False, index=True)
     checked_in = db.Column(db.Boolean, nullable=False, default=False, index=True)
     revocked = db.Column(db.Boolean, nullable=True, default=False, index=True)
-
+    checkin_time = db.Column(db.DateTime(timezone=True), nullable=True, index=True)
     __table_args__ = (
         CheckConstraint(
             f"payment_type IN ('{PaymentType.CARD}', '{PaymentType.MPESA}', '{PaymentType.BANK}', '{PaymentType.WALLET}')",
