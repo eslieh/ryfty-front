@@ -38,7 +38,7 @@ class GoogleAuth(Resource):
 
         # Create JWT token
         access_token = create_access_token(identity=str(user.id))
-        redirect_url = f"{FRONTEND_URL}/auth/callback?{urlencode({'token': access_token, 'email': user.email, 'id': user.id, 'name': user.name, 'avatar_url': user.avatar_url, 'role': user.role})}"
+        redirect_url = f"{FRONTEND_URL}/auth/callback?{urlencode({'token': access_token, 'email': user.email, 'id': user.id, 'name': user.name, 'avatar_url': user.avatar_url, 'role': user.role, 'bio': user.bio})}"
         return redirect(redirect_url)
         # return {"access_token": access_token, "user": {"id": str(user.id), "email": user.email, "avatar_url":user.avatar_url, "name": user.name}}, 200
 
@@ -78,6 +78,7 @@ class Login(Resource):
                     "email": user.email,
                     "phone": user.phone,
                     "name": user.name,
+                    "bio": user.bio,
                     "avatar_url": user.avatar_url,
                     "role": user.role
                 }
@@ -186,6 +187,7 @@ class Verify(Resource):
                 "phone": user.phone,
                 "name": user.name,
                 "avatar_url": user.avatar_url,
+                "bio": user.bio,
                 "role": user.role
             },
             "message": f"{verification.type.capitalize()} verified successfully"

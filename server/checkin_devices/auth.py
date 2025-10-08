@@ -90,17 +90,13 @@ class DeauthorizeDevice(Resource):
         if not device_data_raw:
             return {"error": "Device not found"}, 404
 
-        device_data = json.loads(device_data_raw)
-        device_data["active"] = False
-        device_data["revoked_at"] = datetime.utcnow().isoformat()
-
-        # Update in Redis
-        redis.hset(key, device_name, json.dumps(device_data))
+        # Remove the device completely from the hash
+        redis.hdel(key, device_name)
 
         # Optionally, add to revoked set for faster token invalidation
         redis.sadd("revoked_devices", f"{provider_id}:{device_name}")
 
-        return {"message": f"Device '{device_name}' has been deauthorized"}, 200
+        return {"message": f"Device '{device_name}' has been deauthorized and removed"}, 200
 
 
 class AuthorizedDevices(Resource):
@@ -242,6 +238,7 @@ class CheckIn(Resource):
         return {
             "message": f"{reservation['user_name']} checked in successfully",
             "reservation_id": reservation_id,
+            "number_of_guests": reservation.get("quantity"),
             "checked_in": True,
             "pending_count": pending_count,
             "unchecked_remaining": unchecked_count,

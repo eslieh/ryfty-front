@@ -220,7 +220,7 @@ export default function Header() {
                       {isProvider() && (
                         <motion.div 
                           className="dropdown-item"
-                          onClick={() => handleAuthNavigation('/provider/dashboard')}
+                          onClick={() => handleAuthNavigation('/provider')}
                           whileHover={{ backgroundColor: "#f7f7f7", x: 4 }}
                           transition={{ type: "spring", stiffness: 400, damping: 10 }}
                         >
@@ -247,39 +247,13 @@ export default function Header() {
                     </>
                   ) : (
                     <>
-                      {/* Guest Menu Items */}
-                      <motion.div 
-                        className="dropdown-item"
-                        onClick={() => handleAuthNavigation('/auth?mode=signup')}
-                        whileHover={{ backgroundColor: "#f7f7f7", x: 4 }}
-                        transition={{ type: "spring", stiffness: 400, damping: 10 }}
-                      >
-                        Sign up
-                      </motion.div>
                       <motion.div 
                         className="dropdown-item"
                         onClick={() => handleAuthNavigation('/auth?mode=login')}
                         whileHover={{ backgroundColor: "#f7f7f7", x: 4 }}
                         transition={{ type: "spring", stiffness: 400, damping: 10 }}
                       >
-                        Log in
-                      </motion.div>
-                      <div className="dropdown-divider"></div>
-                      <motion.div 
-                        className="dropdown-item"
-                        onClick={() => handleAuthNavigation('/gift-cards')}
-                        whileHover={{ backgroundColor: "#f7f7f7", x: 4 }}
-                        transition={{ type: "spring", stiffness: 400, damping: 10 }}
-                      >
-                        Gift cards
-                      </motion.div>
-                      <motion.div 
-                        className="dropdown-item"
-                        onClick={() => handleAuthNavigation('/host')}
-                        whileHover={{ backgroundColor: "#f7f7f7", x: 4 }}
-                        transition={{ type: "spring", stiffness: 400, damping: 10 }}
-                      >
-                        Ryfty your home
+                        Log or Signup
                       </motion.div>
                       <motion.div 
                         className="dropdown-item"

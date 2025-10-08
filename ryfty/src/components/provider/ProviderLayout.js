@@ -14,12 +14,6 @@ export default function ProviderLayout({ children }) {
   const router = useRouter();
   const pathname = usePathname();
 
-  // Redirect if not authenticated or not a provider
-  useEffect(() => {
-    if (!isAuthenticated || !isProvider()) {
-      router.push('/auth?mode=login');
-    }
-  }, [isAuthenticated, isProvider, router]);
 
   const handleLogout = async () => {
     await logout();

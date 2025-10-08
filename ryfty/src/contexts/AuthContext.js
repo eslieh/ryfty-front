@@ -213,12 +213,23 @@ export const AuthProvider = ({ children }) => {
       const data = await response.json();
 
       if (response.ok) {
+        // Ensure user data has all required fields including bio
+        const completeUserData = {
+          id: data.user.id,
+          email: data.user.email,
+          name: data.user.name,
+          phone: data.user.phone || null,
+          avatar_url: data.user.avatar_url || null,
+          bio: data.user.bio || null,
+          role: data.user.role || 'customer'
+        };
+        
         setAuthToken(data.access_token);
-        setUserData(data.user);
-        dispatch({ type: 'SET_USER', payload: data.user });
+        setUserData(completeUserData);
+        dispatch({ type: 'SET_USER', payload: completeUserData });
         return { 
           success: true, 
-          user: data.user, 
+          user: completeUserData, 
           message: data.message || 'Account verified successfully!' 
         };
       } else {
@@ -316,6 +327,7 @@ export const AuthProvider = ({ children }) => {
         name: userData.name,
         phone: userData.phone || null,
         avatar_url: userData.avatar_url || null,
+        bio: userData.bio || null,
         role: userData.role || 'customer'
       };
       
@@ -406,10 +418,21 @@ export const AuthProvider = ({ children }) => {
       const data = await response.json();
 
       if (response.ok) {
+        // Ensure user data has all required fields including bio
+        const completeUserData = {
+          id: data.user.id,
+          email: data.user.email,
+          name: data.user.name,
+          phone: data.user.phone || null,
+          avatar_url: data.user.avatar_url || null,
+          bio: data.user.bio || null,
+          role: data.user.role || 'customer'
+        };
+        
         setAuthToken(data.access_token);
-        setUserData(data.user);
-        dispatch({ type: 'SET_USER', payload: data.user });
-        return { success: true, user: data.user };
+        setUserData(completeUserData);
+        dispatch({ type: 'SET_USER', payload: completeUserData });
+        return { success: true, user: completeUserData };
       } else {
         dispatch({ type: 'SET_ERROR', payload: data.message || 'Phone verification failed' });
         return { success: false, error: data.message };
@@ -459,12 +482,14 @@ export const AuthProvider = ({ children }) => {
       const data = await response.json();
 
       if (response.ok) {
-        // Update stored user data
-        setUserData(data.user);
-        dispatch({ type: 'UPDATE_PROFILE', payload: data.user });
-        return { success: true, user: data.user };
+        // Since API only returns success/failed message, merge provided data with current user data
+        const currentUser = getUserData();
+        const updatedUser = { ...currentUser, ...profileData };
+        setUserData(updatedUser);
+        dispatch({ type: 'UPDATE_PROFILE', payload: profileData });
+        return { success: true, user: updatedUser };
       } else {
-        return { success: false, error: data.message };
+        return { success: false, error: data.message || 'Failed to update profile' };
       }
     } catch (error) {
       return { success: false, error: 'Failed to update profile' };
@@ -515,13 +540,13 @@ export const AuthProvider = ({ children }) => {
     
     try {
       const token = getAuthToken();
-      const response = await fetch(`${config.api.baseUrl}/auth/switch-role`, {
-        method: 'POST',
+      const response = await fetch(`${config.api.baseUrl}/user`, {
+        method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ role: newRole })
+        body: JSON.stringify({ role: newRole }),
       });
 
       const data = await response.json();

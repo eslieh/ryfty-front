@@ -233,15 +233,40 @@ export default function ReservationDetailPage() {
           Back to Reservations
         </motion.button>
 
-        {/* QR Code Section */}
-        <motion.div 
-          className="qr-code-section"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
-        >
-          <QRCodeGenerator reservationId={reservationId} size={250} />
-        </motion.div>
+        {/* QR Code Section - Only show when balance is fully paid */}
+        {getOutstandingBalance() === 0 ? (
+          <motion.div 
+            className="qr-code-section"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5 }}
+          >
+            <QRCodeGenerator reservationId={`ryfty_reservation_{${reservationId}}`} size={250} />
+          </motion.div>
+        ) : (
+          <motion.div 
+            className="qr-code-pending-section"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5 }}
+          >
+            <div className="qr-code-pending-container">
+              <div className="qr-code-pending-icon">
+                <svg width="48" height="48" viewBox="0 0 24 24" fill="none">
+                  <path d="M12 8V12L16 14M22 12C22 17.5228 17.5228 22 12 22C6.47715 22 2 17.5228 2 12C2 6.47715 6.47715 2 12 2C17.5228 2 22 6.47715 22 12Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              </div>
+              <h3 className="qr-code-pending-title">QR Code Available After Payment</h3>
+              <p className="qr-code-pending-description">
+                Complete your payment to access your reservation QR code for check-in.
+              </p>
+              <div className="qr-code-pending-balance">
+                <span className="balance-label">Outstanding Balance:</span>
+                <span className="balance-amount">{formatPrice(getOutstandingBalance())}</span>
+              </div>
+            </div>
+          </motion.div>
+        )}
 
         {/* Reservation Header */}
         <motion.div 

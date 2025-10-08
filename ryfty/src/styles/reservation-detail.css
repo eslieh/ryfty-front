@@ -121,6 +121,63 @@
   object-fit: contain;
 }
 
+/* ===== QR CODE PENDING SECTION ===== */
+.qr-code-pending-section {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 3rem;
+}
+
+.qr-code-pending-container {
+  background: #f8f9fa;
+  border-radius: 20px;
+  padding: 2rem;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.1);
+  border: 1px solid #e9ecef;
+  text-align: center;
+  max-width: 400px;
+  width: 100%;
+}
+
+.qr-code-pending-icon {
+  margin-bottom: 1rem;
+  color: #ffc107;
+}
+
+.qr-code-pending-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #222222;
+  margin: 0 0 0.5rem 0;
+}
+
+.qr-code-pending-description {
+  font-size: 1rem;
+  color: #717171;
+  margin: 0 0 1.5rem 0;
+  line-height: 1.5;
+}
+
+.qr-code-pending-balance {
+  background: white;
+  border-radius: 12px;
+  padding: 1rem;
+  border: 1px solid #e9ecef;
+}
+
+.balance-label {
+  font-size: 0.9rem;
+  color: #6c757d;
+  display: block;
+  margin-bottom: 0.5rem;
+}
+
+.balance-amount {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #dc3545;
+}
+
 
 .qr-code-loading,
 .qr-code-error {

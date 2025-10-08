@@ -83,7 +83,7 @@ def initiate_payment(self, api_collection_id):
             "PartyB": MPESA_SHORTCODE,
             "PhoneNumber": formatted_number,
             "CallBackURL": call_back_url,
-            "AccountReference": "MealTopUp",
+            "AccountReference": "RYFTY.NET",
             "TransactionDesc": "Wallet Funding"
         }
 

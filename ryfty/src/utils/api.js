@@ -1,5 +1,6 @@
 import config from '../config';
 import { getAuthToken } from './authStorage';
+import { getDeviceToken } from './deviceToken';
 
 /**
  * Base API utility function
@@ -331,4 +332,108 @@ export const fetchSlotReservations = async (experienceId, slotId, page = 1, perP
  */
 export const fetchSlotDetails = async (slotId) => {
   return await apiCall(`/provider/slots/${slotId}`);
+};
+
+// Device Management API functions
+
+/**
+ * Authorize a device for check-in (requires authentication)
+ * @param {string} experienceId - Experience ID
+ * @param {string} slotId - Slot ID
+ * @param {string} deviceName - Device name
+ * @returns {Promise<Object>} - Device token and expiration info
+ */
+export const authorizeDevice = async (experienceId, slotId, deviceName) => {
+  return await apiCall('/device/auth', {
+    method: 'POST',
+    body: JSON.stringify({
+      experience_id: experienceId,
+      slot_id: slotId,
+      device_name: deviceName
+    })
+  });
+};
+
+/**
+ * Fetch authorized devices (requires authentication)
+ * @returns {Promise<Object>} - List of authorized devices
+ */
+export const fetchAuthorizedDevices = async () => {
+  return await apiCall('/device/authorized');
+};
+
+/**
+ * Deauthorize a device (requires authentication)
+ * @param {string} deviceName - Device name to deauthorize
+ * @returns {Promise<Object>} - Success message
+ */
+export const deauthorizeDevice = async (deviceName) => {
+  return await apiCall('/device/deauthorize', {
+    method: 'POST',
+    body: JSON.stringify({
+      device_name: deviceName
+    })
+  });
+};
+
+/**
+ * Verify device token (standalone check-in flow)
+ * @param {string} token - Device token to verify
+ * @returns {Promise<Object>} - Device verification response
+ */
+export const verifyDeviceToken = async (token) => {
+  const response = await fetch(`${config.api.baseUrl}/device/verify`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      token: token
+    })
+  });
+
+  if (!response.ok) {
+    if (response.status === 400) {
+      throw new Error('TOKEN_EXPIRED');
+    }
+    throw new Error(`Device verification failed: ${response.status} ${response.statusText}`);
+  }
+
+  return await response.json();
+};
+
+// Device check-in API
+export const deviceCheckin = async (reservationId) => {
+  const token = getDeviceToken();
+  if (!token) {
+    throw new Error('Device token not found');
+  }
+
+  const response = await fetch(`${config.api.baseUrl}/device/checkin`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    },
+    body: JSON.stringify({
+      reservation_id: reservationId
+    })
+  });
+
+  const responseData = await response.json();
+
+  // Handle different response statuses
+  if (response.status === 200 || response.status === 201) {
+    // Success - customer checked in
+    return { ...responseData, status: 'success' };
+  } else if (response.status === 400) {
+    // Already checked in - return as normal response
+    return { ...responseData, status: 'already_checked_in' };
+  } else if (response.status === 404) {
+    // Reservation not found - return as normal response
+    return { ...responseData, status: 'reservation_not_found' };
+  } else {
+    // Other errors
+    throw new Error(`Check-in failed: ${response.status} ${response.statusText}`);
+  }
 };

@@ -31,6 +31,7 @@ export default function AuthCallback() {
       const userName = searchParams.get('name');
       const userAvatar = searchParams.get('avatar_url');
       const userRole = searchParams.get('role');
+      const userBio = searchParams.get('bio');
 
       // Handle error cases
       if (error) {
@@ -50,7 +51,8 @@ export default function AuthCallback() {
           email: userEmail,
           name: userName,
           avatar_url: userAvatar,
-          role: userRole
+          role: userRole,
+          bio: userBio || ''
         };
 
         // Use AuthContext to handle login
@@ -84,7 +86,7 @@ export default function AuthCallback() {
             if (state.redirect) {
               redirectUrl = state.redirect;
             } else if (userRole === 'provider' || state.userType === 'provider') {
-              redirectUrl = '/provider';
+              redirectUrl = '/';
             }
             // Clean up stored state
             sessionStorage.removeItem('ryfty-auth-state');
@@ -92,7 +94,7 @@ export default function AuthCallback() {
             console.error('Error parsing auth state:', e);
           }
         } else if (userRole === 'provider') {
-          redirectUrl = '/provider';
+          redirectUrl = '/';
         }
 
         // Redirect after a short delay

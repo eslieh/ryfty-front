@@ -267,11 +267,12 @@ export default function ProfilePage() {
   // Handle role switching
   const handleRoleSwitch = async () => {
     try {
-      const newRole = 'provider';
-      if (newRole === 'provider') {
+      console.log('Switching role:', profileData.role);
+      const role = profileData.role;
+      if (role === 'provider') {
         router.push('/provider');
       } else {
-        router.push('/');
+        router.push('/host-experience');
       }
     } catch (err) {
       console.error('Error switching role:', err);

@@ -52,6 +52,10 @@ export default function ExperienceDetailClient({ id }) {
   const [eventSource, setEventSource] = useState(null);
   const [reservationLoading, setReservationLoading] = useState(false);
   const [redirectCountdown, setRedirectCountdown] = useState(0);
+  const [paymentTimeout, setPaymentTimeout] = useState(null);
+
+  // Payment timeout configuration (in milliseconds)
+  const PAYMENT_TIMEOUT_DURATION = 300000; // 5 minutes (300 seconds)
 
 
   const [isMobile, setIsMobile] = useState(false);
@@ -401,6 +405,11 @@ export default function ExperienceDetailClient({ id }) {
       eventSource.close();
       setEventSource(null);
     }
+    // Clear payment timeout if it exists
+    if (paymentTimeout) {
+      clearTimeout(paymentTimeout);
+      setPaymentTimeout(null);
+    }
     setShowReservation(false);
     setReservationStep(1);
     setIsWaitingForPayment(false);
@@ -450,10 +459,29 @@ export default function ExperienceDetailClient({ id }) {
       setPaymentStatus('Waiting for payment...');
       setReservationStep(4); // Move to payment status step
 
+      // Set up timeout for payment response
+      const timeoutId = setTimeout(() => {
+        console.log('Payment timeout reached');
+        setPaymentStatus("⏰ Payment Timeout - Please check your phone or try again");
+        // Close EventSource on timeout
+        if (newEventSource) {
+          newEventSource.close();
+          setEventSource(null);
+        }
+      }, PAYMENT_TIMEOUT_DURATION);
+      
+      setPaymentTimeout(timeoutId);
+
       // Set up EventSource for payment status updates AFTER successful API call
       newEventSource.onmessage = (e) => {
         const data = JSON.parse(e.data);
         console.log("Payment event:", data);
+
+        // Clear timeout when we receive any payment status update
+        if (paymentTimeout) {
+          clearTimeout(paymentTimeout);
+          setPaymentTimeout(null);
+        }
 
         if (data.data?.state === "pending_confirmation") {
           setPaymentStatus("Processing payment...");
@@ -482,6 +510,11 @@ export default function ExperienceDetailClient({ id }) {
       newEventSource.onerror = (error) => {
         console.error('EventSource error:', error);
         setPaymentStatus("❌ Connection Error");
+        // Clear timeout on error
+        if (paymentTimeout) {
+          clearTimeout(paymentTimeout);
+          setPaymentTimeout(null);
+        }
         // Don't automatically close - let user decide
       };
       
@@ -494,6 +527,11 @@ export default function ExperienceDetailClient({ id }) {
       if (eventSource) {
         eventSource.close();
         setEventSource(null);
+      }
+      // Clear timeout on error
+      if (paymentTimeout) {
+        clearTimeout(paymentTimeout);
+        setPaymentTimeout(null);
       }
       setReservationLoading(false); // Only set loading false on error
     }
@@ -1325,6 +1363,8 @@ export default function ExperienceDetailClient({ id }) {
                               <div className="status-success">✅</div>
                             ) : paymentStatus.includes('❌') ? (
                               <div className="status-error">❌</div>
+                            ) : paymentStatus.includes('⏰') ? (
+                              <div className="status-timeout">⏰</div>
                             ) : (
                               <div className="status-loading">
                                 <div className="payment-spinner"></div>
@@ -1338,6 +1378,8 @@ export default function ExperienceDetailClient({ id }) {
                                 ? 'Your reservation has been confirmed! You will receive a confirmation email shortly.'
                                 : paymentStatus.includes('❌')
                                 ? 'Payment failed. Please try again or contact support.'
+                                : paymentStatus.includes('⏰')
+                                ? 'Payment request timed out. Please check your phone for M-Pesa prompts or try again.'
                                 : 'Please check your phone for the M-Pesa prompt and complete the payment.'
                               }
                             </p>
@@ -1393,6 +1435,48 @@ export default function ExperienceDetailClient({ id }) {
                                 // Close EventSource when user manually closes
                                 if (eventSource) {
                                   eventSource.close();
+                                }
+                                setShowReservation(false);
+                                setReservationStep(1);
+                                setIsWaitingForPayment(false);
+                                setPaymentStatus('');
+                              }}
+                              className="reservation-btn reservation-btn-primary"
+                            >
+                              Close
+                            </button>
+                          </>
+                        ) : paymentStatus.includes('⏰') ? (
+                          <>
+                            <button
+                              onClick={() => {
+                                // Close EventSource and go back to payment step
+                                if (eventSource) {
+                                  eventSource.close();
+                                }
+                                // Clear timeout if it exists
+                                if (paymentTimeout) {
+                                  clearTimeout(paymentTimeout);
+                                  setPaymentTimeout(null);
+                                }
+                                setReservationStep(3);
+                                setIsWaitingForPayment(false);
+                                setPaymentStatus('');
+                              }}
+                              className="reservation-btn reservation-btn-secondary"
+                            >
+                              Try Again
+                            </button>
+                            <button
+                              onClick={() => {
+                                // Close EventSource when user manually closes
+                                if (eventSource) {
+                                  eventSource.close();
+                                }
+                                // Clear timeout if it exists
+                                if (paymentTimeout) {
+                                  clearTimeout(paymentTimeout);
+                                  setPaymentTimeout(null);
                                 }
                                 setShowReservation(false);
                                 setReservationStep(1);
