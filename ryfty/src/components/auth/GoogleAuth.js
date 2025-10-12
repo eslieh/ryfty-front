@@ -5,6 +5,11 @@ import { motion } from 'framer-motion';
 import { useSearchParams } from 'next/navigation';
 import config from '@/config';
 
+// Helper function to get the correct API base URL
+const getApiBaseUrl = () => {
+  return config.api.forceLocalhost ? 'http://localhost:5000' : config.api.baseUrl;
+};
+
 export default function GoogleAuth({ userType, mode = 'login', onSuccess }) {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
@@ -29,7 +34,7 @@ export default function GoogleAuth({ userType, mode = 'login', onSuccess }) {
       });
 
       // Redirect to backend Google OAuth endpoint
-      const googleAuthUrl = `${config.api.baseUrl}/login/google?${params.toString()}`;
+      const googleAuthUrl = `${getApiBaseUrl()}/login/google?${params.toString()}`;
       
       // Store current state in sessionStorage to restore after redirect
       sessionStorage.setItem('ryfty-auth-state', JSON.stringify({

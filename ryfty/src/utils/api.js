@@ -20,7 +20,9 @@ export const apiCall = async (endpoint, options = {}) => {
     defaultHeaders['Authorization'] = `Bearer ${token}`;
   }
 
-  const url = `${config.api.baseUrl}${endpoint}`;
+  // Use localhost if forceLocalhost is enabled, otherwise use configured baseUrl
+  const baseUrl = config.api.forceLocalhost ? 'http://localhost:5000' : config.api.baseUrl;
+  const url = `${baseUrl}${endpoint}`;
   
   const fetchOptions = {
     ...options,
@@ -65,7 +67,8 @@ export const createExperience = async (experienceData) => {
       headers['Content-Type'] = 'application/json';
     }
     console.log('Experience data:', experienceData);
-    const response = await fetch(`${config.api.baseUrl}/experiences`, {
+    const baseUrl = config.api.forceLocalhost ? 'http://localhost:5000' : config.api.baseUrl;
+    const response = await fetch(`${baseUrl}/experiences`, {
       method: 'POST',
       headers,
       body: JSON.stringify(experienceData),
@@ -257,7 +260,8 @@ export const initiateWithdrawal = async (amount) => {
     throw new Error('Authentication required');
   }
 
-  const response = await fetch(`${config.api.baseUrl}/api/payment/initiate`, {
+  const baseUrl = config.api.forceLocalhost ? 'http://localhost:5000' : config.api.baseUrl;
+  const response = await fetch(`${baseUrl}/api/payment/initiate`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -421,7 +425,8 @@ export const deauthorizeDevice = async (deviceName) => {
  * @returns {Promise<Object>} - Device verification response
  */
 export const verifyDeviceToken = async (token) => {
-  const response = await fetch(`${config.api.baseUrl}/device/verify`, {
+  const baseUrl = config.api.forceLocalhost ? 'http://localhost:5000' : config.api.baseUrl;
+  const response = await fetch(`${baseUrl}/device/verify`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -448,7 +453,8 @@ export const deviceCheckin = async (reservationId) => {
     throw new Error('Device token not found');
   }
 
-  const response = await fetch(`${config.api.baseUrl}/device/checkin`, {
+  const baseUrl = config.api.forceLocalhost ? 'http://localhost:5000' : config.api.baseUrl;
+  const response = await fetch(`${baseUrl}/device/checkin`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',

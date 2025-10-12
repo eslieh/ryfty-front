@@ -2,6 +2,11 @@
 
 import { createContext, useContext, useReducer, useEffect, useCallback } from 'react';
 import config from '@/config';
+
+// Helper function to get the correct API base URL
+const getApiBaseUrl = () => {
+  return config.api.forceLocalhost ? 'http://localhost:5000' : getApiBaseUrl();
+};
 import { 
   setAuthToken, 
   getAuthToken, 
@@ -114,7 +119,7 @@ export const AuthProvider = ({ children }) => {
       dispatch({ type: 'SET_LOADING', payload: true });
       dispatch({ type: 'CLEAR_ERROR' });
 
-      const response = await fetch(`${config.api.baseUrl}/auth/signin`, {
+      const response = await fetch(`${getApiBaseUrl()}/auth/signin`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -163,7 +168,7 @@ export const AuthProvider = ({ children }) => {
         payload.phone = userData.phone;
       }
 
-      const response = await fetch(`${config.api.baseUrl}/auth/signup`, {
+      const response = await fetch(`${getApiBaseUrl()}/auth/signup`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -199,7 +204,7 @@ export const AuthProvider = ({ children }) => {
       dispatch({ type: 'SET_LOADING', payload: true });
       dispatch({ type: 'CLEAR_ERROR' });
 
-      const response = await fetch(`${config.api.baseUrl}/auth/verify`, {
+      const response = await fetch(`${getApiBaseUrl()}/auth/verify`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -249,7 +254,7 @@ export const AuthProvider = ({ children }) => {
       dispatch({ type: 'SET_LOADING', payload: true });
       dispatch({ type: 'CLEAR_ERROR' });
 
-      const response = await fetch(`${config.api.baseUrl}/auth/reset/request`, {
+      const response = await fetch(`${getApiBaseUrl()}/auth/reset/request`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -282,7 +287,7 @@ export const AuthProvider = ({ children }) => {
       dispatch({ type: 'SET_LOADING', payload: true });
       dispatch({ type: 'CLEAR_ERROR' });
 
-      const response = await fetch(`${config.api.baseUrl}/auth/reset/verify`, {
+      const response = await fetch(`${getApiBaseUrl()}/auth/reset/verify`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -358,7 +363,7 @@ export const AuthProvider = ({ children }) => {
       dispatch({ type: 'SET_LOADING', payload: true });
       dispatch({ type: 'CLEAR_ERROR' });
 
-      const response = await fetch(`${config.api.baseUrl}/auth/google`, {
+      const response = await fetch(`${getApiBaseUrl()}/auth/google`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -387,7 +392,7 @@ export const AuthProvider = ({ children }) => {
   // Phone authentication
   const sendPhoneVerification = async (phoneNumber) => {
     try {
-      const response = await fetch(`${config.api.baseUrl}/auth/phone/send`, {
+      const response = await fetch(`${getApiBaseUrl()}/auth/phone/send`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -407,7 +412,7 @@ export const AuthProvider = ({ children }) => {
       dispatch({ type: 'SET_LOADING', payload: true });
       dispatch({ type: 'CLEAR_ERROR' });
 
-      const response = await fetch(`${config.api.baseUrl}/auth/phone/verify`, {
+      const response = await fetch(`${getApiBaseUrl()}/auth/phone/verify`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -449,7 +454,7 @@ export const AuthProvider = ({ children }) => {
     try {
       const token = getAuthToken();
       if (token) {
-        await fetch(`${config.api.baseUrl}/auth/logout`, {
+        await fetch(`${getApiBaseUrl()}/auth/logout`, {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -470,7 +475,7 @@ export const AuthProvider = ({ children }) => {
   const updateProfile = async (profileData) => {
     try {
       const token = getAuthToken();
-      const response = await fetch(`${config.api.baseUrl}/user`, {
+      const response = await fetch(`${getApiBaseUrl()}/user`, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -540,7 +545,7 @@ export const AuthProvider = ({ children }) => {
     
     try {
       const token = getAuthToken();
-      const response = await fetch(`${config.api.baseUrl}/user`, {
+      const response = await fetch(`${getApiBaseUrl()}/user`, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,

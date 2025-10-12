@@ -13,6 +13,11 @@ import PaymentMethodModal from '@/components/PaymentMethodModal';
 import WithdrawalModal from '@/components/WithdrawalModal';
 import config from '@/config';
 
+// Helper function to get the correct API base URL
+const getApiBaseUrl = () => {
+  return config.api.forceLocalhost ? 'http://localhost:5000' : config.api.baseUrl;
+};
+
 /**
  * Provider Wallet Page Component
  * 
@@ -75,7 +80,7 @@ export default function ProviderWallet() {
 
     const setupEventSource = () => {
       try {
-        const eventSourceUrl = `${config.api.baseUrl}/events/${user.id}`;
+        const eventSourceUrl = `${getApiBaseUrl()}/events/${user.id}`;
         const es = new EventSource(eventSourceUrl);
         
         es.onopen = () => {

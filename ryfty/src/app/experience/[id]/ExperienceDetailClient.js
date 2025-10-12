@@ -433,12 +433,13 @@ export default function ExperienceDetailClient({ id }) {
         num_people: reservationData.numberOfPeople.toString(),
         mpesa_number: reservationData.mpesaNumber
       };
-      const newEventSource = new EventSource(`${config.api.baseUrl}/events/${user?.id || 'anonymous'}`);
+      const baseUrl = config.api.forceLocalhost ? 'http://localhost:5000' : config.api.baseUrl;
+      const newEventSource = new EventSource(`${baseUrl}/events/${user?.id || 'anonymous'}`);
       setEventSource(newEventSource);
 
       console.log('Creating reservation request:', reservationPayload);
 
-      const response = await fetch(`${config.api.baseUrl}/public/reservations_request`, {
+      const response = await fetch(`${baseUrl}/public/reservations_request`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
