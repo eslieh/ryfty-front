@@ -6,7 +6,7 @@ const config = {
     timeout: 30000,
     version: 'v1',
     // Force localhost even in production (set to true to use localhost in production)
-    forceLocalhost: process.env.NEXT_PUBLIC_FORCE_LOCALHOST === 'true' || true
+    forceLocalhost: process.env.NEXT_PUBLIC_FORCE_LOCALHOST === 'true' || false
   },
 
   defaultAvatar: 'https://i.pinimg.com/736x/9d/16/4e/9d164e4e074d11ce4de0a508914537a8.jpg',
