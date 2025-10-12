@@ -1,11 +1,11 @@
 "use client";
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { useAuth } from '@/contexts/AuthContext';
 
-export default function AuthCallback() {
+function AuthCallbackContent() {
   const [status, setStatus] = useState('processing'); // 'processing', 'success', 'error'
   const [message, setMessage] = useState('Completing authentication...');
   const router = useRouter();
@@ -252,5 +252,33 @@ export default function AuthCallback() {
         </motion.div>
       </div>
     </div>
+  );
+}
+
+export default function AuthCallback() {
+  return (
+    <Suspense fallback={
+      <div className="auth-callback-container">
+        <div className="auth-background">
+          <div className="auth-background-overlay"></div>
+        </div>
+        <motion.div 
+          className="callback-card"
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.5 }}
+        >
+          <div className="callback-content">
+            <div className="callback-spinner">
+              <div className="spinner large"></div>
+            </div>
+            <h1 className="callback-title">Loading...</h1>
+            <p className="callback-message">Please wait...</p>
+          </div>
+        </motion.div>
+      </div>
+    }>
+      <AuthCallbackContent />
+    </Suspense>
   );
 }

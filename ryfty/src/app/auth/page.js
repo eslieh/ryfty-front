@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '@/contexts/AuthContext';
@@ -16,7 +16,7 @@ import PhoneAuth from '@/components/auth/PhoneAuth';
 import config from '@/config';
 import '../../styles/auth.css';
 
-export default function AuthPage() {
+function AuthContent() {
   const [currentStep, setCurrentStep] = useState('welcome'); 
   // Steps: 'welcome', 'email', 'password', 'signup-details', 'profile-photo', 'verification', 'forgot-password', 'reset-password', 'phone'
   const [authMode, setAuthMode] = useState('login'); // 'login' or 'signup'
@@ -225,5 +225,18 @@ export default function AuthPage() {
         </motion.div>
       </div>
     </div>
+  );
+}
+
+export default function AuthPage() {
+  return (
+    <Suspense fallback={
+      <div className="auth-loading">
+        <div className="loading-spinner"></div>
+        <p>Loading...</p>
+      </div>
+    }>
+      <AuthContent />
+    </Suspense>
   );
 }

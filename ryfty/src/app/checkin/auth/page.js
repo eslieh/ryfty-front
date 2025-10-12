@@ -1,13 +1,13 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { verifyDeviceToken } from '@/utils/api';
 import { saveDeviceToken, removeDeviceToken } from '@/utils/deviceToken';
 import '@/styles/checkin.css';
 
-export default function CheckinAuthPage() {
+function CheckinAuthContent() {
   const searchParams = useSearchParams();
   const token = searchParams.get('token');
   const [loading, setLoading] = useState(true);
@@ -211,4 +211,21 @@ export default function CheckinAuthPage() {
   }
 
   return null;
+}
+
+export default function CheckinAuthPage() {
+  return (
+    <Suspense fallback={
+      <div className="checkin-mobile-page">
+        <div className="checkin-mobile-container">
+          <div className="checkin-loading">
+            <h2>Loading...</h2>
+            <p>Please wait...</p>
+          </div>
+        </div>
+      </div>
+    }>
+      <CheckinAuthContent />
+    </Suspense>
+  );
 }

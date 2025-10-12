@@ -6,7 +6,12 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 import TabNavigation from '@/components/provider/TabNavigation';
 import ProviderHeader from '@/components/provider/ProviderHeader';
-import LocationPicker from '@/components/LocationPicker';
+import dynamic from 'next/dynamic';
+
+const LocationPicker = dynamic(() => import('@/components/LocationPicker'), {
+  ssr: false,
+  loading: () => <div className="location-picker-loading">Loading map...</div>
+});
 import '@/styles/provider.css';
 
 const Step1 = ({ formData, handleInputChange }) => (
