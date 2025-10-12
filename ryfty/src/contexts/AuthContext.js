@@ -5,7 +5,9 @@ import config from '@/config';
 
 // Helper function to get the correct API base URL
 const getApiBaseUrl = () => {
-  return config.api.forceLocalhost ? 'http://localhost:5000' : getApiBaseUrl();
+  const url = config.api.forceLocalhost ? 'http://localhost:5000' : config.api.baseUrl;
+  console.log('API Base URL:', url);
+  return url;
 };
 import { 
   setAuthToken, 

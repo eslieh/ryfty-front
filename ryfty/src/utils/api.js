@@ -23,6 +23,7 @@ export const apiCall = async (endpoint, options = {}) => {
   // Use localhost if forceLocalhost is enabled, otherwise use configured baseUrl
   const baseUrl = config.api.forceLocalhost ? 'http://localhost:5000' : config.api.baseUrl;
   const url = `${baseUrl}${endpoint}`;
+  console.log('API Call URL:', url);
   
   const fetchOptions = {
     ...options,
