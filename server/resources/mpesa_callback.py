@@ -55,7 +55,7 @@ class MpesaCallbackResource(Resource):
 
                 push_to_queue(api_collection.user_id, {
                     "state": "success",
-                    "transaction_id": "ABC123XYZ"
+                    "transaction_id": transaction_id,
                 })
                 
                 logg_wallet.delay(
@@ -122,7 +122,10 @@ class MpesaB2cDisbursementCallback(Resource):
                 db.session.commit()
                 if api_disbursement.disbursement_type == "settlement":
                     nairobi_tz = pytz.timezone("Africa/Nairobi")
-
+                    push_to_queue(api_disbursement.user_id, {
+                        "state": "disbursment.success",
+                        "transaction_id": transaction_id,
+                    })
                     # Current time in Nairobi
                     timestamp = datetime.now(nairobi_tz).isoformat()
 
@@ -196,6 +199,10 @@ class MpesaB2bDisbursementCallback(Resource):
                 api_disbursement.transaction_reference = transaction_id
                 service_fee = get_b2c_business_charge(float(api_disbursement.amount))
                 db.session.commit()
+                push_to_queue(api_disbursement.user_id, {
+                    "state": "disbursment.success",
+                    "transaction_id": transaction_id,
+                })
                 
                 send_payout_confirmation.delay(
                     user_id=user_id,
@@ -218,9 +225,14 @@ class MpesaB2bDisbursementCallback(Resource):
 
             else:
                 # Failed disbursement
+                push_to_queue(api_disbursement.user_id, {
+                    "state": "disbursment.failed",
+                    "transaction_id": transaction_id,
+                })
                 api_disbursement.status = "failed"
                 api_disbursement.description = result_desc
                 db.session.commit()
+
 
                 logger.info(f"Disbursement Callback failed for disbursement {api_disbursement_id}: {result_desc}")
                 return {"ResultCode": 0, "ResultDesc": "Accepted"}, 200  # still 0 so Safaricom stops retrying

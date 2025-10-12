@@ -10,13 +10,36 @@ import { fetchWalletData, deletePaymentMethod } from '@/utils/api';
 import '@/styles/provider.css';
 import '@/styles/wallet.css';
 import PaymentMethodModal from '@/components/PaymentMethodModal';
+import WithdrawalModal from '@/components/WithdrawalModal';
+import config from '@/config';
 
+/**
+ * Provider Wallet Page Component
+ * 
+ * Features:
+ * - Display wallet balance and payment methods
+ * - Initiate withdrawals with real-time status updates
+ * - EventSource connection for live withdrawal status updates
+ * - Handle withdrawal API responses and errors
+ * - Manage payment methods (add, edit, delete)
+ * 
+ * Withdrawal Flow:
+ * 1. User clicks "Withdraw" button
+ * 2. WithdrawalModal opens for amount input
+ * 3. API call to /api/payment/initiate
+ * 4. EventSource listens for status updates
+ * 5. Real-time UI updates based on withdrawal status
+ */
 export default function ProviderWallet() {
   const [walletData, setWalletData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingMethod, setEditingMethod] = useState(null);
+  const [isWithdrawalModalOpen, setIsWithdrawalModalOpen] = useState(false);
+  const [withdrawalStatus, setWithdrawalStatus] = useState(null);
+  const [eventSource, setEventSource] = useState(null);
+  const [eventSourceStatus, setEventSourceStatus] = useState('connecting'); // 'connecting', 'connected', 'disconnected'
   
   const { isAuthenticated, user, isProvider } = useAuth();
   const router = useRouter();
@@ -45,6 +68,71 @@ export default function ProviderWallet() {
 
     fetchData();
   }, [isAuthenticated, isProvider]);
+
+  // Set up EventSource for real-time withdrawal updates
+  useEffect(() => {
+    if (!isAuthenticated || !user?.id) return;
+
+    const setupEventSource = () => {
+      try {
+        const eventSourceUrl = `${config.api.baseUrl}/events/${user.id}`;
+        const es = new EventSource(eventSourceUrl);
+        
+        es.onopen = () => {
+          console.log('EventSource connected for withdrawal updates');
+          setEventSourceStatus('connected');
+        };
+
+        es.onmessage = (event) => {
+          try {
+            const data = JSON.parse(event.data);
+            console.log('Received event:', data);
+
+            // Handle withdrawal-related events
+            if (data.type === 'withdrawal_initiated' || data.type === 'disbursment.success' || data.type === 'disbursment.failed') {
+              setWithdrawalStatus(data);
+              
+              // Refresh wallet data on successful/failed withdrawal
+              if (data.type === 'disbursment.success' || data.type === 'disbursment.failed') {
+                fetchWalletData().then(setWalletData).catch(console.error);
+              }
+            }
+          } catch (err) {
+            console.error('Error parsing event data:', err);
+          }
+        };
+
+        es.onerror = (error) => {
+          console.error('EventSource error:', error);
+          setEventSourceStatus('disconnected');
+          // Only reconnect if the connection was closed
+          if (es.readyState === EventSource.CLOSED) {
+            console.log('EventSource connection closed, attempting to reconnect...');
+            setTimeout(() => {
+              setEventSourceStatus('connecting');
+              setupEventSource();
+            }, 5000);
+          }
+        };
+
+        setEventSource(es);
+      } catch (err) {
+        console.error('Error setting up EventSource:', err);
+      }
+    };
+
+    setupEventSource();
+
+    // Cleanup on unmount or when dependencies change
+    return () => {
+      if (eventSource) {
+        console.log('Closing EventSource connection');
+        eventSource.close();
+        setEventSource(null);
+        setEventSourceStatus('disconnected');
+      }
+    };
+  }, [isAuthenticated, user?.id]);
 
   const formatCurrency = (amount) => {
     return new Intl.NumberFormat('en-KE', {
@@ -98,6 +186,22 @@ export default function ProviderWallet() {
     } catch (err) {
       console.error('Error refreshing wallet data:', err);
     }
+  };
+
+  const handleWithdrawClick = () => {
+    setIsWithdrawalModalOpen(true);
+  };
+
+  const handleWithdrawalSuccess = (response) => {
+    console.log('Withdrawal initiated successfully:', response);
+    setWithdrawalStatus({
+      type: 'withdrawal_initiated',
+      data: response
+    });
+  };
+
+  const handleWithdrawalModalClose = () => {
+    setIsWithdrawalModalOpen(false);
   };
 
   const SettlementCard = ({ settlement }) => (
@@ -334,10 +438,24 @@ export default function ProviderWallet() {
           <div className="content-wrapper">
             {/* Header */}
             <div className="wallet-header">
-              <h1 className="page-title">Wallet & Payments</h1>
-              <p className="page-subtitle">
-                Manage your earnings and payment settings
-              </p>
+              <div className="header-content">
+                <div>
+                  <h1 className="page-title">Wallet & Payments</h1>
+                  <p className="page-subtitle">
+                    Manage your earnings and payment settings
+                  </p>
+                </div>
+                <div className="event-source-status">
+                  <div className={`status-indicator ${eventSourceStatus}`}>
+                    <div className="status-dot"></div>
+                    <span className="status-text">
+                      {eventSourceStatus === 'connecting' && 'Connecting to live updates...'}
+                      {eventSourceStatus === 'connected' && 'Live updates active'}
+                      {eventSourceStatus === 'disconnected' && 'Live updates disconnected'}
+                    </span>
+                  </div>
+                </div>
+              </div>
             </div>
 
             {/* Balance Card */}
@@ -354,10 +472,82 @@ export default function ProviderWallet() {
                   Last updated: {formatDate(walletData.wallet.updated_at)}
                 </div>
               </div>
-              <button className="withdraw-button">
+              <button 
+                className="withdraw-button"
+                onClick={handleWithdrawClick}
+                disabled={!walletData?.wallet?.balance || parseFloat(walletData.wallet.balance) <= 0}
+              >
                 Withdraw
               </button>
             </motion.div>
+
+            {/* Withdrawal Status */}
+            {withdrawalStatus && (
+              <motion.div
+                className="withdrawal-status-card"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.3 }}
+              >
+                <div className="withdrawal-status-header">
+                  <div className="withdrawal-status-icon">
+                    {withdrawalStatus.type === 'withdrawal_initiated' && (
+                      <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                        <path d="M12 2L2 7L12 12L22 7L12 2Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                        <path d="M2 17L12 22L22 17" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                        <path d="M2 12L12 17L22 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                      </svg>
+                    )}
+                    {withdrawalStatus.type === 'disbursment.success' && (
+                      <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                        <path d="M9 12L11 14L15 10M21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                      </svg>
+                    )}
+                    {withdrawalStatus.type === 'disbursment.failed' && (
+                      <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                        <path d="M12 9V13M12 17H12.01M21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                      </svg>
+                    )}
+                  </div>
+                  <div className="withdrawal-status-text">
+                    <h3 className="withdrawal-status-title">
+                      {withdrawalStatus.type === 'withdrawal_initiated' && 'Withdrawal Initiated'}
+                      {withdrawalStatus.type === 'disbursment.success' && 'Withdrawal Successful'}
+                      {withdrawalStatus.type === 'disbursment.failed' && 'Withdrawal Failed'}
+                    </h3>
+                    <p className="withdrawal-status-message">
+                      {withdrawalStatus.type === 'withdrawal_initiated' && 'Your withdrawal request is being processed.'}
+                      {withdrawalStatus.type === 'disbursment.success' && 'Your withdrawal has been completed successfully.'}
+                      {withdrawalStatus.type === 'disbursment.failed' && 'Your withdrawal request failed. Please try again.'}
+                    </p>
+                  </div>
+                  <button
+                    className="withdrawal-status-close"
+                    onClick={() => setWithdrawalStatus(null)}
+                  >
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                      <path d="M18 6L6 18M6 6L18 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                  </button>
+                </div>
+                {withdrawalStatus.data && (
+                  <div className="withdrawal-status-details">
+                    {withdrawalStatus.data.disbursement_id && (
+                      <div className="withdrawal-detail">
+                        <span className="detail-label">Transaction ID:</span>
+                        <span className="detail-value">{withdrawalStatus.data.disbursement_id}</span>
+                      </div>
+                    )}
+                    {withdrawalStatus.data.amount && (
+                      <div className="withdrawal-detail">
+                        <span className="detail-label">Amount:</span>
+                        <span className="detail-value">{formatCurrency(withdrawalStatus.data.amount)}</span>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </motion.div>
+            )}
 
             {/* Payment Methods */}
             <motion.div
@@ -488,6 +678,14 @@ export default function ProviderWallet() {
         onClose={() => setIsModalOpen(false)}
         onSuccess={handleModalSuccess}
         editingMethod={editingMethod}
+      />
+
+      {/* Withdrawal Modal */}
+      <WithdrawalModal
+        isOpen={isWithdrawalModalOpen}
+        onClose={handleWithdrawalModalClose}
+        onSuccess={handleWithdrawalSuccess}
+        walletBalance={walletData?.wallet?.balance || 0}
       />
     </div>
   );

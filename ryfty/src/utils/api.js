@@ -246,6 +246,45 @@ export const deletePaymentMethod = async (methodId) => {
 };
 
 /**
+ * Initiate a withdrawal (requires authentication)
+ * @param {number} amount - Amount to withdraw
+ * @returns {Promise<Object>} - Withdrawal response
+ */
+export const initiateWithdrawal = async (amount) => {
+  const token = getAuthToken();
+  
+  if (!token) {
+    throw new Error('Authentication required');
+  }
+
+  const response = await fetch(`${config.api.baseUrl}/api/payment/initiate`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    },
+    body: JSON.stringify({ amount })
+  });
+
+  const responseData = await response.json();
+
+  if (!response.ok) {
+    // Handle specific error cases
+    if (response.status === 400) {
+      throw new Error(responseData.error || 'Invalid withdrawal request');
+    } else if (response.status === 404) {
+      throw new Error(responseData.error || 'Wallet not found');
+    } else if (response.status === 500) {
+      throw new Error(responseData.error || 'Server error occurred');
+    } else {
+      throw new Error(`Withdrawal failed: ${response.status} ${response.statusText}`);
+    }
+  }
+
+  return responseData;
+};
+
+/**
  * Fetch user profile data (requires authentication)
  * @returns {Promise<Object>} - User profile data
  */

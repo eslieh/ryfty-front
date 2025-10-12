@@ -157,7 +157,8 @@ class DisbursementResource(Resource):
         required_b2b = amount + b2b_charge
 
         if wallet.balance < min(required_b2c, required_b2b):
-            return {"error": "insufficient funds"}, 400
+            withdrawable = wallet.balance - b2b_charge
+            return {"error": "insufficient funds", "amount_withdrawable": withdrawable}, 400
 
         # --- Payment method check ---
         payment_method = PaymentMethod.query.filter_by(
@@ -189,6 +190,19 @@ class DisbursementResource(Resource):
             current_app.logger.error(f"Disbursement error: {e}")
             return {"error": "could not initiate disbursement"}, 500
 
+
+
+        from utils.subscribe_manager import push_to_queue
+
+        push_to_queue(
+            user_id,
+            "withdrawal_initiated",
+            {
+                "disbursement_id": str(api_disbursement.id),
+                "amount": str(amount),
+                "status": api_disbursement.status,
+            }
+        )
         # --- Queue async processing ---
         initiate_disbursement.delay(api_disbursement.id)
 

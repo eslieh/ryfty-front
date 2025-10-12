@@ -250,6 +250,8 @@ def initiate_disbursement(self, api_disbursement_id):
             if response.status_code == 200:
                 # Fix: Update the actual object, not the ID
                 api_disbursement.status = "initiated"
+                
+                push_to_queue(api_disbursement.user_id, {"state": "pending_confirmation"})
                 db.session.commit()
                 logger.info(f"Payment request {api_disbursement_id} successfully initiated: {response_data}")
             else:

@@ -483,14 +483,9 @@ class PaymentMethod(db.Model):
 
     __table_args__ = (
         CheckConstraint(
-            f"default_method IN ('{DefaultMethod.MPESA}', '{DefaultMethod.BANK}', '{DefaultMethod.PAYBILL}', '{DefaultMethod.TILL_NUMBER}')",
-            name='check_default_method'
+            "default_method IN ('mpesa', 'bank', 'paybill', 'till_number')",
+            name='ck_payment_method_check_default_method'
         ),
-        # # Composite indexes for payment method queries
-        # Index('idx_payment_method_user_type', 'user_id', 'default_method'),
-        # # Partial index for default payment methods
-        # Index('idx_payment_method_defaults', 'user_id', 'default_method',
-        #       postgresql_where=db.text('default = true')),
     )
 
     user = db.relationship("User", back_populates="payment_methods")
