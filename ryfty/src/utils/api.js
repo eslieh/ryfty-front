@@ -325,6 +325,41 @@ export const completePayment = async (reservationId, paymentData) => {
   });
 };
 
+export const initiatePartialPayment = async (reservationId, paymentData) => {
+  const token = getAuthToken();
+  
+  if (!token) {
+    throw new Error('Authentication required');
+  }
+
+  const baseUrl = config.api.forceLocalhost ? 'http://localhost:5000' : config.api.baseUrl;
+  const response = await fetch(`${baseUrl}/public/partial_payment/${reservationId}`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    },
+    body: JSON.stringify(paymentData)
+  });
+
+  const responseData = await response.json();
+
+  if (!response.ok) {
+    // Handle specific error cases from backend
+    if (response.status === 400) {
+      throw new Error(responseData.error || 'Invalid payment request');
+    } else if (response.status === 404) {
+      throw new Error(responseData.error || 'Reservation not found');
+    } else if (response.status === 500) {
+      throw new Error(responseData.error || 'Server error occurred');
+    } else {
+      throw new Error(responseData.error || `Payment failed: ${response.status} ${response.statusText}`);
+    }
+  }
+
+  return responseData;
+};
+
 // Provider API functions
 export const fetchProviderExperiences = async (page = 1, perPage = 20, filters = {}) => {
   const params = new URLSearchParams();
@@ -482,4 +517,17 @@ export const deviceCheckin = async (reservationId) => {
     // Other errors
     throw new Error(`Check-in failed: ${response.status} ${response.statusText}`);
   }
+};
+
+/**
+ * Submit a review for an experience (requires authentication)
+ * @param {string} experienceId - Experience ID
+ * @param {Object} reviewData - Review data (rating, comment, images, reservation_id)
+ * @returns {Promise<Object>} - Review submission response
+ */
+export const submitReview = async (experienceId, reviewData) => {
+  return await apiCall(`/experiences/${experienceId}/reviews/post`, {
+    method: 'POST',
+    body: JSON.stringify(reviewData)
+  });
 };

@@ -16,6 +16,26 @@ import PhoneAuth from '@/components/auth/PhoneAuth';
 import config from '@/config';
 import '../../styles/auth.css';
 
+// Cookie management functions
+const getExperienceRedirectCookie = () => {
+  const cookies = document.cookie.split(';');
+  const redirectCookie = cookies.find(cookie => cookie.trim().startsWith('experience_redirect='));
+  if (redirectCookie) {
+    try {
+      const cookieValue = redirectCookie.split('=')[1];
+      return JSON.parse(decodeURIComponent(cookieValue));
+    } catch (err) {
+      console.error('Error parsing redirect cookie:', err);
+      return null;
+    }
+  }
+  return null;
+};
+
+const clearExperienceRedirectCookie = () => {
+  document.cookie = 'experience_redirect=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
+};
+
 function AuthContent() {
   const [currentStep, setCurrentStep] = useState('welcome'); 
   // Steps: 'welcome', 'email', 'password', 'signup-details', 'profile-photo', 'verification', 'forgot-password', 'reset-password', 'phone'
@@ -37,8 +57,16 @@ function AuthContent() {
   useEffect(() => {
     // Check if user is already authenticated
     if (isAuthenticated) {
-      const redirect = searchParams.get('redirect') || '/';
-      router.push(redirect);
+      // Check for experience redirect cookie first
+      const experienceRedirectCookie = getExperienceRedirectCookie();
+      if (experienceRedirectCookie && experienceRedirectCookie.experienceId) {
+        // Clear the cookie and redirect to the experience
+        clearExperienceRedirectCookie();
+        router.push(`/experience/${experienceRedirectCookie.experienceId}`);
+      } else {
+        const redirect = searchParams.get('redirect') || '/';
+        router.push(redirect);
+      }
     }
 
     // Check URL parameters for initial setup

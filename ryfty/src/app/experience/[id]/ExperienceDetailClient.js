@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import Image from "next/image";
 import Header from "@/components/header";
 import Footer from "@/components/footer";
-import { ExperienceDetailSkeleton } from "@/components/SkeletonLoader";
+import SkeletonLoader, { ExperienceDetailSkeleton } from "@/components/SkeletonLoader";
 import "@/styles/experience-detail.css";
 import "@/styles/reservation-modal.css";
 import config from "@/config";
@@ -45,7 +45,10 @@ export default function ExperienceDetailClient({ id }) {
     mpesaNumber: '',
     customerName: '',
     customerEmail: '',
-    customerPhone: ''
+    customerPhone: '',
+    isBNPL: false,
+    partialAmount: 0,
+    remainingAmount: 0
   });
   const [paymentStatus, setPaymentStatus] = useState('');
   const [isWaitingForPayment, setIsWaitingForPayment] = useState(false);
@@ -57,6 +60,30 @@ export default function ExperienceDetailClient({ id }) {
   // Payment timeout configuration (in milliseconds)
   const PAYMENT_TIMEOUT_DURATION = 300000; // 5 minutes (300 seconds)
 
+  // Reviews states
+  const [reviews, setReviews] = useState([]);
+  const [reviewsLoading, setReviewsLoading] = useState(false);
+  const [reviewsError, setReviewsError] = useState(null);
+  const [reviewsPagination, setReviewsPagination] = useState({
+    page: 1,
+    per_page: 5,
+    total_count: 0,
+    total_pages: 0,
+    has_next: false,
+    has_prev: false
+  });
+  const [loadingMoreReviews, setLoadingMoreReviews] = useState(false);
+
+  // Sticky booking card states
+  const [isBookingCardSticky, setIsBookingCardSticky] = useState(false);
+  const [bookingCardRef, setBookingCardRef] = useState(null);
+  const [reviewsEndRef, setReviewsEndRef] = useState(null);
+
+  // Mobile bottom bar states
+  const [showMobileSlots, setShowMobileSlots] = useState(false);
+
+  // Mobile image slider states
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
 
   const [isMobile, setIsMobile] = useState(false);
 
@@ -69,10 +96,19 @@ export default function ExperienceDetailClient({ id }) {
     checkMobile();
   }, []);
 
-  // Fetch slots separately
+  // Fetch slots separately - only if authenticated
   useEffect(() => {
     const fetchSlots = async () => {
       if (!experience?.id) return;
+      
+      // Check if user is authenticated
+      if (!isAuthenticated) {
+        setSlotsLoading(false);
+        setSlotsError('Authentication required');
+        setSlots([]);
+        setAllMonthSlots([]);
+        return;
+      }
       
       try {
         setSlotsLoading(true);
@@ -87,8 +123,11 @@ export default function ExperienceDetailClient({ id }) {
           headers['Authorization'] = `Bearer ${token}`;
         }
         
-        // Get current month start and end dates
-        const startDate = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1);
+        // Get current month start and end dates, but start from today if we're in the current month
+        const today = new Date();
+        const startDate = currentMonth.getMonth() === today.getMonth() && currentMonth.getFullYear() === today.getFullYear()
+          ? today
+          : new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1);
         const endDate = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 0);
         
         const startDateStr = startDate.toISOString().split('T')[0];
@@ -108,9 +147,21 @@ export default function ExperienceDetailClient({ id }) {
         console.log('Slots data:', data);
         
         if (data.slots && data.slots.length > 0) {
-          setAllMonthSlots(data.slots);
+          // Filter out past dates on the client side as well
+          const today = new Date();
+          today.setHours(0, 0, 0, 0); // Reset time to start of day for accurate comparison
+          
+          const upcomingSlots = data.slots.filter(slot => {
+            const slotDate = new Date(slot.date);
+            slotDate.setHours(0, 0, 0, 0); // Reset time to start of day
+            return slotDate >= today;
+          });
+          
+          console.log('Filtered upcoming slots:', upcomingSlots);
+          
+          setAllMonthSlots(upcomingSlots);
           // Show first 4 slots initially
-          setSlots(data.slots.slice(0, slotsPerPage));
+          setSlots(upcomingSlots.slice(0, slotsPerPage));
           setCurrentSlotPage(0);
         } else {
           // If no slots in current month, try to fetch soonest available slots
@@ -124,12 +175,29 @@ export default function ExperienceDetailClient({ id }) {
             console.log('Soonest slots data:', soonestData);
             
             if (soonestData.slots && soonestData.slots.length > 0) {
-              setAllMonthSlots(soonestData.slots);
-              setSlots(soonestData.slots.slice(0, slotsPerPage));
-              setCurrentSlotPage(0);
-              // Update current month to the month of the soonest slot
-              const soonestSlotDate = new Date(soonestData.slots[0].date);
-              setCurrentMonth(soonestSlotDate);
+              // Filter out past dates from soonest slots as well
+              const today = new Date();
+              today.setHours(0, 0, 0, 0);
+              
+              const upcomingSoonestSlots = soonestData.slots.filter(slot => {
+                const slotDate = new Date(slot.date);
+                slotDate.setHours(0, 0, 0, 0);
+                return slotDate >= today;
+              });
+              
+              console.log('Filtered upcoming soonest slots:', upcomingSoonestSlots);
+              
+              if (upcomingSoonestSlots.length > 0) {
+                setAllMonthSlots(upcomingSoonestSlots);
+                setSlots(upcomingSoonestSlots.slice(0, slotsPerPage));
+                setCurrentSlotPage(0);
+                // Update current month to the month of the soonest upcoming slot
+                const soonestSlotDate = new Date(upcomingSoonestSlots[0].date);
+                setCurrentMonth(soonestSlotDate);
+              } else {
+                setAllMonthSlots([]);
+                setSlots([]);
+              }
             } else {
               setAllMonthSlots([]);
               setSlots([]);
@@ -149,7 +217,53 @@ export default function ExperienceDetailClient({ id }) {
     };
 
     fetchSlots();
-  }, [experience?.id, currentMonth]);
+  }, [experience?.id, currentMonth, isAuthenticated]);
+
+  // Fetch reviews
+  useEffect(() => {
+    const fetchReviews = async () => {
+      if (!experience?.id) return;
+      
+      try {
+        setReviewsLoading(true);
+        setReviewsError(null);
+        
+        const token = getAuthToken();
+        const headers = {
+          'Content-Type': 'application/json'
+        };
+        
+        if (token) {
+          headers['Authorization'] = `Bearer ${token}`;
+        }
+        
+        console.log('Fetching reviews for experience:', experience.id);
+        const response = await fetch(`${config.api.baseUrl}/experiences/${experience.id}/reviews?page=1&per_page=5`, {
+          headers
+        });
+        
+        if (!response.ok) {
+          throw new Error(`Failed to fetch reviews: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        console.log('Reviews data:', data);
+        
+        if (data.reviews) {
+          setReviews(data.reviews);
+          setReviewsPagination(data.pagination);
+        }
+      } catch (err) {
+        console.error('Error fetching reviews:', err);
+        setReviewsError(err.message);
+        setReviews([]);
+      } finally {
+        setReviewsLoading(false);
+      }
+    };
+
+    fetchReviews();
+  }, [experience?.id]);
 
   useEffect(() => {
     const fetchExperience = async () => {
@@ -196,6 +310,46 @@ export default function ExperienceDetailClient({ id }) {
       fetchExperience();
     }
   }, [id]);
+  
+  // Cookie management functions
+  const setExperienceRedirectCookie = (experienceId) => {
+    const cookieValue = JSON.stringify({
+      experienceId: experienceId,
+      timestamp: Date.now()
+    });
+    document.cookie = `experience_redirect=${cookieValue}; path=/; max-age=3600; samesite=strict`; // 1 hour expiry
+  };
+
+  const getExperienceRedirectCookie = () => {
+    const cookies = document.cookie.split(';');
+    const redirectCookie = cookies.find(cookie => cookie.trim().startsWith('experience_redirect='));
+    if (redirectCookie) {
+      try {
+        const cookieValue = redirectCookie.split('=')[1];
+        return JSON.parse(decodeURIComponent(cookieValue));
+      } catch (err) {
+        console.error('Error parsing redirect cookie:', err);
+        return null;
+      }
+    }
+    return null;
+  };
+
+  const clearExperienceRedirectCookie = () => {
+    document.cookie = 'experience_redirect=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
+  };
+
+  // Check for redirect cookie on authentication change
+  useEffect(() => {
+    if (isAuthenticated && experience?.id) {
+      const redirectData = getExperienceRedirectCookie();
+      if (redirectData && redirectData.experienceId === experience.id) {
+        // Clear the cookie since we're now on the correct page
+        clearExperienceRedirectCookie();
+      }
+    }
+  }, [isAuthenticated, experience?.id]);
+
   // Helper functions
   const formatDate = (dateString) => {
     const date = new Date(dateString);
@@ -225,6 +379,17 @@ export default function ExperienceDetailClient({ id }) {
   };
 
   const getSlotsForDate = (dateStr) => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    const slotDate = new Date(dateStr);
+    slotDate.setHours(0, 0, 0, 0);
+    
+    // Only return slots for upcoming dates
+    if (slotDate < today) {
+      return [];
+    }
+    
     return allMonthSlots.filter(slot => slot.date === dateStr);
   };
 
@@ -236,6 +401,20 @@ export default function ExperienceDetailClient({ id }) {
     });
     setCurrentSlotPage(0); // Reset pagination when changing months
   };
+
+  // Auto-navigate to next month if current month has no upcoming slots
+  useEffect(() => {
+    if (allMonthSlots.length === 0 && !slotsLoading && !slotsError) {
+      const today = new Date();
+      const currentMonthStart = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1);
+      
+      // If we're in the current month and it has no upcoming slots, navigate to next month
+      if (currentMonth.getMonth() === today.getMonth() && currentMonth.getFullYear() === today.getFullYear()) {
+        console.log('No upcoming slots in current month, navigating to next month');
+        navigateMonth(1);
+      }
+    }
+  }, [allMonthSlots, slotsLoading, slotsError, currentMonth]);
 
   const isToday = (date) => {
     const today = new Date();
@@ -309,12 +488,55 @@ export default function ExperienceDetailClient({ id }) {
     };
   }, [slotsObserverRef, hasMoreSlots, loadMoreSlots]);
 
+  // Intersection Observer for sticky booking card
+  useEffect(() => {
+    if (!bookingCardRef || !reviewsEndRef) return;
+
+    const bookingCardObserver = new IntersectionObserver(
+      (entries) => {
+        const entry = entries[0];
+        // When booking card enters viewport, make it sticky
+        if (entry.isIntersecting) {
+          setIsBookingCardSticky(true);
+        }
+      },
+      { 
+        threshold: 0,
+        rootMargin: '0px 0px 0px 0px'
+      }
+    );
+
+    const reviewsEndObserver = new IntersectionObserver(
+      (entries) => {
+        const entry = entries[0];
+        // When reviews end enters viewport, unstick the booking card
+        if (entry.isIntersecting) {
+          setIsBookingCardSticky(false);
+        }
+      },
+      { 
+        threshold: 0,
+        rootMargin: '0px 0px 0px 0px'
+      }
+    );
+
+    bookingCardObserver.observe(bookingCardRef);
+    reviewsEndObserver.observe(reviewsEndRef);
+
+    return () => {
+      bookingCardObserver.disconnect();
+      reviewsEndObserver.disconnect();
+    };
+  }, [bookingCardRef, reviewsEndRef]);
+
   const handleSlotSelect = (slot) => {
     setSelectedSlot(slot);
   };
 
   const handleBooking = () => {
     if (!isAuthenticated) {
+      // Store experience ID in cookie for redirect after login
+      setExperienceRedirectCookie(experience?.id);
       router.push('/auth');
       return;
     }
@@ -328,13 +550,17 @@ export default function ExperienceDetailClient({ id }) {
       // Initialize reservation data
       const maxPeople = (selectedSlot?.capacity || 1) - (selectedSlot?.booked || 0);
       const initialPeople = Math.min(1, maxPeople);
+      const totalAmount = selectedSlot.price * initialPeople;
       setReservationData({
         numberOfPeople: initialPeople,
-        totalAmount: selectedSlot.price * initialPeople,
+        totalAmount: totalAmount,
         mpesaNumber: '',
         customerName: user?.name || '',
         customerEmail: user?.email || '',
-        customerPhone: user?.phone || ''
+        customerPhone: user?.phone || '',
+        isBNPL: false,
+        partialAmount: totalAmount,
+        remainingAmount: 0
       });
       
       setShowReservation(true);
@@ -368,6 +594,63 @@ export default function ExperienceDetailClient({ id }) {
     }
   };
 
+  // Load more reviews function
+  const loadMoreReviews = async () => {
+    if (!reviewsPagination.has_next || loadingMoreReviews) return;
+    
+    try {
+      setLoadingMoreReviews(true);
+      
+      const token = getAuthToken();
+      const headers = {
+        'Content-Type': 'application/json'
+      };
+      
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+      
+      const nextPage = reviewsPagination.page + 1;
+      console.log('Loading more reviews, page:', nextPage);
+      
+      const response = await fetch(`${config.api.baseUrl}/experiences/${experience.id}/reviews?page=${nextPage}&per_page=${reviewsPagination.per_page}`, {
+        headers
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Failed to fetch more reviews: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      console.log('More reviews data:', data);
+      
+      if (data.reviews) {
+        setReviews(prevReviews => [...prevReviews, ...data.reviews]);
+        setReviewsPagination(data.pagination);
+      }
+    } catch (err) {
+      console.error('Error loading more reviews:', err);
+      alert('Failed to load more reviews. Please try again.');
+    } finally {
+      setLoadingMoreReviews(false);
+    }
+  };
+
+  // Mobile image navigation functions
+  const nextImage = () => {
+    const allImages = [experience?.poster_image_url, ...(experience?.images || [])].filter(Boolean);
+    setCurrentImageIndex((prev) => (prev + 1) % allImages.length);
+  };
+
+  const prevImage = () => {
+    const allImages = [experience?.poster_image_url, ...(experience?.images || [])].filter(Boolean);
+    setCurrentImageIndex((prev) => (prev - 1 + allImages.length) % allImages.length);
+  };
+
+  const goToImage = (index) => {
+    setCurrentImageIndex(index);
+  };
+
   // Reservation helper functions
   const updateNumberOfPeople = (count) => {
     const maxPeople = (selectedSlot?.capacity || 1) - (selectedSlot?.booked || 0);
@@ -376,15 +659,26 @@ export default function ExperienceDetailClient({ id }) {
     setReservationData(prev => ({
       ...prev,
       numberOfPeople: newCount,
-      totalAmount: newTotal
+      totalAmount: newTotal,
+      partialAmount: prev.isBNPL ? prev.partialAmount : newTotal,
+      remainingAmount: prev.isBNPL ? newTotal - prev.partialAmount : 0
     }));
   };
 
   const handleReservationInputChange = (field, value) => {
-    setReservationData(prev => ({
-      ...prev,
-      [field]: value
-    }));
+    setReservationData(prev => {
+      const updated = { ...prev, [field]: value };
+      
+      // If BNPL is toggled or partial amount changes, recalculate remaining amount
+      if (field === 'isBNPL' || field === 'partialAmount') {
+        if (field === 'isBNPL') {
+          updated.partialAmount = value ? Math.floor(updated.totalAmount * 0.5) : updated.totalAmount;
+        }
+        updated.remainingAmount = updated.totalAmount - updated.partialAmount;
+      }
+      
+      return updated;
+    });
   };
 
   const nextReservationStep = () => {
@@ -429,9 +723,12 @@ export default function ExperienceDetailClient({ id }) {
       const reservationPayload = {
         slot_id: selectedSlot.id,
         experience_id: experience.id,
-        amount: reservationData.totalAmount.toString(),
+        amount: reservationData.isBNPL ? reservationData.partialAmount.toString() : reservationData.totalAmount.toString(),
+        total_amount: reservationData.totalAmount.toString(),
         num_people: reservationData.numberOfPeople.toString(),
-        mpesa_number: reservationData.mpesaNumber
+        mpesa_number: reservationData.mpesaNumber,
+        is_bnpl: reservationData.isBNPL,
+        remaining_amount: reservationData.isBNPL ? reservationData.remainingAmount.toString() : '0'
       };
       const baseUrl = config.api.forceLocalhost ? 'http://localhost:5000' : config.api.baseUrl;
       const newEventSource = new EventSource(`${baseUrl}/events/${user?.id || 'anonymous'}`);
@@ -489,6 +786,39 @@ export default function ExperienceDetailClient({ id }) {
         }
         if (data.data?.state === "success") {
           setPaymentStatus("✅ Payment Successful!");
+          
+          // Update slot availability locally to reflect the new booking
+          if (selectedSlot) {
+            const updatedSlots = slots.map(slot => {
+              if (slot.id === selectedSlot.id) {
+                return {
+                  ...slot,
+                  booked: (slot.booked || 0) + reservationData.numberOfPeople
+                };
+              }
+              return slot;
+            });
+            setSlots(updatedSlots);
+            
+            // Also update the allMonthSlots to keep consistency
+            const updatedAllMonthSlots = allMonthSlots.map(slot => {
+              if (slot.id === selectedSlot.id) {
+                return {
+                  ...slot,
+                  booked: (slot.booked || 0) + reservationData.numberOfPeople
+                };
+              }
+              return slot;
+            });
+            setAllMonthSlots(updatedAllMonthSlots);
+            
+            // Update selectedSlot to reflect new availability
+            setSelectedSlot(prev => ({
+              ...prev,
+              booked: (prev.booked || 0) + reservationData.numberOfPeople
+            }));
+          }
+          
           // Start countdown for redirect
           setRedirectCountdown(3);
           const countdownInterval = setInterval(() => {
@@ -636,39 +966,23 @@ export default function ExperienceDetailClient({ id }) {
           Back to experiences
         </motion.button>
 
-        {/* Title and Favorite */}
-        <motion.div 
-          className="experience-header"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
-        >
-          <div className="experience-title-section">
-            <h1 className="experience-detail-title">{experience?.title || 'Experience'}</h1>
-            <div className="experience-meta">
-              <span className="location-text">{experience?.destinations?.join(', ') || 'Location not specified'}</span>
-              {/* <span className="status-text">{experience?.status || 'Available'}</span> */}
-            </div>
-          </div>
-          
-          <motion.button
-            className="experience-detail-share"
-            onClick={handleShare}
-            whileHover={{ scale: 1.1 }}
-            whileTap={{ scale: 0.9 }}
-            title="Share this experience"
+        {/* Title and Favorite - Desktop Only */}
+        {!isMobile && (
+          <motion.div 
+            className="experience-header"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5 }}
           >
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-              <path
-                d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 1 1 0-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 1 1 5.367-2.684 3 3 0 0 1-5.367 2.684zm0 9.316a3 3 0 1 1 5.367-2.684 3 3 0 0 1-5.367 2.684z"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
-          </motion.button>
-        </motion.div>
+            <div className="experience-title-section">
+              <h1 className="experience-detail-title">{experience?.title || 'Experience'}</h1>
+              <div className="experience-meta">
+                <span className="location-text">{experience?.destinations?.join(', ') || 'Location not specified'}</span>
+                {/* <span className="status-text">{experience?.status || 'Available'}</span> */}
+              </div>
+            </div>
+          </motion.div>
+        )}
 
         {/* Image Gallery */}
         <motion.div 
@@ -677,31 +991,139 @@ export default function ExperienceDetailClient({ id }) {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.1 }}
         >
-          <div className="main-image">
-            <Image
-              src={experience?.poster_image_url || '/placeholder-image.jpg'}
-              alt={experience?.title || 'Experience'}
-              fill
-              style={{ objectFit: 'cover' }}
-              className="gallery-image"
-            />
-          </div>
-          {experience?.images && experience.images.length > 0 && (
-          <div className="gallery-grid">
-              {experience.images.slice(0, 2).map((img, index) => (
-              <div key={index} className="gallery-item">
+          {/* Mobile Header Overlay */}
+          {isMobile && (
+            <div className="mobile-image-header">
+              <button 
+                className="mobile-back-btn"
+                onClick={() => router.push('/')}
+              >
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                  <path d="M19 12H5M12 19L5 12L12 5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              </button>
+              <button 
+                className="mobile-share-btn"
+                onClick={handleShare}
+              >
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                  <path d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 1 1 0-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 1 1 5.367-2.684 3 3 0 0 1-5.367 2.684zm0 9.316a3 3 0 1 1 5.367-2.684 3 3 0 0 1-5.367 2.684z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              </button>
+            </div>
+          )}
+
+          {/* Mobile Image Slider */}
+          {isMobile ? (
+            <div className="mobile-image-slider">
+              <div className="mobile-slider-container">
+                <div 
+                  className="mobile-slider-track"
+                  style={{ transform: `translateX(-${currentImageIndex * 100}%)` }}
+                >
+                  {[experience?.poster_image_url, ...(experience?.images || [])].filter(Boolean).map((img, index) => (
+                    <div key={index} className="mobile-slider-slide">
+                      <Image
+                        src={img?.url || img || '/placeholder-image.jpg'}
+                        alt={`${experience?.title || 'Experience'} ${index + 1}`}
+                        fill
+                        style={{ objectFit: 'cover' }}
+                        className="mobile-slider-image"
+                      />
+                    </div>
+                  ))}
+                </div>
+                
+                {/* Navigation Arrows */}
+                {[experience?.poster_image_url, ...(experience?.images || [])].filter(Boolean).length > 1 && (
+                  <>
+                    <button 
+                      className="mobile-slider-arrow mobile-slider-arrow-left"
+                      onClick={prevImage}
+                    >
+                      <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                        <path d="M15 18L9 12L15 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                      </svg>
+                    </button>
+                    <button 
+                      className="mobile-slider-arrow mobile-slider-arrow-right"
+                      onClick={nextImage}
+                    >
+                      <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                        <path d="M9 18L15 12L9 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                      </svg>
+                    </button>
+                  </>
+                )}
+              </div>
+              
+              {/* Image Counter */}
+              {[experience?.poster_image_url, ...(experience?.images || [])].filter(Boolean).length > 1 && (
+                <div className="mobile-image-counter">
+                  {currentImageIndex + 1}/{[experience?.poster_image_url, ...(experience?.images || [])].filter(Boolean).length}
+                </div>
+              )}
+              
+              {/* Image Dots */}
+              {[experience?.poster_image_url, ...(experience?.images || [])].filter(Boolean).length > 1 && (
+                <div className="mobile-image-dots">
+                  {[experience?.poster_image_url, ...(experience?.images || [])].filter(Boolean).map((_, index) => (
+                    <button
+                      key={index}
+                      className={`mobile-image-dot ${index === currentImageIndex ? 'active' : ''}`}
+                      onClick={() => goToImage(index)}
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
+          ) : (
+            /* Desktop Image Gallery */
+            <>
+              <div className="main-image">
                 <Image
-                    src={img?.url || img || '/placeholder-image.jpg'}
-                  alt={`${experience?.title || 'Experience'} ${index + 2}`}
+                  src={experience?.poster_image_url || '/placeholder-image.jpg'}
+                  alt={experience?.title || 'Experience'}
                   fill
                   style={{ objectFit: 'cover' }}
                   className="gallery-image"
                 />
               </div>
-            ))}
-          </div>
+              {experience?.images && experience.images.length > 0 && (
+              <div className="gallery-grid">
+                  {experience.images.slice(0, 2).map((img, index) => (
+                  <div key={index} className="gallery-item">
+                    <Image
+                        src={img?.url || img || '/placeholder-image.jpg'}
+                      alt={`${experience?.title || 'Experience'} ${index + 2}`}
+                      fill
+                      style={{ objectFit: 'cover' }}
+                      className="gallery-image"
+                    />
+                  </div>
+                ))}
+              </div>
+              )}
+            </>
           )}
         </motion.div>
+
+        {/* Mobile Experience Header - After Images */}
+        {isMobile && (
+          <motion.div 
+            className="mobile-experience-header"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.2 }}
+          >
+            <div className="mobile-experience-title-section">
+              <h1 className="mobile-experience-title">{experience?.title || 'Experience'}</h1>
+              <div className="mobile-experience-meta">
+                <span className="mobile-location-text">{experience?.destinations?.join(', ') || 'Location not specified'}</span>
+              </div>
+            </div>
+          </motion.div>
+        )}
 
         {/* Content Section */}
         <div className="experience-content-section">
@@ -822,7 +1244,7 @@ export default function ExperienceDetailClient({ id }) {
               </div>
               
               {/* Map Container */}
-              {experience?.meeting_point?.coordinates?.lat && experience?.meeting_point?.coordinates?.lng && (
+              {experience?.meeting_point?.coordinates?.latitude && experience?.meeting_point?.coordinates?.longitude && (
                 <div className="map-container">
                   <div className="map-header">
                     <h3 className="map-title">Meeting Location</h3>
@@ -830,8 +1252,8 @@ export default function ExperienceDetailClient({ id }) {
                       <button
                         className="directions-btn"
                         onClick={() => {
-                          const lat = experience.meeting_point.coordinates.lat;
-                          const lng = experience.meeting_point.coordinates.lng;
+                          const lat = experience.meeting_point.coordinates.latitude;
+                          const lng = experience.meeting_point.coordinates.longitude;
                           const address = encodeURIComponent(experience.meeting_point.address || '');
                           const url = `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}&destination_place_id=${address}`;
                           window.open(url, '_blank');
@@ -846,8 +1268,8 @@ export default function ExperienceDetailClient({ id }) {
                       <button
                         className="map-expand-btn"
                         onClick={() => {
-                          const lat = experience.meeting_point.coordinates.lat;
-                          const lng = experience.meeting_point.coordinates.lng;
+                          const lat = experience.meeting_point.coordinates.latitude;
+                          const lng = experience.meeting_point.coordinates.longitude;
                           const url = `https://www.google.com/maps?q=${lat},${lng}&hl=en&z=15`;
                           window.open(url, '_blank');
                         }}
@@ -861,7 +1283,7 @@ export default function ExperienceDetailClient({ id }) {
                   </div>
                   <div className="map-iframe-container">
                     <iframe
-                      src={`https://www.google.com/maps?q=${experience.meeting_point.coordinates.lat},${experience.meeting_point.coordinates.lng}&hl=en&z=15&output=embed`}
+                      src={`https://www.google.com/maps?q=${experience.meeting_point.coordinates.latitude},${experience.meeting_point.coordinates.longitude}&hl=en&z=15&output=embed`}
                       width="100%"
                       height="300"
                       style={{ border: 0, borderRadius: '8px' }}
@@ -880,11 +1302,168 @@ export default function ExperienceDetailClient({ id }) {
               )}
             </motion.div>
 
+            {/* Reviews Section */}
+            <motion.div 
+              className="reviews-section"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.6 }}
+            >
+              <h2 className="section-title">Reviews</h2>
+              
+              {reviewsLoading ? (
+                <div className="reviews-skeleton">
+                  {[1, 2, 3].map((item) => (
+                    <div key={item} className="review-skeleton-item">
+                      <div className="review-skeleton-header">
+                        <div className="review-skeleton-user">
+                          <SkeletonLoader variant="circular" width="40px" height="40px" />
+                          <div className="review-skeleton-user-info">
+                            <SkeletonLoader width="120px" height="16px" borderRadius="4px" />
+                            <SkeletonLoader width="80px" height="12px" borderRadius="4px" style={{ marginTop: '4px' }} />
+                          </div>
+                        </div>
+                        <div className="review-skeleton-rating">
+                          <SkeletonLoader width="80px" height="16px" borderRadius="4px" />
+                        </div>
+                      </div>
+                      <div className="review-skeleton-content">
+                        <SkeletonLoader width="100%" height="16px" borderRadius="4px" />
+                        <SkeletonLoader width="100%" height="16px" borderRadius="4px" style={{ marginTop: '8px' }} />
+                        <SkeletonLoader width="75%" height="16px" borderRadius="4px" style={{ marginTop: '8px' }} />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : reviewsError ? (
+                <div className="reviews-error">
+                  <p>Error loading reviews: {reviewsError}</p>
+                  <button onClick={() => window.location.reload()} className="retry-btn">
+                    Retry
+                  </button>
+                </div>
+              ) : reviews.length > 0 ? (
+                <div className="reviews-list">
+                  {reviews.map((review) => (
+                    <motion.div
+                      key={review.id}
+                      className="review-item"
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.3 }}
+                    >
+                      <div className="review-header">
+                        <div className="review-user">
+                          <div className="review-avatar">
+                            <Image
+                              src={review.user?.avatar_url || config.defaultAvatar}
+                              alt={review.user?.name || 'User'}
+                              width={40}
+                              height={40}
+                              className="review-avatar-image"
+                            />
+                          </div>
+                          <div className="review-user-info">
+                            <h4 className="review-user-name">{review.user?.name || 'Anonymous'}</h4>
+                            <p className="review-date">
+                              {new Date(review.created_at).toLocaleDateString('en-US', {
+                                year: 'numeric',
+                                month: 'long',
+                                day: 'numeric'
+                              })}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="review-rating">
+                          {[...Array(5)].map((_, i) => (
+                            <span
+                              key={i}
+                              className={`star ${i < review.rating ? 'filled' : 'empty'}`}
+                            >
+                              ★
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                      
+                      <div className="review-content">
+                        <p className="review-comment">{review.comment}</p>
+                        
+                        {review.images && review.images.length > 0 && (
+                          <div className="review-images">
+                            <div className="review-image-group">
+                              {review.images.map((imageUrl, imageIndex) => (
+                                <div key={imageIndex} className="review-image-item">
+                                  <Image
+                                    src={imageUrl}
+                                    alt={`Review image ${imageIndex + 1}`}
+                                    width={120}
+                                    height={120}
+                                    className="review-image"
+                                    style={{ objectFit: 'cover' }}
+                                  />
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </motion.div>
+                  ))}
+                  
+                  {/* Load More Reviews Button */}
+                  {reviewsPagination.has_next && (
+                    <div className="reviews-load-more">
+                      <button
+                        onClick={loadMoreReviews}
+                        disabled={loadingMoreReviews}
+                        className="load-more-reviews-btn"
+                      >
+                        {loadingMoreReviews ? (
+                          <>
+                            <span className="loading-spinner"></span>
+                            Loading more reviews...
+                          </>
+                        ) : (
+                          `Load More Reviews (${reviewsPagination.total_count - reviews.length} remaining)`
+                        )}
+                      </button>
+                    </div>
+                  )}
+                  
+                  {/* Reviews Summary */}
+                  <div className="reviews-summary">
+                    <p className="reviews-count">
+                      Showing {reviews.length} of {reviewsPagination.total_count} reviews
+                    </p>
+                  </div>
+                  
+                  {/* Reviews End Marker */}
+                  <div ref={setReviewsEndRef} className="reviews-end-marker"></div>
+                </div>
+              ) : (
+                <div className="no-reviews">
+                  <div className="no-reviews-icon">
+                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none">
+                      <path d="M12 2L15.09 8.26L22 9L17 14L18.18 21L12 17.77L5.82 21L7 14L2 9L8.91 8.26L12 2Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                  </div>
+                  <h4 className="no-reviews-title">No reviews yet</h4>
+                  <p className="no-reviews-message">
+                    Be the first to share your experience!
+                  </p>
+                  {/* Reviews End Marker for no reviews */}
+                  <div ref={setReviewsEndRef} className="reviews-end-marker"></div>
+                </div>
+              )}
+            </motion.div>
+
           </div>
 
           {/* Booking Card */}
           <motion.div 
-            className="booking-card"
+            ref={setBookingCardRef}
+            className={`booking-card ${isBookingCardSticky ? 'sticky' : ''} ${isMobile ? 'mobile-hidden' : ''}`}
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.5, delay: 0.2 }}
@@ -900,7 +1479,14 @@ export default function ExperienceDetailClient({ id }) {
               {/* Calendar View Toggle */}
               <div className="slots-view-controls">
                 <button
-                  onClick={openFullscreenCalendar}
+                  onClick={() => {
+                    if (!isAuthenticated) {
+                      setExperienceRedirectCookie(experience?.id);
+                      router.push('/auth');
+                    } else {
+                      openFullscreenCalendar();
+                    }
+                  }}
                   className="view-toggle-btn"
                 >
                   Show Dates
@@ -912,6 +1498,33 @@ export default function ExperienceDetailClient({ id }) {
                 <div className="slots-loading">
                   <div className="loading-spinner"></div>
                   <p>Loading available slots...</p>
+                </div>
+              ) : slotsError === 'Authentication required' ? (
+                <div className="slots-auth-required">
+                  <div className="auth-required-icon">
+                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none">
+                      <path d="M12 1L3 5V11C3 16.55 6.84 21.74 12 23C17.16 21.74 21 16.55 21 11V5L12 1Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                      <path d="M9 12L11 14L15 10" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                  </div>
+                  <h4 className="auth-required-title">Login Required</h4>
+                  <p className="auth-required-message">
+                    Please log in to view available time slots and make a reservation.
+                  </p>
+                  <button 
+                    onClick={() => {
+                      setExperienceRedirectCookie(experience?.id);
+                      router.push('/auth');
+                    }}
+                    className="auth-required-btn"
+                  >
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                      <path d="M15 3H19C19.5304 3 20.0391 3.21071 20.4142 3.58579C20.7893 3.96086 21 4.46957 21 5V19C21 19.5304 20.7893 20.0391 20.4142 20.4142C20.0391 20.7893 19.5304 21 19 21H15" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                      <path d="M10 17L15 12L10 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                      <path d="M15 12H3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                    Login to Continue
+                  </button>
                 </div>
               ) : slotsError ? (
                 <div className="slots-error">
@@ -951,8 +1564,18 @@ export default function ExperienceDetailClient({ id }) {
                 </motion.div>
               )) : (
                 <div className="no-slots">
-                  <p>No time slots available for this month.</p>
-                  <button onClick={() => navigateMonth(1)} className="next-month-btn">
+                  <p>No upcoming time slots available for this month.</p>
+                  <button 
+                    onClick={() => {
+                      if (!isAuthenticated) {
+                        setExperienceRedirectCookie(experience?.id);
+                        router.push('/auth');
+                      } else {
+                        navigateMonth(1);
+                      }
+                    }} 
+                    className="next-month-btn"
+                  >
                     Check Next Month
                   </button>
                 </div>
@@ -984,6 +1607,198 @@ export default function ExperienceDetailClient({ id }) {
           </motion.div>
         </div>
       </div>
+
+      {/* Mobile Bottom Bar */}
+      {isMobile && (
+        <motion.div 
+          className="mobile-bottom-bar"
+          initial={{ y: 100 }}
+          animate={{ y: 0 }}
+          transition={{ duration: 0.3 }}
+        >
+          <div className="mobile-bottom-content">
+            <div className="mobile-price-info">
+              <span className="mobile-price-range">
+                From KSh {experience?.min_price?.toLocaleString() || '0'} to KSh {experience?.max_price?.toLocaleString() || '0'}
+              </span>
+            </div>
+            <button 
+              className="mobile-view-dates-btn"
+              onClick={() => setShowMobileSlots(!showMobileSlots)}
+            >
+              {showMobileSlots ? 'Hide Dates' : 'View Dates'}
+            </button>
+          </div>
+        </motion.div>
+      )}
+
+      {/* Mobile Slots Modal */}
+      {isMobile && showMobileSlots && (
+        <motion.div
+          className="mobile-slots-modal"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          onClick={() => setShowMobileSlots(false)}
+        >
+          <motion.div
+            className="mobile-slots-content"
+            initial={{ y: '100%' }}
+            animate={{ y: 0 }}
+            exit={{ y: '100%' }}
+            transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="mobile-slots-header">
+              <h3 className="mobile-slots-title">Select a time slot</h3>
+              <div className="mobile-slots-header-actions">
+                <button 
+                  className="mobile-calendar-btn"
+                  onClick={() => {
+                    setShowMobileSlots(false);
+                    openFullscreenCalendar();
+                  }}
+                >
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                    <path d="M8 2V5M16 2V5M3.5 9.09H20.5M21 8.5V17C21 20 19.5 22 16 22H8C4.5 22 3 20 3 17V8.5C3 5.5 4.5 3.5 8 3.5H16C19.5 3.5 21 5.5 21 8.5Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                    <path d="M8 13H8.01M12 13H12.01M16 13H16.01M8 17H8.01M12 17H12.01M16 17H16.01" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                  Calendar
+                </button>
+                <button 
+                  className="mobile-slots-close"
+                  onClick={() => setShowMobileSlots(false)}
+                >
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                    <path d="M18 6L6 18M6 6L18 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                </button>
+              </div>
+            </div>
+
+            <div className="mobile-slots-body">
+              {slotsLoading ? (
+                <div className="mobile-slots-loading">
+                  <div className="loading-spinner"></div>
+                  <p>Loading available slots...</p>
+                </div>
+              ) : slotsError === 'Authentication required' ? (
+                <div className="mobile-slots-auth-required">
+                  <div className="auth-required-icon">
+                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none">
+                      <path d="M12 1L3 5V11C3 16.55 6.84 21.74 12 23C17.16 21.74 21 16.55 21 11V5L12 1Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                      <path d="M9 12L11 14L15 10" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                  </div>
+                  <h4 className="auth-required-title">Login Required</h4>
+                  <p className="auth-required-message">
+                    Please log in to view available time slots and make a reservation.
+                  </p>
+                  <button 
+                    onClick={() => {
+                      setExperienceRedirectCookie(experience?.id);
+                      router.push('/auth');
+                    }}
+                    className="auth-required-btn"
+                  >
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                      <path d="M15 3H19C19.5304 3 20.0391 3.21071 20.4142 3.58579C20.7893 3.96086 21 4.46957 21 5V19C21 19.5304 20.7893 20.0391 20.4142 20.4142C20.0391 20.7893 19.5304 21 19 21H15" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                      <path d="M10 17L15 12L10 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                      <path d="M15 12H3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                    Login to Continue
+                  </button>
+                </div>
+              ) : slotsError ? (
+                <div className="mobile-slots-error">
+                  <p>Error loading slots: {slotsError}</p>
+                  <button onClick={() => window.location.reload()} className="retry-btn">
+                    Retry
+                  </button>
+                </div>
+              ) : slots.length > 0 ? (
+                <div className="mobile-slots-list">
+                  {slots.map((slot) => (
+                    <motion.div
+                      key={slot.id}
+                      className={`mobile-slot-item ${selectedSlot?.id === slot.id ? 'selected' : ''} ${(slot?.booked || 0) >= (slot?.capacity || 0) ? 'unavailable' : ''}`}
+                      onClick={() => (slot?.booked || 0) < (slot?.capacity || 0) && handleSlotSelect(slot)}
+                      whileHover={(slot?.booked || 0) < (slot?.capacity || 0) ? { scale: 1.02 } : {}}
+                      whileTap={(slot?.booked || 0) < (slot?.capacity || 0) ? { scale: 0.98 } : {}}
+                    >
+                      <div className="mobile-slot-header">
+                        <span className="mobile-slot-name">{slot?.name || 'Unnamed Slot'}</span>
+                        <span className="mobile-slot-price">KSh {slot?.price?.toLocaleString() || '0'}</span>
+                      </div>
+                      <div className="mobile-slot-details">
+                        <span className="mobile-slot-date">{slot?.date ? formatDate(slot.date) : 'Date TBD'}</span>
+                        <span className="mobile-slot-time">
+                          {slot?.start_time && slot?.end_time 
+                            ? `${formatTime(slot.start_time)} - ${formatTime(slot.end_time)}`
+                            : 'Time TBD'
+                          }
+                        </span>
+                      </div>
+                      <div className="mobile-slot-availability">
+                        {(slot?.booked || 0) < (slot?.capacity || 0) ? (
+                          <span className="available-text">{(slot?.capacity || 0) - (slot?.booked || 0)} spots left</span>
+                        ) : (
+                          <span className="unavailable-text">Fully booked</span>
+                        )}
+                      </div>
+                    </motion.div>
+                  ))}
+                  
+                  {/* Load More Slots */}
+                  {hasMoreSlots() && (
+                    <div className="mobile-load-more-slots">
+                      <button
+                        onClick={loadMoreSlots}
+                        disabled={slotsLoading}
+                        className="mobile-load-more-btn"
+                      >
+                        {slotsLoading ? 'Loading...' : 'Load More Slots'}
+                      </button>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="mobile-no-slots">
+                  <p>No upcoming time slots available for this month.</p>
+                  <button 
+                    onClick={() => {
+                      if (!isAuthenticated) {
+                        setExperienceRedirectCookie(experience?.id);
+                        router.push('/auth');
+                      } else {
+                        navigateMonth(1);
+                      }
+                    }} 
+                    className="mobile-next-month-btn"
+                  >
+                    Check Next Month
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* Mobile Book Button */}
+            {selectedSlot && (
+              <div className="mobile-book-section">
+                <button 
+                  className="mobile-book-button"
+                  onClick={() => {
+                    setShowMobileSlots(false);
+                    handleBooking();
+                  }}
+                >
+                  Book {selectedSlot?.name || 'Selected Slot'}
+                </button>
+              </div>
+            )}
+          </motion.div>
+        </motion.div>
+      )}
 
       {/* Reservation Modal */}
       <AnimatePresence>
@@ -1180,9 +1995,57 @@ export default function ExperienceDetailClient({ id }) {
                           </p>
                         </div>
 
+                        {/* BNPL Option */}
+                        <div className="reservation-form-group">
+                          <div className="reservation-bnpl-option">
+                            <label className="reservation-checkbox-label">
+                              <input
+                                type="checkbox"
+                                checked={reservationData.isBNPL}
+                                onChange={(e) => handleReservationInputChange('isBNPL', e.target.checked)}
+                                className="reservation-checkbox"
+                              />
+                              <span className="reservation-checkbox-text">
+                                Pay Later (BNPL) - Pay partial amount now, remaining later
+                              </span>
+                            </label>
+                            {reservationData.isBNPL && (
+                              <div className="reservation-bnpl-details">
+                                <div className="reservation-form-group">
+                                  <label className="reservation-form-label">
+                                    Amount to Pay Now
+                                  </label>
+                                  <input
+                                    type="number"
+                                    value={reservationData.partialAmount}
+                                    onChange={(e) => handleReservationInputChange('partialAmount', parseInt(e.target.value) || 0)}
+                                    className="reservation-form-input"
+                                    min="1"
+                                    max={reservationData.totalAmount}
+                                    placeholder="Enter amount to pay now"
+                                  />
+                                  <p style={{ margin: '8px 0 0 0', color: '#6c757d', fontSize: '14px' }}>
+                                    Minimum: KSh 1, Maximum: KSh {reservationData.totalAmount.toLocaleString()}
+                                  </p>
+                                </div>
+                                <div className="reservation-bnpl-summary">
+                                  <div className="reservation-bnpl-row">
+                                    <span className="reservation-bnpl-label">Amount to Pay Now:</span>
+                                    <span className="reservation-bnpl-amount">KSh {reservationData.partialAmount.toLocaleString()}</span>
+                                  </div>
+                                  <div className="reservation-bnpl-row">
+                                    <span className="reservation-bnpl-label">Remaining Amount:</span>
+                                    <span className="reservation-bnpl-amount">KSh {reservationData.remainingAmount.toLocaleString()}</span>
+                                  </div>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+
                         <button
                           onClick={nextReservationStep}
-                          disabled={!reservationData.customerName || !reservationData.customerEmail || !reservationData.customerPhone}
+                          disabled={!reservationData.customerName || !reservationData.customerEmail || !reservationData.customerPhone || (reservationData.isBNPL && (reservationData.partialAmount <= 0 || reservationData.partialAmount > reservationData.totalAmount))}
                           className="reservation-btn reservation-btn-primary reservation-btn-full"
                         >
                           Continue to Confirmation
@@ -1247,6 +2110,23 @@ export default function ExperienceDetailClient({ id }) {
                             <span className="reservation-confirmation-label">Total Amount:</span>
                             <span className="reservation-confirmation-value">KSh {reservationData.totalAmount.toLocaleString()}</span>
                           </div>
+                          
+                          {reservationData.isBNPL && (
+                            <div className="reservation-confirmation-bnpl">
+                              <div className="reservation-confirmation-row">
+                                <span className="reservation-confirmation-label">Payment Method:</span>
+                                <span className="reservation-confirmation-value">Buy Now Pay Later (BNPL)</span>
+                              </div>
+                              <div className="reservation-confirmation-row">
+                                <span className="reservation-confirmation-label">Amount to Pay Now:</span>
+                                <span className="reservation-confirmation-value">KSh {reservationData.partialAmount.toLocaleString()}</span>
+                              </div>
+                              <div className="reservation-confirmation-row">
+                                <span className="reservation-confirmation-label">Remaining Amount:</span>
+                                <span className="reservation-confirmation-value">KSh {reservationData.remainingAmount.toLocaleString()}</span>
+                              </div>
+                            </div>
+                          )}
                         </div>
 
                         <div className="reservation-btn-group">
@@ -1283,9 +2163,24 @@ export default function ExperienceDetailClient({ id }) {
                           <div className="reservation-payment-amount-row">
                             <span className="reservation-payment-label">Amount to Pay:</span>
                             <span className="reservation-payment-amount">
-                              KSh {reservationData.totalAmount.toLocaleString()}
+                              KSh {reservationData.isBNPL ? reservationData.partialAmount.toLocaleString() : reservationData.totalAmount.toLocaleString()}
                             </span>
                           </div>
+                          {reservationData.isBNPL && (
+                            <div className="reservation-payment-bnpl-info">
+                              <div className="reservation-payment-row">
+                                <span className="reservation-payment-label">Total Experience Cost:</span>
+                                <span className="reservation-payment-amount">KSh {reservationData.totalAmount.toLocaleString()}</span>
+                              </div>
+                              <div className="reservation-payment-row">
+                                <span className="reservation-payment-label">Remaining Amount:</span>
+                                <span className="reservation-payment-amount">KSh {reservationData.remainingAmount.toLocaleString()}</span>
+                              </div>
+                              <p className="reservation-payment-bnpl-note">
+                                💡 You'll pay the remaining amount later. Payment details will be sent to your email.
+                              </p>
+                            </div>
+                          )}
                           <p className="reservation-payment-method">
                             Payment will be processed via M-Pesa
                           </p>
@@ -1317,7 +2212,21 @@ export default function ExperienceDetailClient({ id }) {
                             <li>You will receive an M-Pesa prompt on your phone</li>
                             <li>Enter your M-Pesa PIN to complete payment</li>
                             <li>You will receive a confirmation SMS and email</li>
+                            {reservationData.isBNPL && (
+                              <li>📧 Payment details for the remaining amount will be sent to your email</li>
+                            )}
                           </ol>
+                          {reservationData.isBNPL && (
+                            <div className="reservation-bnpl-instructions">
+                              <h5 className="reservation-bnpl-title">About Buy Now Pay Later:</h5>
+                              <ul className="reservation-bnpl-list">
+                                <li>You're paying KSh {reservationData.partialAmount.toLocaleString()} now</li>
+                                <li>Remaining KSh {reservationData.remainingAmount.toLocaleString()} will be due later</li>
+                                <li>You'll receive payment instructions via email</li>
+                                <li>Your reservation is confirmed once this payment is successful</li>
+                              </ul>
+                            </div>
+                          )}
                         </div>
 
                         <div className="reservation-btn-group">
@@ -1376,7 +2285,7 @@ export default function ExperienceDetailClient({ id }) {
                             <h4 className="payment-status-title">{paymentStatus}</h4>
                             <p className="payment-status-message">
                               {paymentStatus.includes('✅') 
-                                ? 'Your reservation has been confirmed! You will receive a confirmation email shortly.'
+                                ? `Your reservation has been confirmed! You will receive a confirmation email shortly.${reservationData.isBNPL ? ` Payment details for the remaining KSh ${reservationData.remainingAmount.toLocaleString()} will be sent to your email.` : ''}`
                                 : paymentStatus.includes('❌')
                                 ? 'Payment failed. Please try again or contact support.'
                                 : paymentStatus.includes('⏰')
@@ -1384,6 +2293,21 @@ export default function ExperienceDetailClient({ id }) {
                                 : 'Please check your phone for the M-Pesa prompt and complete the payment.'
                               }
                             </p>
+                            {reservationData.isBNPL && paymentStatus.includes('✅') && (
+                              <div className="payment-bnpl-summary">
+                                <h5 className="payment-bnpl-title">Payment Summary:</h5>
+                                <div className="payment-bnpl-details">
+                                  <div className="payment-bnpl-row">
+                                    <span className="payment-bnpl-label">Paid Now:</span>
+                                    <span className="payment-bnpl-amount">KSh {reservationData.partialAmount.toLocaleString()}</span>
+                                  </div>
+                                  <div className="payment-bnpl-row">
+                                    <span className="payment-bnpl-label">Remaining:</span>
+                                    <span className="payment-bnpl-amount">KSh {reservationData.remainingAmount.toLocaleString()}</span>
+                                  </div>
+                                </div>
+                              </div>
+                            )}
                           </div>
                         </div>
                       </div>
@@ -1520,7 +2444,7 @@ export default function ExperienceDetailClient({ id }) {
 
       {/* Calendar Modal */}
       <AnimatePresence>
-        {showFullscreenCalendar && (
+        {showFullscreenCalendar && isAuthenticated && (
           <motion.div
             className="calendar-modal-overlay"
             initial={{ opacity: 0 }}

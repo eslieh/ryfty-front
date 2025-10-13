@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
@@ -18,12 +18,18 @@ export default function SlotDetailPage({ params }) {
   const [reservations, setReservations] = useState([]);
   const [loading, setLoading] = useState(true);
   const [reservationsLoading, setReservationsLoading] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState(null);
+  const [revenue, setRevenue] = useState(0);
   
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
   const [totalReservations, setTotalReservations] = useState(0);
+  
+  // Infinite scroll refs
+  const observerRef = useRef();
+  const loadingRef = useRef();
   
   const { isAuthenticated, user, isProvider } = useAuth();
   const router = useRouter();
@@ -109,6 +115,47 @@ export default function SlotDetailPage({ params }) {
     fetchSlotData();
   }, [experienceId, slotId, isAuthenticated, isProvider]);
 
+  // Load more reservations function
+  const loadMoreReservations = useCallback(async () => {
+    if (loadingMore || !hasMore || !experienceId || !slotId) return;
+    
+    try {
+      setLoadingMore(true);
+      const nextPage = currentPage + 1;
+      
+      console.log('Loading more reservations, page:', nextPage);
+      const response = await apiCall(`/provider/reservations/${experienceId}/${slotId}?page=${nextPage}&per_page=10`);
+      console.log('More reservations response:', response);
+      
+      if (response && response.reservations && response.reservations.length > 0) {
+        setReservations(prev => [...prev, ...response.reservations]);
+        setCurrentPage(nextPage);
+        setHasMore(response.pagination ? response.pagination.page < response.pagination.pages : false);
+      } else {
+        setHasMore(false);
+      }
+    } catch (err) {
+      console.error('Error loading more reservations:', err);
+      setHasMore(false);
+    } finally {
+      setLoadingMore(false);
+    }
+  }, [currentPage, hasMore, loadingMore, experienceId, slotId]);
+
+  // Intersection Observer for infinite scroll
+  const lastReservationElementRef = useCallback(node => {
+    if (loadingMore) return;
+    if (observerRef.current) observerRef.current.disconnect();
+    
+    observerRef.current = new IntersectionObserver(entries => {
+      if (entries[0].isIntersecting && hasMore) {
+        loadMoreReservations();
+      }
+    });
+    
+    if (node) observerRef.current.observe(node);
+  }, [loadingMore, hasMore, loadMoreReservations]);
+
   // Fetch reservations for the slot
   useEffect(() => {
     const fetchReservationsData = async () => {
@@ -128,6 +175,7 @@ export default function SlotDetailPage({ params }) {
         if (response && response.reservations) {
           console.log('Setting reservations:', response.reservations);
           setReservations(response.reservations);
+          setRevenue(response.total_revenue);
           setTotalReservations(response.pagination?.total || response.reservations.length);
           setHasMore(response.pagination ? response.pagination.page < response.pagination.pages : false);
         } else {
@@ -380,7 +428,7 @@ export default function SlotDetailPage({ params }) {
                     </div>
                     <div className="slot-info-item">
                       <span className="info-label">Revenue:</span>
-                      <span className="info-value">{formatCurrency(slot.price * slot.booked)}</span>
+                      <span className="info-value">{formatCurrency(revenue)}</span>
                     </div>
                   </div>
 
@@ -438,7 +486,7 @@ export default function SlotDetailPage({ params }) {
                     </div>
                     <div className="summary-content">
                       <div className="summary-label">Total Revenue</div>
-                      <div className="summary-value">{formatCurrency(reservations.reduce((sum, res) => sum + res.total_price, 0))}</div>
+                      <div className="summary-value">{formatCurrency(revenue)}</div>
                     </div>
                   </div>
 
@@ -491,13 +539,14 @@ export default function SlotDetailPage({ params }) {
                     </div>
                     
                     <div className="reservations-table-body">
-                      {reservations.map((reservation) => (
+                      {reservations.map((reservation, index) => (
                         <motion.div
                           key={reservation.id}
                           className="reservation-row"
                           initial={{ opacity: 0, x: -20 }}
                           animate={{ opacity: 1, x: 0 }}
                           transition={{ duration: 0.3 }}
+                          ref={index === reservations.length - 1 ? lastReservationElementRef : null}
                         >
                           <div className="customer-cell">
                             <div className="customer-info">
@@ -555,6 +604,21 @@ export default function SlotDetailPage({ params }) {
                       ))}
                     </div>
                   </div>
+                  
+                  {/* Loading more indicator */}
+                  {loadingMore && (
+                    <div className="loading-more-container" ref={loadingRef}>
+                      <div className="loading-spinner"></div>
+                      <p>Loading more reservations...</p>
+                    </div>
+                  )}
+                  
+                  {/* End of results indicator */}
+                  {!hasMore && reservations.length > 0 && (
+                    <div className="end-of-results">
+                      <p>No more reservations to load</p>
+                    </div>
+                  )}
                 </motion.div>
               ) : (
                 <motion.div 

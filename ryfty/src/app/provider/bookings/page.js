@@ -72,12 +72,13 @@ export default function BookingsPage() {
         setCalendarLoading(true);
         setSlotsError(null);
         
-        // Get current month start and end dates
+        // Get current month start and end dates (using local timezone)
         const startDate = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1);
         const endDate = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 0);
         
-        const startDateStr = startDate.toISOString().split('T')[0];
-        const endDateStr = endDate.toISOString().split('T')[0];
+        // Format dates as YYYY-MM-DD using local timezone to avoid timezone shifts
+        const startDateStr = `${startDate.getFullYear()}-${String(startDate.getMonth() + 1).padStart(2, '0')}-${String(startDate.getDate()).padStart(2, '0')}`;
+        const endDateStr = `${endDate.getFullYear()}-${String(endDate.getMonth() + 1).padStart(2, '0')}-${String(endDate.getDate()).padStart(2, '0')}`;
         
         const response = await fetchExperienceSlots(selectedExperience.id, 1, {
           start_date: startDateStr,
@@ -171,9 +172,8 @@ export default function BookingsPage() {
   };
 
   const handleSlotClick = (slot) => {
-    if (slot.booked < slot.capacity) {
-      router.push(`/provider/bookings/slot/${selectedExperience.id}/${slot.id}`);
-    }
+    // Allow clicking on all slots regardless of booking status or date
+    router.push(`/provider/bookings/slot/${selectedExperience.id}/${slot.id}`);
   };
 
   // Experience Card Component
@@ -482,7 +482,8 @@ export default function BookingsPage() {
                     {Array.from({ length: getDaysInMonth(currentMonth) }, (_, i) => {
                       const day = i + 1;
                       const date = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), day);
-                      const dateStr = date.toISOString().split('T')[0];
+                      // Format date as YYYY-MM-DD using local timezone to avoid timezone shifts
+                      const dateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
                       const daySlots = getSlotsForDate(dateStr);
                       const hasSlots = daySlots.length > 0;
                       const isSelected = selectedDate === dateStr;
@@ -491,7 +492,7 @@ export default function BookingsPage() {
                         <div
                           key={day}
                           className={`calendar-day ${hasSlots ? 'has-slots' : ''} ${isToday(date) ? 'today' : ''} ${isPastDate(date) ? 'past' : ''} ${isSelected ? 'selected' : ''}`}
-                          onClick={() => hasSlots && !isPastDate(date) && setSelectedDate(dateStr)}
+                          onClick={() => hasSlots && setSelectedDate(dateStr)}
                         >
                           <span className="day-number">{day}</span>
                           {hasSlots && (
@@ -518,10 +519,10 @@ export default function BookingsPage() {
                         {getSlotsForDate(selectedDate).map((slot) => (
                           <motion.div
                             key={slot.id}
-                            className={`slot-item ${slot.booked >= slot.capacity ? 'unavailable' : ''}`}
-                            onClick={() => slot.booked < slot.capacity && handleSlotClick(slot)}
-                            whileHover={slot.booked < slot.capacity ? { scale: 1.02 } : {}}
-                            whileTap={slot.booked < slot.capacity ? { scale: 0.98 } : {}}
+                            className={`slot-item ${slot.booked >= slot.capacity ? 'fully-booked' : ''}`}
+                            onClick={() => handleSlotClick(slot)}
+                            whileHover={{ scale: 1.02 }}
+                            whileTap={{ scale: 0.98 }}
                           >
                             <div className="slot-header">
                               <span className="slot-name">{slot.name}</span>
@@ -531,11 +532,12 @@ export default function BookingsPage() {
                               <span className="slot-time">{slot.start_time} - {slot.end_time}</span>
                             </div>
                             <div className="slot-availability">
-                              {slot.booked < slot.capacity ? (
-                                <span className="available-text">{slot.capacity - slot.booked} spots left</span>
-                              ) : (
-                                <span className="unavailable-text">Fully booked</span>
-                              )}
+                              <span className="availability-text">
+                                {slot.booked}/{slot.capacity} booked
+                                {slot.booked < slot.capacity && (
+                                  <span className="spots-left"> ({slot.capacity - slot.booked} spots left)</span>
+                                )}
+                              </span>
                             </div>
                           </motion.div>
                         ))}

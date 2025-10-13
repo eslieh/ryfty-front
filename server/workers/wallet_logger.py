@@ -45,6 +45,8 @@ def logg_wallet(self, slot_id, user_id, quantity, amount_paid, status, transacti
                 reservation = db.session.get(Reservation, reservation_id)
                 if not reservation:
                     raise ValueError(f"Reservation not found: {reservation_id}")
+                cache_key = f"reservation:{user_id}:{reservation_id}"
+                current_app.cache.delete(cache_key)
                 reservation.amount_paid += amount
             else:
         

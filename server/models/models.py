@@ -516,12 +516,14 @@ class Review(db.Model):
     __table_args__ = (
         CheckConstraint("rating >= 1 AND rating <= 5", name="check_review_rating"),
         Index('idx_reviews_experience_rating', 'experience_id', 'rating'),
+        Index('idx_review_experience_created', 'experience_id', 'created_at'),
         Index('idx_reviews_user_experience', 'user_id', 'experience_id'),
     )
 
     user = db.relationship("User", back_populates="reviews")        # Changed to 'reviews'
     experience = db.relationship("Experience", back_populates="reviews")  # Changed to 'reviews'
     reservation = db.relationship("Reservation", back_populates="reviews") # Changed to 'reviews'
+
 
     def __repr__(self):
         return f"<Review {self.rating}★ by {self.user_id} on {self.experience_id}>"

@@ -473,6 +473,55 @@
   transform: scale(1.1);
 }
 
+.pay-balance-button:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 8px rgba(255, 56, 92, 0.2);
+}
+
+/* ===== TOP PAYMENT SECTION ===== */
+.payment-section-top {
+  margin-bottom: 2rem;
+  display: flex;
+  justify-content: center;
+}
+
+.pay-balance-button-top {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  padding: 1.25rem 2.5rem;
+  background: var(--primary, #ff385c);
+  color: white;
+  border: none;
+  border-radius: 16px;
+  font-size: 1.1rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 20px rgba(255, 56, 92, 0.2);
+  min-width: 300px;
+}
+
+.pay-balance-button-top:hover {
+  background: var(--primary-hover, #e31c5f);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(255, 56, 92, 0.4);
+}
+
+.pay-balance-button-top svg {
+  transition: transform 0.2s ease;
+}
+
+.pay-balance-button-top:hover svg {
+  transform: scale(1.1);
+}
+
+.pay-balance-button-top:active {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 15px rgba(255, 56, 92, 0.3);
+}
+
 /* ===== MEETING POINT ===== */
 .meeting-info {
   display: flex;
@@ -702,6 +751,17 @@
     font-size: 0.95rem;
   }
   
+  .payment-section-top {
+    margin-bottom: 1.5rem;
+  }
+  
+  .pay-balance-button-top {
+    padding: 1rem 1.5rem;
+    font-size: 1rem;
+    min-width: 280px;
+    border-radius: 12px;
+  }
+  
   .reservation-title {
     font-size: 2rem;
   }
@@ -764,5 +824,124 @@
   
   .image-container {
     height: 250px;
+  }
+}
+
+/* Review Section */
+.review-section {
+  margin: 24px 0;
+}
+
+.review-section-content {
+  background: linear-gradient(135deg, #ff385c 0%, #e31c5f 100%);
+  border-radius: 16px;
+  padding: 24px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  color: white;
+  box-shadow: 0 8px 25px rgba(255, 56, 92, 0.3);
+}
+
+.review-info {
+  flex: 1;
+}
+
+.review-title {
+  font-size: 20px;
+  font-weight: 700;
+  margin: 0 0 8px 0;
+  color: white;
+}
+
+.review-description {
+  font-size: 16px;
+  margin: 0;
+  opacity: 0.9;
+  color: white;
+}
+
+.review-section .leave-review-button {
+  background-color: rgba(255, 255, 255, 0.2);
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  color: white;
+  backdrop-filter: blur(10px);
+  transition: all 0.3s ease;
+}
+
+.review-section .leave-review-button:hover {
+  background-color: rgba(255, 255, 255, 0.3);
+  border-color: rgba(255, 255, 255, 0.5);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(255, 255, 255, 0.2);
+}
+
+/* Review Info Section */
+.review-info-section {
+  margin: 24px 0;
+}
+
+.review-info-content {
+  background: #F8FAFC;
+  border: 1px solid #E2E8F0;
+  border-radius: 16px;
+  padding: 24px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.review-info-icon {
+  flex-shrink: 0;
+  width: 48px;
+  height: 48px;
+  background: linear-gradient(135deg, #ff385c 0%, #e31c5f 100%);
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+}
+
+.review-info-text {
+  flex: 1;
+}
+
+.review-info-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #1E293B;
+  margin: 0 0 8px 0;
+}
+
+.review-info-description {
+  font-size: 16px;
+  color: #64748B;
+  margin: 0;
+  line-height: 1.5;
+}
+
+/* Mobile responsive for review sections */
+@media (max-width: 768px) {
+  .review-section-content {
+    flex-direction: column;
+    gap: 16px;
+    text-align: center;
+  }
+  
+  .review-section .leave-review-button {
+    width: 100%;
+    justify-content: center;
+  }
+  
+  .review-info-content {
+    flex-direction: column;
+    text-align: center;
+    gap: 12px;
+  }
+  
+  .review-info-icon {
+    width: 40px;
+    height: 40px;
   }
 }

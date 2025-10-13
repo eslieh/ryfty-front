@@ -11,6 +11,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import config from "@/config";
 import PaymentModal from "@/components/PaymentModal";
 import QRCodeGenerator from "@/components/QRCodeGenerator";
+import ReviewForm from "@/components/ReviewForm";
 import "@/styles/reservation-detail.css";
 
 export default function ReservationDetailPage() {
@@ -22,6 +23,7 @@ export default function ReservationDetailPage() {
   const [error, setError] = useState(null);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [showDetails, setShowDetails] = useState(false);
+  const [showReviewForm, setShowReviewForm] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
 
   const reservationId = params?.id;
@@ -153,6 +155,12 @@ export default function ReservationDetailPage() {
     loadReservation();
   };
 
+  const handleReviewSubmitted = () => {
+    // Show success message or refresh data
+    alert('Thank you for your review!');
+    setShowReviewForm(false);
+  };
+
   if (!isAuthenticated) {
     return null; // Will redirect
   }
@@ -264,6 +272,27 @@ export default function ReservationDetailPage() {
                 <span className="balance-label">Outstanding Balance:</span>
                 <span className="balance-amount">{formatPrice(getOutstandingBalance())}</span>
               </div>
+              {/* Payment Button for Outstanding Balance */}
+              {getOutstandingBalance() > 0 && (
+                <motion.div 
+                  className="payment-section-top"
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.5, delay: 0.15 }}
+                >
+                  <button 
+                    className="pay-balance-button-top"
+                    onClick={() => setShowPaymentModal(true)}
+                  >
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                      <path d="M12 2L2 7L12 12L22 7L12 2Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                      <path d="M2 17L12 22L22 17" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                      <path d="M2 12L12 17L22 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                    Pay Outstanding Balance ({formatPrice(getOutstandingBalance())})
+                  </button>
+                </motion.div>
+              )}
             </div>
           </motion.div>
         )}
@@ -300,6 +329,8 @@ export default function ReservationDetailPage() {
             )}
           </div>
         </motion.div>
+
+        
 
         {/* View Details Button */}
         <motion.div 
@@ -397,22 +428,6 @@ export default function ReservationDetailPage() {
                 )}
               </div>
               
-              {/* Payment Button for Outstanding Balance */}
-              {getOutstandingBalance() > 0 && (
-                <div className="payment-section">
-                  <button 
-                    className="pay-balance-button"
-                    onClick={() => setShowPaymentModal(true)}
-                  >
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-                      <path d="M12 2L2 7L12 12L22 7L12 2Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                      <path d="M2 17L12 22L22 17" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                      <path d="M2 12L12 17L22 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                    </svg>
-                    Pay Outstanding Balance
-                  </button>
-                </div>
-              )}
             </div>
 
             {/* Meeting Point */}
@@ -504,6 +519,58 @@ export default function ReservationDetailPage() {
           </motion.div>
           </div>
         </motion.div>
+
+        {/* Leave Review Section - Only show for checked-in reservations */}
+        {reservation?.status === 'confirmed' && reservation?.checked_in && (
+          <motion.div 
+            className="review-section"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.3 }}
+          >
+            <div className="review-section-content">
+              <div className="review-info">
+                <h3 className="review-title">How was your experience?</h3>
+                <p className="review-description">
+                  Share your thoughts and help other travelers discover amazing experiences.
+                </p>
+              </div>
+              <button 
+                className="leave-review-button"
+                onClick={() => setShowReviewForm(true)}
+              >
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                  <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+                Leave a Review
+              </button>
+            </div>
+          </motion.div>
+        )}
+
+        {/* Review Info Section - Show for confirmed but not checked-in reservations */}
+        {reservation?.status === 'confirmed' && !reservation?.checked_in && (
+          <motion.div 
+            className="review-info-section"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.3 }}
+          >
+            <div className="review-info-content">
+              <div className="review-info-icon">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                  <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              </div>
+              <div className="review-info-text">
+                <h3 className="review-info-title">Review Available After Check-in</h3>
+                <p className="review-info-description">
+                  You'll be able to leave a review once you've checked in to your experience. This helps ensure reviews are from actual participants.
+                </p>
+              </div>
+            </div>
+          </motion.div>
+        )}
       </div>
 
       {/* Payment Modal */}
@@ -515,6 +582,17 @@ export default function ReservationDetailPage() {
         experienceTitle={reservation?.experience?.title}
         onPaymentSuccess={handlePaymentSuccess}
       />
+
+      {/* Review Form Modal */}
+      {showReviewForm && reservation && (
+        <ReviewForm
+          experienceId={reservation.experience.id}
+          reservationId={reservationId}
+          experienceTitle={reservation.experience.title}
+          onReviewSubmitted={handleReviewSubmitted}
+          onClose={() => setShowReviewForm(false)}
+        />
+      )}
 
       <Footer />
     </div>

@@ -19,6 +19,11 @@ export default function ManageExperiencePage() {
   const [activeTab, setActiveTab] = useState('overview');
   const [showSlotForm, setShowSlotForm] = useState(false);
   const [editingSlot, setEditingSlot] = useState(null);
+  const [slotViewMode, setSlotViewMode] = useState('list'); // 'list' or 'calendar'
+  const [currentMonth, setCurrentMonth] = useState(new Date());
+  const [selectedDate, setSelectedDate] = useState(null);
+  const [slotsLoading, setSlotsLoading] = useState(false);
+  const [currentListMonth, setCurrentListMonth] = useState(new Date());
   
   // Form handling state
   const [formLoading, setFormLoading] = useState(false);
@@ -62,27 +67,58 @@ export default function ManageExperiencePage() {
     fetchExperienceData();
   }, [params?.id, isAuthenticated, isProvider]);
 
-  // Fetch slots data
-  useEffect(() => {
-    const fetchSlotsData = async () => {
-      if (!params?.id || !isAuthenticated || !isProvider()) return;
+  // Fetch slots data for a specific month
+  const fetchSlotsForMonth = async (month) => {
+    if (!params?.id || !isAuthenticated || !isProvider()) return;
+    
+    try {
+      setSlotsLoading(true);
       
-      try {
-        const response = await fetchExperienceSlots(params.id);
-        
-        if (response && response.slots) {
-          setSlots(response.slots);
-        } else {
-          setSlots([]);
-        }
-      } catch (err) {
-        console.error('Error fetching slots:', err);
+      // Get month start and end dates
+      const startDate = new Date(month.getFullYear(), month.getMonth(), 1);
+      const endDate = new Date(month.getFullYear(), month.getMonth() + 1, 0);
+      
+      // Format dates as YYYY-MM-DD using local timezone
+      const startDateStr = `${startDate.getFullYear()}-${String(startDate.getMonth() + 1).padStart(2, '0')}-${String(startDate.getDate()).padStart(2, '0')}`;
+      const endDateStr = `${endDate.getFullYear()}-${String(endDate.getMonth() + 1).padStart(2, '0')}-${String(endDate.getDate()).padStart(2, '0')}`;
+      
+      const response = await fetchExperienceSlots(params.id, 1, {
+        start_date: startDateStr,
+        end_date: endDateStr,
+        sort: 'asc'
+      }, 100);
+      
+      if (response && response.slots) {
+        setSlots(response.slots);
+      } else {
         setSlots([]);
       }
-    };
+    } catch (err) {
+      console.error('Error fetching slots:', err);
+      setSlots([]);
+    } finally {
+      setSlotsLoading(false);
+    }
+  };
 
-    fetchSlotsData();
+  // Fetch slots for current month on initial load
+  useEffect(() => {
+    fetchSlotsForMonth(currentListMonth);
   }, [params?.id, isAuthenticated, isProvider]);
+
+  // Fetch slots when month changes in calendar view
+  useEffect(() => {
+    if (slotViewMode === 'calendar') {
+      fetchSlotsForMonth(currentMonth);
+    }
+  }, [currentMonth, slotViewMode]);
+
+  // Fetch slots when month changes in list view
+  useEffect(() => {
+    if (slotViewMode === 'list') {
+      fetchSlotsForMonth(currentListMonth);
+    }
+  }, [currentListMonth, slotViewMode]);
 
   const formatDate = (dateString) => {
     if (!dateString) return 'Not set';
@@ -111,6 +147,46 @@ export default function ManageExperiencePage() {
     }).format(amount);
   };
 
+  // Calendar helper functions
+  const getDaysInMonth = (date) => {
+    return new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
+  };
+
+  const getFirstDayOfMonth = (date) => {
+    return new Date(date.getFullYear(), date.getMonth(), 1).getDay();
+  };
+
+  const getSlotsForDate = (dateStr) => {
+    return slots.filter(slot => slot.date === dateStr);
+  };
+
+  const navigateMonth = (direction) => {
+    setCurrentMonth(prev => {
+      const newMonth = new Date(prev);
+      newMonth.setMonth(prev.getMonth() + direction);
+      return newMonth;
+    });
+  };
+
+  const navigateListMonth = (direction) => {
+    setCurrentListMonth(prev => {
+      const newMonth = new Date(prev);
+      newMonth.setMonth(prev.getMonth() + direction);
+      return newMonth;
+    });
+  };
+
+  const isToday = (date) => {
+    const today = new Date();
+    return date.toDateString() === today.toDateString();
+  };
+
+  const isPastDate = (date) => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return date < today;
+  };
+
   const resetSlotForm = () => {
     setEditingSlot(null);
     setShowSlotForm(false);
@@ -136,15 +212,12 @@ export default function ManageExperiencePage() {
         setFormSuccess('Slot created successfully!');
       }
       
-      // Refresh slots data
-      const response = await fetchExperienceSlots(params.id);
-      if (response && response.slots) {
-        setSlots(response.slots);
-      }
+      // Refresh slots data for current month
+      const currentMonthToRefresh = slotViewMode === 'calendar' ? currentMonth : currentListMonth;
+      await fetchSlotsForMonth(currentMonthToRefresh);
       
-      setTimeout(() => {
-        resetSlotForm();
-      }, 1500);
+      // Close modal immediately on success
+      resetSlotForm();
     } catch (err) {
       console.error('Error saving slot:', err);
       setFormError(err.message || `Failed to ${editingSlot ? 'update' : 'create'} slot. Please try again.`);
@@ -176,11 +249,9 @@ export default function ManageExperiencePage() {
     try {
       await deleteSlot(showDeleteConfirm);
       
-      // Refresh slots data
-      const response = await fetchExperienceSlots(params.id);
-      if (response && response.slots) {
-        setSlots(response.slots);
-      }
+      // Refresh slots data for current month
+      const currentMonthToRefresh = slotViewMode === 'calendar' ? currentMonth : currentListMonth;
+      await fetchSlotsForMonth(currentMonthToRefresh);
       
       setFormSuccess('Slot deleted successfully!');
       setShowDeleteConfirm(null);
@@ -710,91 +781,289 @@ export default function ManageExperiencePage() {
               </span>
             </div>
           </div>
-          <button 
-            className="btn btn-primary"
-            onClick={() => setShowSlotForm(true)}
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-              <path d="M12 5V19M5 12H19" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-            </svg>
-            Add New Slot
-          </button>
-        </div>
-
-        {slots.length > 0 ? (
-          <div className="slots-grid">
-            {slots.map((slot) => (
-              <div key={slot.id} className="slot-card">
-                <div className="slot-header">
-                  <h4 className="slot-name">{slot.name}</h4>
-                  <div className="slot-price">{formatCurrency(slot.price)}</div>
-                </div>
-                
-                <div className="slot-details">
-                  <div className="slot-detail">
-                    <span className="detail-label">Date:</span>
-                    <span className="detail-value">{formatDate(slot.date)}</span>
-                  </div>
-                  <div className="slot-detail">
-                    <span className="detail-label">Time:</span>
-                    <span className="detail-value">{slot.start_time} - {slot.end_time}</span>
-                  </div>
-                  <div className="slot-detail">
-                    <span className="detail-label">Capacity:</span>
-                    <span className="detail-value">{slot.booked}/{slot.capacity}</span>
-                  </div>
-                  <div className="slot-detail">
-                    <span className="detail-label">Available:</span>
-                    <span className="detail-value">{slot.capacity - slot.booked}</span>
-                  </div>
-                </div>
-
-                <div className="slot-actions">
-                  <button 
-                    className="btn btn-secondary btn-sm"
-                    onClick={() => handleEditSlot(slot)}
-                  >
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                      <path d="M11 4H4C3.46957 4 2.96086 4.21071 2.58579 4.58579C2.21071 4.96086 2 5.46957 2 6V20C2 20.5304 2.21071 21.0391 2.58579 21.4142C2.96086 21.7893 3.46957 22 4 22H18C18.5304 22 19.0391 21.7893 19.4142 21.4142C19.7893 21.0391 20 20.5304 20 20V13" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                      <path d="M18.5 2.5C18.8978 2.10218 19.4374 1.87868 20 1.87868C20.5626 1.87868 21.1022 2.10218 21.5 2.5C21.8978 2.89782 22.1213 3.43739 22.1213 4C22.1213 4.56261 21.8978 5.10218 21.5 5.5L12 15L8 16L9 12L18.5 2.5Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                    </svg>
-                    Edit
-                  </button>
-                  <button 
-                    className="btn btn-danger btn-sm"
-                    onClick={() => handleDeleteSlot(slot.id)}
-                    disabled={slot.booked > 0}
-                    title={slot.booked > 0 ? "Cannot delete slot with existing bookings" : "Delete slot"}
-                  >
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                      <path d="M3 6H5H21" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                      <path d="M8 6V4C8 3.46957 8.21071 2.96086 8.58579 2.58579C8.96086 2.21071 9.46957 2 10 2H14C14.5304 2 15.0391 2.21071 15.4142 2.58579C15.7893 2.96086 16 3.46957 16 4V6M19 6V20C19 20.5304 18.7893 21.0391 18.4142 21.4142C18.0391 21.7893 17.5304 22 17 22H7C6.46957 22 5.96086 21.7893 5.58579 21.4142C5.21071 21.0391 5 20.5304 5 20V6H19Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                      <path d="M10 11V17" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                      <path d="M14 11V17" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                    </svg>
-                    Delete
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <div className="empty-state">
-            <div className="empty-icon">
-              <svg width="64" height="64" viewBox="0 0 24 24" fill="none">
-                <path d="M8 2V5M16 2V5M3.5 9.09H20.5M21 8.5V17C21 18.1046 20.1046 19 19 19H5C3.89543 19 3 18.1046 3 17V8.5C3 7.39543 3.89543 6.5 5 6.5H19C20.1046 6.5 21 7.39543 21 8.5Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
+          <div className="slots-header-right">
+            <div className="view-toggle">
+              <button 
+                className={`toggle-btn ${slotViewMode === 'list' ? 'active' : ''}`}
+                onClick={() => setSlotViewMode('list')}
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                  <path d="M8 6H21M8 12H21M8 18H21M3 6H3.01M3 12H3.01M3 18H3.01" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+                List View
+              </button>
+              <button 
+                className={`toggle-btn ${slotViewMode === 'calendar' ? 'active' : ''}`}
+                onClick={() => setSlotViewMode('calendar')}
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                  <path d="M8 2V5M16 2V5M3.5 9.09H20.5M21 8.5V17C21 18.1046 20.1046 19 19 19H5C3.89543 19 3 18.1046 3 17V8.5C3 7.39543 3.89543 6.5 5 6.5H19C20.1046 6.5 21 7.39543 21 8.5Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+                Calendar View
+              </button>
             </div>
-            <h3 className="empty-title">No slots created yet</h3>
-            <p className="empty-description">
-              Create slots to allow guests to book specific times for your experience.
-            </p>
             <button 
               className="btn btn-primary"
               onClick={() => setShowSlotForm(true)}
             >
-              Create Your First Slot
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                <path d="M12 5V19M5 12H19" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+              Add New Slot
             </button>
+          </div>
+        </div>
+
+        {/* View Content */}
+        {slotViewMode === 'list' ? (
+          <>
+            {/* List View Month Navigation */}
+            <div className="list-month-navigation">
+              <div className="month-nav-header">
+                <button 
+                  onClick={() => navigateListMonth(-1)} 
+                  className="month-nav-btn"
+                  disabled={slotsLoading}
+                >
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                    <path d="M15 18L9 12L15 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                </button>
+                <h3 className="month-title">
+                  {currentListMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+                </h3>
+                <button 
+                  onClick={() => navigateListMonth(1)} 
+                  className="month-nav-btn"
+                  disabled={slotsLoading}
+                >
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                    <path d="M9 18L15 12L9 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                </button>
+              </div>
+              {slotsLoading && (
+                <div className="month-loading">
+                  <div className="loading-spinner small"></div>
+                  <span>Loading slots...</span>
+                </div>
+              )}
+            </div>
+
+            {/* Slots Grid */}
+            {slotsLoading ? (
+              <div className="slots-loading">
+                <div className="loading-spinner"></div>
+                <p>Loading slots for {currentListMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}...</p>
+              </div>
+            ) : slots.length > 0 ? (
+              <div className="slots-grid">
+                {slots.map((slot) => (
+                <div key={slot.id} className="slot-card">
+                  <div className="slot-header">
+                    <h4 className="slot-name">{slot.name}</h4>
+                    <div className="slot-price">{formatCurrency(slot.price)}</div>
+                  </div>
+                  
+                  <div className="slot-details">
+                    <div className="slot-detail">
+                      <span className="detail-label">Date:</span>
+                      <span className="detail-value">{formatDate(slot.date)}</span>
+                    </div>
+                    <div className="slot-detail">
+                      <span className="detail-label">Time:</span>
+                      <span className="detail-value">{slot.start_time} - {slot.end_time}</span>
+                    </div>
+                    <div className="slot-detail">
+                      <span className="detail-label">Capacity:</span>
+                      <span className="detail-value">{slot.booked}/{slot.capacity}</span>
+                    </div>
+                    <div className="slot-detail">
+                      <span className="detail-label">Available:</span>
+                      <span className="detail-value">{slot.capacity - slot.booked}</span>
+                    </div>
+                  </div>
+
+                  <div className="slot-actions">
+                    <button 
+                      className="btn btn-secondary btn-sm"
+                      onClick={() => handleEditSlot(slot)}
+                    >
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                        <path d="M11 4H4C3.46957 4 2.96086 4.21071 2.58579 4.58579C2.21071 4.96086 2 5.46957 2 6V20C2 20.5304 2.21071 21.0391 2.58579 21.4142C2.96086 21.7893 3.46957 22 4 22H18C18.5304 22 19.0391 21.7893 19.4142 21.4142C19.7893 21.0391 20 20.5304 20 20V13" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                        <path d="M18.5 2.5C18.8978 2.10218 19.4374 1.87868 20 1.87868C20.5626 1.87868 21.1022 2.10218 21.5 2.5C21.8978 2.89782 22.1213 3.43739 22.1213 4C22.1213 4.56261 21.8978 5.10218 21.5 5.5L12 15L8 16L9 12L18.5 2.5Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                      </svg>
+                      Edit
+                    </button>
+                    <button 
+                      className="btn btn-danger btn-sm"
+                      onClick={() => handleDeleteSlot(slot.id)}
+                      disabled={slot.booked > 0}
+                      title={slot.booked > 0 ? "Cannot delete slot with existing bookings" : "Delete slot"}
+                    >
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                        <path d="M3 6H5H21" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                        <path d="M8 6V4C8 3.46957 8.21071 2.96086 8.58579 2.58579C8.96086 2.21071 9.46957 2 10 2H14C14.5304 2 15.0391 2.21071 15.4142 2.58579C15.7893 2.96086 16 3.46957 16 4V6M19 6V20C19 20.5304 18.7893 21.0391 18.4142 21.4142C18.0391 21.7893 17.5304 22 17 22H7C6.46957 22 5.96086 21.7893 5.58579 21.4142C5.21071 21.0391 5 20.5304 5 20V6H19Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                        <path d="M10 11V17" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                        <path d="M14 11V17" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                      </svg>
+                      Delete
+                    </button>
+                  </div>
+                </div>
+                ))}
+              </div>
+            ) : (
+              <div className="empty-state">
+                <div className="empty-icon">
+                  <svg width="64" height="64" viewBox="0 0 24 24" fill="none">
+                    <path d="M8 2V5M16 2V5M3.5 9.09H20.5M21 8.5V17C21 18.1046 20.1046 19 19 19H5C3.89543 19 3 18.1046 3 17V8.5C3 7.39543 3.89543 6.5 5 6.5H19C20.1046 6.5 21 7.39543 21 8.5Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                </div>
+                <h3 className="empty-title">No slots for {currentListMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}</h3>
+                <p className="empty-description">
+                  No slots have been created for this month yet.
+                </p>
+                <button 
+                  className="btn btn-primary"
+                  onClick={() => setShowSlotForm(true)}
+                >
+                  Create Slot for This Month
+                </button>
+              </div>
+            )}
+          </>
+        ) : (
+          /* Calendar View */
+          <div className="calendar-container">
+            <div className="calendar-header">
+              <button 
+                onClick={() => navigateMonth(-1)} 
+                className="calendar-nav-btn"
+                disabled={slotsLoading}
+              >
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                  <path d="M15 18L9 12L15 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              </button>
+              <h3 className="calendar-month">
+                {currentMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+                {slotsLoading && (
+                  <div className="calendar-loading-indicator">
+                    <div className="loading-spinner small"></div>
+                  </div>
+                )}
+              </h3>
+              <button 
+                onClick={() => navigateMonth(1)} 
+                className="calendar-nav-btn"
+                disabled={slotsLoading}
+              >
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                  <path d="M9 18L15 12L9 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              </button>
+            </div>
+            
+            <div className="calendar-grid">
+              {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
+                <div key={day} className="calendar-day-header">{day}</div>
+              ))}
+              
+              {Array.from({ length: getFirstDayOfMonth(currentMonth) }, (_, i) => (
+                <div key={`empty-${i}`} className="calendar-day empty"></div>
+              ))}
+              
+              {Array.from({ length: getDaysInMonth(currentMonth) }, (_, i) => {
+                const day = i + 1;
+                const date = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), day);
+                // Format date as YYYY-MM-DD using local timezone to avoid timezone shifts
+                const dateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+                const daySlots = getSlotsForDate(dateStr);
+                const hasSlots = daySlots.length > 0;
+                const isSelected = selectedDate === dateStr;
+                
+                return (
+                  <div
+                    key={day}
+                    className={`calendar-day ${hasSlots ? 'has-slots' : ''} ${isToday(date) ? 'today' : ''} ${isPastDate(date) ? 'past' : ''} ${isSelected ? 'selected' : ''}`}
+                    onClick={() => hasSlots && setSelectedDate(dateStr)}
+                  >
+                    <span className="day-number">{day}</span>
+                    {hasSlots && (
+                      <div className="slots-indicator">
+                        <span className="slots-count">{daySlots.length}</span>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+            
+            {/* Selected Date Slots */}
+            {selectedDate && (
+              <div className="selected-date-slots">
+                <h4 className="selected-date-title">
+                  Slots for {new Date(selectedDate).toLocaleDateString('en-US', { 
+                    weekday: 'long', 
+                    month: 'long', 
+                    day: 'numeric' 
+                  })}
+                </h4>
+                <div className="date-slots-list">
+                  {getSlotsForDate(selectedDate).map((slot) => (
+                    <motion.div
+                      key={slot.id}
+                      className={`slot-item ${slot.booked >= slot.capacity ? 'fully-booked' : ''}`}
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                    >
+                      <div className="slot-header">
+                        <span className="slot-name">{slot.name}</span>
+                        <span className="slot-price">{formatCurrency(slot.price)}</span>
+                      </div>
+                      <div className="slot-details">
+                        <span className="slot-time">{slot.start_time} - {slot.end_time}</span>
+                      </div>
+                      <div className="slot-availability">
+                        <span className="availability-text">
+                          {slot.booked}/{slot.capacity} booked
+                          {slot.booked < slot.capacity && (
+                            <span className="spots-left"> ({slot.capacity - slot.booked} spots left)</span>
+                          )}
+                        </span>
+                      </div>
+                      <div className="slot-actions">
+                        <button 
+                          className="btn btn-secondary btn-sm"
+                          onClick={() => handleEditSlot(slot)}
+                        >
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                            <path d="M11 4H4C3.46957 4 2.96086 4.21071 2.58579 4.58579C2.21071 4.96086 2 5.46957 2 6V20C2 20.5304 2.21071 21.0391 2.58579 21.4142C2.96086 21.7893 3.46957 22 4 22H18C18.5304 22 19.0391 21.7893 19.4142 21.4142C19.7893 21.0391 20 20.5304 20 20V13" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                            <path d="M18.5 2.5C18.8978 2.10218 19.4374 1.87868 20 1.87868C20.5626 1.87868 21.1022 2.10218 21.5 2.5C21.8978 2.89782 22.1213 3.43739 22.1213 4C22.1213 4.56261 21.8978 5.10218 21.5 5.5L12 15L8 16L9 12L18.5 2.5Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                          </svg>
+                          Edit
+                        </button>
+                        <button 
+                          className="btn btn-danger btn-sm"
+                          onClick={() => handleDeleteSlot(slot.id)}
+                          disabled={slot.booked > 0}
+                          title={slot.booked > 0 ? "Cannot delete slot with existing bookings" : "Delete slot"}
+                        >
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                            <path d="M3 6H5H21" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                            <path d="M8 6V4C8 3.46957 8.21071 2.96086 8.58579 2.58579C8.96086 2.21071 9.46957 2 10 2H14C14.5304 2 15.0391 2.21071 15.4142 2.58579C15.7893 2.96086 16 3.46957 16 4V6M19 6V20C19 20.5304 18.7893 21.0391 18.4142 21.4142C18.0391 21.7893 17.5304 22 17 22H7C6.46957 22 5.96086 21.7893 5.58579 21.4142C5.21071 21.0391 5 20.5304 5 20V6H19Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                            <path d="M10 11V17" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                            <path d="M14 11V17" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                          </svg>
+                          Delete
+                        </button>
+                      </div>
+                    </motion.div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>

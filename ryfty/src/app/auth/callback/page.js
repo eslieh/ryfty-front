@@ -5,6 +5,26 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { useAuth } from '@/contexts/AuthContext';
 
+// Cookie management functions
+const getExperienceRedirectCookie = () => {
+  const cookies = document.cookie.split(';');
+  const redirectCookie = cookies.find(cookie => cookie.trim().startsWith('experience_redirect='));
+  if (redirectCookie) {
+    try {
+      const cookieValue = redirectCookie.split('=')[1];
+      return JSON.parse(decodeURIComponent(cookieValue));
+    } catch (err) {
+      console.error('Error parsing redirect cookie:', err);
+      return null;
+    }
+  }
+  return null;
+};
+
+const clearExperienceRedirectCookie = () => {
+  document.cookie = 'experience_redirect=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
+};
+
 function AuthCallbackContent() {
   const [status, setStatus] = useState('processing'); // 'processing', 'success', 'error'
   const [message, setMessage] = useState('Completing authentication...');
@@ -78,23 +98,31 @@ function AuthCallbackContent() {
         // Determine redirect destination
         let redirectUrl = '/';
         
-        // Check for stored redirect from sessionStorage
-        const authState = sessionStorage.getItem('ryfty-auth-state');
-        if (authState) {
-          try {
-            const state = JSON.parse(authState);
-            if (state.redirect) {
-              redirectUrl = state.redirect;
-            } else if (userRole === 'provider' || state.userType === 'provider') {
-              redirectUrl = '/';
+        // Check for experience redirect cookie first
+        const experienceRedirectCookie = getExperienceRedirectCookie();
+        if (experienceRedirectCookie && experienceRedirectCookie.experienceId) {
+          // Clear the cookie and redirect to the experience
+          clearExperienceRedirectCookie();
+          redirectUrl = `/experience/${experienceRedirectCookie.experienceId}`;
+        } else {
+          // Check for stored redirect from sessionStorage
+          const authState = sessionStorage.getItem('ryfty-auth-state');
+          if (authState) {
+            try {
+              const state = JSON.parse(authState);
+              if (state.redirect) {
+                redirectUrl = state.redirect;
+              } else if (userRole === 'provider' || state.userType === 'provider') {
+                redirectUrl = '/';
+              }
+              // Clean up stored state
+              sessionStorage.removeItem('ryfty-auth-state');
+            } catch (e) {
+              console.error('Error parsing auth state:', e);
             }
-            // Clean up stored state
-            sessionStorage.removeItem('ryfty-auth-state');
-          } catch (e) {
-            console.error('Error parsing auth state:', e);
+          } else if (userRole === 'provider') {
+            redirectUrl = '/';
           }
-        } else if (userRole === 'provider') {
-          redirectUrl = '/';
         }
 
         // Redirect after a short delay

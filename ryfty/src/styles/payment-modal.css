@@ -188,6 +188,80 @@
   cursor: not-allowed;
 }
 
+/* ===== QUICK AMOUNT BUTTONS ===== */
+.quick-amount-buttons {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.quick-amount-btn {
+  padding: 0.75rem 0.5rem;
+  background: #f8f9fa;
+  border: 2px solid #e9ecef;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #495057;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-align: center;
+}
+
+.quick-amount-btn:hover:not(:disabled) {
+  background: #e9ecef;
+  border-color: #dee2e6;
+  transform: translateY(-1px);
+}
+
+.quick-amount-btn.full {
+  background: var(--primary, #ff385c);
+  color: white;
+  border-color: var(--primary, #ff385c);
+}
+
+.quick-amount-btn.full:hover:not(:disabled) {
+  background: var(--primary-hover, #e31c5f);
+  border-color: var(--primary-hover, #e31c5f);
+}
+
+.quick-amount-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* ===== AMOUNT INPUT WITH CLEAR BUTTON ===== */
+.amount-input {
+  padding-right: 3rem !important;
+}
+
+.clear-amount-btn {
+  position: absolute;
+  right: 0.75rem;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0.25rem;
+  border-radius: 4px;
+  color: #717171;
+  transition: all 0.2s ease;
+  z-index: 2;
+}
+
+.clear-amount-btn:hover:not(:disabled) {
+  background: #f8f9fa;
+  color: #dc3545;
+}
+
+.clear-amount-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 .form-help {
   font-size: 0.875rem;
   color: #717171;
@@ -196,14 +270,37 @@
 
 .form-error {
   display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.75rem 1rem;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 1rem;
   background: #fef2f2;
   border: 1px solid #fecaca;
-  border-radius: 8px;
+  border-radius: 12px;
   color: #dc2626;
   font-size: 0.875rem;
+  margin-bottom: 1rem;
+}
+
+.error-icon {
+  flex-shrink: 0;
+  margin-top: 0.125rem;
+}
+
+.error-content {
+  flex: 1;
+}
+
+.error-title {
+  font-weight: 600;
+  font-size: 0.9rem;
+  margin-bottom: 0.25rem;
+  color: #dc2626;
+}
+
+.error-message {
+  font-size: 0.875rem;
+  line-height: 1.4;
+  color: #dc2626;
 }
 
 .form-error svg {
@@ -368,6 +465,61 @@
   .btn {
     width: 100%;
   }
+  
+  /* Quick amount buttons mobile */
+  .quick-amount-buttons {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.375rem;
+  }
+  
+  .quick-amount-btn {
+    padding: 0.625rem 0.375rem;
+    font-size: 0.8rem;
+  }
+  
+  .quick-amount-btn.full {
+    grid-column: span 2;
+  }
+  
+  /* Amount input mobile */
+  .amount-input {
+    padding-right: 2.5rem !important;
+  }
+  
+  .clear-amount-btn {
+    right: 0.5rem;
+    padding: 0.375rem;
+  }
+  
+  /* Payment status mobile */
+  .payment-status {
+    padding: 1rem;
+  }
+  
+  .status-content {
+    gap: 0.75rem;
+  }
+  
+  .status-icon {
+    width: 40px;
+    height: 40px;
+  }
+  
+  .status-title {
+    font-size: 1rem;
+  }
+  
+  .status-message {
+    font-size: 0.9rem;
+  }
+  
+  .sse-waiting-indicator {
+    padding: 0.5rem;
+  }
+  
+  .sse-text {
+    font-size: 0.8rem;
+  }
 }
 
 @media (max-width: 480px) {
@@ -390,4 +542,108 @@
   .success-details {
     padding: 1rem;
   }
+}
+
+/* ===== PAYMENT STATUS ===== */
+.payment-status {
+  background: #f8f9fa;
+  border: 2px solid #e9ecef;
+  border-radius: 12px;
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.status-content {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+}
+
+.status-icon {
+  flex-shrink: 0;
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: white;
+}
+
+.status-success {
+  font-size: 24px;
+  color: #28a745;
+}
+
+.status-error {
+  font-size: 24px;
+  color: #dc3545;
+}
+
+.status-timeout {
+  font-size: 24px;
+  color: #ffc107;
+}
+
+.status-loading {
+  width: 24px;
+  height: 24px;
+}
+
+.payment-spinner {
+  width: 24px;
+  height: 24px;
+  border: 3px solid #e9ecef;
+  border-top: 3px solid var(--primary, #ff385c);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+.status-text {
+  flex: 1;
+}
+
+.status-title {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #222222;
+  margin: 0 0 0.5rem 0;
+}
+
+.status-message {
+  font-size: 0.95rem;
+  color: #495057;
+  margin: 0 0 0.75rem 0;
+  line-height: 1.4;
+}
+
+/* ===== SSE WAITING INDICATOR ===== */
+.sse-waiting-indicator {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  background: rgba(255, 56, 92, 0.1);
+  border-radius: 8px;
+  border: 1px solid rgba(255, 56, 92, 0.2);
+}
+
+.sse-spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(255, 56, 92, 0.3);
+  border-top: 2px solid var(--primary, #ff385c);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+.sse-text {
+  font-size: 0.875rem;
+  color: var(--primary, #ff385c);
+  font-weight: 500;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
 }

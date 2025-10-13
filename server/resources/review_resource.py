@@ -1,106 +1,114 @@
 from flask import request, current_app
 from flask_restful import Resource
 from flask_jwt_extended import jwt_required, get_jwt_identity
-from sqlalchemy import func
+from sqlalchemy import func, select
+from sqlalchemy.orm import joinedload, load_only
 from models import db, Review, Experience, Reservation, User
 import json
 import hashlib
 from datetime import datetime, timedelta
+from uuid import UUID
 
 
 class ExperienceReviewsResource(Resource):
     def get(self, experience_id):
-        """Get all reviews for an experience with caching"""
+        """Get all reviews for an experience with optimized caching and queries"""
         cache = current_app.cache
-        
-        # Parse query parameters for pagination and filtering
+
+        # Parse and validate request parameters
         page = request.args.get('page', 1, type=int)
-        per_page = min(request.args.get('per_page', 20, type=int), 100)  # Cap at 100
-        sort_by = request.args.get('sort_by', 'created_at')  # created_at, rating
-        order = request.args.get('order', 'desc')  # desc, asc
+        per_page = min(request.args.get('per_page', 20, type=int), 100)
+        sort_by = request.args.get('sort_by', 'created_at')
+        order = request.args.get('order', 'desc')
         min_rating = request.args.get('min_rating', type=int)
-        
-        # Create cache key based on all parameters
-        cache_params = {
-            'experience_id': experience_id,
-            'page': page,
-            'per_page': per_page,
-            'sort_by': sort_by,
-            'order': order,
-            'min_rating': min_rating
-        }
-        cache_key_raw = json.dumps(cache_params, sort_keys=True)
-        cache_key = f"reviews:{hashlib.md5(cache_key_raw.encode()).hexdigest()}"
-        
+
+        # Create optimized cache key using md5 hash
+        cache_key = f"reviews:{experience_id}:{page}:{per_page}:{sort_by}:{order}:{min_rating or 0}"
+        cache_key_hash = f"reviews:{hashlib.md5(cache_key.encode()).hexdigest()}"
+
         # Try to get from cache first
-        cached_result = cache.get(cache_key)
+        cached_result = cache.get(cache_key_hash)
         if cached_result:
             return cached_result, 200
-        
+
         try:
-            # Build base query with joins to get user and experience data
-            query = (
-                db.session.query(Review, User, Experience)
+            # Optimized query with selective column loading
+            base_query = (
+                db.session.query(
+                    Review.id,
+                    Review.rating,
+                    Review.comment,
+                    Review.images,
+                    Review.created_at,
+                    Review.reservation_id,
+                    User.id.label('user_id'),
+                    User.name.label('user_name'),
+                    User.avatar_url,
+                    Experience.id.label('experience_id'),
+                    Experience.title.label('experience_title')
+                )
                 .join(User, Review.user_id == User.id)
                 .join(Experience, Review.experience_id == Experience.id)
                 .filter(Review.experience_id == experience_id)
             )
-            
+
             # Apply rating filter if specified
             if min_rating is not None:
-                query = query.filter(Review.rating >= min_rating)
-            
+                base_query = base_query.filter(Review.rating >= min_rating)
+
             # Apply sorting
             if sort_by == 'rating':
-                if order == 'asc':
-                    query = query.order_by(Review.rating.asc(), Review.created_at.desc())
-                else:
-                    query = query.order_by(Review.rating.desc(), Review.created_at.desc())
-            else:  # default to created_at
-                if order == 'asc':
-                    query = query.order_by(Review.created_at.asc())
-                else:
-                    query = query.order_by(Review.created_at.desc())
-            
-            # Get total count for pagination (separate optimized query)
-            total_count = (
+                base_query = base_query.order_by(
+                    Review.rating.asc() if order == 'asc' else Review.rating.desc(),
+                    Review.created_at.desc()
+                )
+            else:
+                base_query = base_query.order_by(
+                    Review.created_at.asc() if order == 'asc' else Review.created_at.desc()
+                )
+
+            # Get total count efficiently (use window function alternative or subquery)
+            # For better performance, we can cache the count separately or use a subquery
+            count_query = (
                 db.session.query(func.count(Review.id))
                 .filter(Review.experience_id == experience_id)
-                .filter(Review.rating >= min_rating if min_rating is not None else True)
-                .scalar()
             )
+            if min_rating is not None:
+                count_query = count_query.filter(Review.rating >= min_rating)
             
-            # Apply pagination
+            total_count = count_query.scalar() or 0
+
+            # Calculate pagination
             offset = (page - 1) * per_page
-            results = query.offset(offset).limit(per_page).all()
-            
-            # Optimize serialization with list comprehension including user and experience data
-            reviews_list = [
-                {
-                    "id": str(review.id),
-                    "user": {
-                        "id": str(user.id),
-                        "name": user.name,
-                        "avatar_url": user.avatar_url
-                    },
-                    "experience": {
-                        "id": str(experience.id),
-                        "title": experience.title
-                    },
-                    "reservation_id": str(review.reservation_id) if review.reservation_id else None,
-                    "rating": review.rating,
-                    "comment": review.comment,
-                    "images": review.images,
-                    "created_at": review.created_at.isoformat(),
-                }
-                for review, user, experience in results
-            ]
-            
-            # Calculate pagination info
-            total_pages = (total_count + per_page - 1) // per_page
+            total_pages = (total_count + per_page - 1) // per_page if total_count > 0 else 0
             has_next = page < total_pages
             has_prev = page > 1
-            
+
+            # Execute paginated query
+            results = base_query.offset(offset).limit(per_page).all()
+
+            # Build response with pre-converted strings (most efficient)
+            reviews_list = []
+            for row in results:
+                review_data = {
+                    "id": str(row.id),
+                    "user": {
+                        "id": str(row.user_id),
+                        "name": row.user_name,
+                        "avatar_url": row.avatar_url
+                    },
+                    "experience": {
+                        "id": str(row.experience_id),
+                        "title": row.experience_title
+                    },
+                    "reservation_id": str(row.reservation_id) if row.reservation_id else None,
+                    "rating": row.rating,
+                    "comment": row.comment,
+                    "images": row.images if isinstance(row.images, list) else [],
+                    "created_at": row.created_at.isoformat() if isinstance(row.created_at, datetime) else row.created_at,
+                }
+                reviews_list.append(review_data)
+
             result = {
                 "reviews": reviews_list,
                 "pagination": {
@@ -112,15 +120,61 @@ class ExperienceReviewsResource(Resource):
                     "has_prev": has_prev
                 }
             }
+
+            # Cache for 5 minutes
+            cache.set(cache_key_hash, result, timeout=300)
+            return result, 200
+
+        except Exception as e:
+            current_app.logger.error(f"Error fetching reviews for experience {experience_id}: {str(e)}")
+            return {"error": "Failed to fetch reviews"}, 500
+
+
+class ExperienceReviewStatsResource(Resource):
+    """Separate resource for review statistics with longer cache"""
+    
+    def get(self, experience_id):
+        """Get aggregated review statistics for an experience"""
+        cache = current_app.cache
+        cache_key = f"review_stats:{experience_id}"
+        
+        cached_stats = cache.get(cache_key)
+        if cached_stats:
+            return cached_stats, 200
+        
+        try:
+            stats = db.session.query(
+                func.count(Review.id).label('total_reviews'),
+                func.avg(Review.rating).label('average_rating'),
+                func.min(Review.rating).label('min_rating'),
+                func.max(Review.rating).label('max_rating')
+            ).filter(Review.experience_id == experience_id).first()
             
-            # Cache result for 5 minutes (adjust based on your needs)
-            cache.set(cache_key, result, timeout=300)
+            # Get rating distribution
+            rating_dist = db.session.query(
+                Review.rating,
+                func.count(Review.id).label('count')
+            ).filter(
+                Review.experience_id == experience_id
+            ).group_by(Review.rating).all()
             
+            result = {
+                "total_reviews": stats.total_reviews or 0,
+                "average_rating": round(float(stats.average_rating), 2) if stats.average_rating else 0.0,
+                "min_rating": stats.min_rating or 0,
+                "max_rating": stats.max_rating or 0,
+                "rating_distribution": {
+                    str(rating): count for rating, count in rating_dist
+                }
+            }
+            
+            # Cache for 10 minutes (stats change less frequently)
+            cache.set(cache_key, result, timeout=600)
             return result, 200
             
         except Exception as e:
-            return {"error": f"Failed to fetch reviews: {str(e)}"}, 500
-
+            current_app.logger.error(f"Error fetching review stats for experience {experience_id}: {str(e)}")
+            return {"error": "Failed to fetch review statistics"}, 500
 
 class PostReviewResource(Resource):
     @jwt_required()
@@ -134,7 +188,7 @@ class PostReviewResource(Resource):
             
             rating = data.get("rating")
             comment = data.get("comment", None)
-            images = data.get("images", None)
+            images = data.get("images", {})
             reservation_id = data.get("reservation_id", None)
             
             # Basic validation

@@ -102,7 +102,8 @@ class ProviderReservations(Resource):
         ).filter(
             and_(
                 Experience.provider_id == user_id,
-                Reservation.experience_id == experience_id
+                Reservation.experience_id == experience_id,
+                Reservation.revocked != True  # Exclude revoked reservations
             )
         )
         
@@ -137,6 +138,7 @@ class ProviderReservations(Resource):
                     "end_time": res.slot.end_time.isoformat() if res.slot.end_time else None
                 },
                 "num_people": res.quantity,
+                "revocked": res.revoked,
                 "total_price": float(res.total_price) if res.total_price else 0.0,
                 "amount_paid": float(res.amount_paid) if res.amount_paid else 0.0,
                 "status": res.status,
@@ -240,7 +242,8 @@ class ProviderReservationsOptimized(Resource):
             and_(
                 Experience.provider_id == user_id,
                 Reservation.experience_id == experience_id,
-                Reservation.slot_id == slot_id
+                Reservation.slot_id == slot_id,
+                Reservation.revocked != True  # Exclude revoked reservations
             )
         )
         

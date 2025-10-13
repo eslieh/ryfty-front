@@ -16,6 +16,8 @@ export default function CheckinPage() {
   const [scanError, setScanError] = useState(null);
   const [lastScannedCode, setLastScannedCode] = useState(null);
   const [lastScanTime, setLastScanTime] = useState(0);
+  const [pendingCheckin, setPendingCheckin] = useState(null);
+  const [isProcessingCheckin, setIsProcessingCheckin] = useState(false);
   const videoRef = useRef(null);
   const qrScannerRef = useRef(null);
 
@@ -242,18 +244,33 @@ export default function CheckinPage() {
     
     console.log('✅ Valid reservation QR code found:', validation.reservationId);
     
-    // Valid reservation code found
-    setScanResult({
+    // Valid reservation code found - show confirmation instead of auto-processing
+    setPendingCheckin({
       code: qrData,
       reservationId: validation.reservationId,
       scannedAt: new Date().toISOString()
     });
     
-    // Stop scanning temporarily
+    // Stop scanning until user confirms or cancels
     setIsScanning(false);
+  };
+
+  const confirmCheckin = async () => {
+    if (!pendingCheckin) return;
     
-    // Process the reservation
-    processReservation(validation.reservationId);
+    setIsProcessingCheckin(true);
+    try {
+      await processReservation(pendingCheckin.reservationId);
+    } catch (error) {
+      console.error('Check-in failed:', error);
+      setIsProcessingCheckin(false);
+    }
+  };
+
+  const cancelCheckin = () => {
+    setPendingCheckin(null);
+    setIsProcessingCheckin(false);
+    setIsScanning(true);
   };
 
   const processReservation = async (reservationId) => {
@@ -294,6 +311,8 @@ export default function CheckinPage() {
         setScanError('This customer has already been checked in.');
         setTimeout(() => {
           setScanError(null);
+          setPendingCheckin(null);
+          setIsProcessingCheckin(false);
           setIsScanning(true);
         }, 3000);
         return;
@@ -302,6 +321,8 @@ export default function CheckinPage() {
         setScanError('Reservation not found. Please check the QR code and try again.');
         setTimeout(() => {
           setScanError(null);
+          setPendingCheckin(null);
+          setIsProcessingCheckin(false);
           setIsScanning(true);
         }, 3000);
         return;
@@ -310,6 +331,8 @@ export default function CheckinPage() {
       // Reset for next scan after delay
       setTimeout(() => {
         setScanResult(null);
+        setPendingCheckin(null);
+        setIsProcessingCheckin(false);
         setIsScanning(true);
       }, 5000);
       
@@ -327,6 +350,8 @@ export default function CheckinPage() {
       setScanError(errorMessage);
       setTimeout(() => {
         setScanError(null);
+        setPendingCheckin(null);
+        setIsProcessingCheckin(false);
         setIsScanning(true);
       }, 3000);
     }
@@ -342,6 +367,8 @@ export default function CheckinPage() {
     setScanError(null);
     setLastScannedCode(null);
     setLastScanTime(0);
+    setPendingCheckin(null);
+    setIsProcessingCheckin(false);
     
     console.log('🎬 Calling requestCameraAccess...');
     await requestCameraAccess();
@@ -546,6 +573,60 @@ export default function CheckinPage() {
             </div>
           )}
 
+          {/* Pending Check-in Confirmation */}
+          {pendingCheckin && !scanResult && (
+            <div className="pending-checkin">
+              <div className="pending-icon">
+                <svg width="60" height="60" viewBox="0 0 24 24" fill="none">
+                  <path d="M9 12L11 14L15 10M21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              </div>
+              <h2 className="pending-title">Valid QR Code Detected</h2>
+              <p className="pending-subtitle">Ready to check in this customer?</p>
+              <div className="checkin-details">
+                <div className="detail-item">
+                  <span className="detail-label">Reservation ID</span>
+                  <span className="detail-value">{pendingCheckin.reservationId}</span>
+                </div>
+                <div className="detail-item">
+                  <span className="detail-label">Scanned At</span>
+                  <span className="detail-value">{new Date(pendingCheckin.scannedAt).toLocaleTimeString()}</span>
+                </div>
+              </div>
+              <div className="checkin-actions">
+                <button 
+                  className="checkin-btn checkin-btn-primary"
+                  onClick={confirmCheckin}
+                  disabled={isProcessingCheckin}
+                >
+                  {isProcessingCheckin ? (
+                    <>
+                      <div className="spinner-small"></div>
+                      Processing...
+                    </>
+                  ) : (
+                    <>
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                        <path d="M9 12L11 14L15 10M21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                      </svg>
+                      Check In
+                    </>
+                  )}
+                </button>
+                <button 
+                  className="checkin-btn checkin-btn-secondary"
+                  onClick={cancelCheckin}
+                  disabled={isProcessingCheckin}
+                >
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                    <path d="M18 6L6 18M6 6L18 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                  Cancel
+                </button>
+              </div>
+            </div>
+          )}
+
           {/* Scan Success */}
           {scanResult && scanResult.status === 'success' && (
             <div className="scan-success">
@@ -602,26 +683,36 @@ export default function CheckinPage() {
           </div>
 
           <div className="camera-actions">
-            <button 
-              className={`camera-action-btn ${isScanning ? 'active' : ''}`}
-              onClick={isScanning ? stopScanning : startScanning}
-            >
-              {isScanning ? (
-                <>
-                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-                    <rect x="6" y="6" width="12" height="12" rx="2" stroke="currentColor" strokeWidth="2"/>
-                  </svg>
-                  Stop Scanning
-                </>
-              ) : (
-                <>
-                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-                    <path d="M15 3H6C4.89543 3 4 3.89543 4 5V19C4 20.1046 4.89543 21 6 21H18C19.1046 21 20 20.1046 20 19V8L15 3Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                  </svg>
-                  Start Scanning
-                </>
-              )}
-            </button>
+            {!pendingCheckin && (
+              <button 
+                className={`camera-action-btn ${isScanning ? 'active' : ''}`}
+                onClick={isScanning ? stopScanning : startScanning}
+              >
+                {isScanning ? (
+                  <>
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                      <rect x="6" y="6" width="12" height="12" rx="2" stroke="currentColor" strokeWidth="2"/>
+                    </svg>
+                    Stop Scanning
+                  </>
+                ) : (
+                  <>
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                      <path d="M15 3H6C4.89543 3 4 3.89543 4 5V19C4 20.1046 4.89543 21 6 21H18C19.1046 21 20 20.1046 20 19V8L15 3Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                    Start Scanning
+                  </>
+                )}
+              </button>
+            )}
+            {pendingCheckin && (
+              <div className="pending-status">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                  <path d="M12 8V12M12 16H12.01M22 12C22 17.5228 17.5228 22 12 22C6.47715 22 2 17.5228 2 12C2 6.47715 6.47715 2 12 2C17.5228 2 22 6.47715 22 12Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+                <span>Waiting for confirmation...</span>
+              </div>
+            )}
           </div>
         </div>
       </div>

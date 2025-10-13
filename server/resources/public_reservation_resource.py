@@ -96,7 +96,6 @@ class InstallmentReservationResource(Resource):
         amount = args.get("amount", 0.0)
         mpesa_number = args.get("mpesa_number")
 
-        num_people = 1
         
         if not amount  or not reservation_id:
             return {"error": "Amount and reservation_id are required"}, 400
@@ -104,7 +103,8 @@ class InstallmentReservationResource(Resource):
         reservation = db.session.query(Reservation).filter_by(id=reservation_id, user_id=user_id).first()
         if not reservation:
             return {"error": "Reservation not found"}, 404
-    
+        
+        num_people = reservation.quantity
 
         amount_paid = reservation.amount_paid
         
@@ -116,6 +116,7 @@ class InstallmentReservationResource(Resource):
         if Decimal(amount)  > remaining:
             return {"error": f"The amount entered is more than the required, to finish the installment please pay KES{str(remaining)} "}
         
+        push_to_queue(user_id, {"state": "pending_confirmation"})
         
         api_collection = ApiCollection(
             user_id=user_id,
