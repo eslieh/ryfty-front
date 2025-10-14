@@ -1,0 +1,9 @@
+# *
+User-agent: *
+Allow: /
+
+# Host
+Host: https://ryfty.net
+
+# Sitemaps
+Sitemap: https://ryfty.net/sitemap.xml
