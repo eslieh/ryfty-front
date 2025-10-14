@@ -15,5 +15,4 @@ COPY . .
 # Expose the port your Flask app runs on
 EXPOSE 5000
 
-# Use Gunicorn for production (more efficient than flask run)
 CMD ["gunicorn", "--bind", "0.0.0.0:5000", "app:app"]

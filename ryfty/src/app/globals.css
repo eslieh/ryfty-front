@@ -617,7 +617,7 @@ ease 0.6s;
 }
 
 /* ===== IMAGE CONTAINER ===== */
-.experience-image-container {
+.experience-card-hm .experience-image-container {
   border-radius: 26px;
   width: 100%;
   height: 182px;

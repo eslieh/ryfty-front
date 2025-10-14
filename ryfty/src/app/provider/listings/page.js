@@ -108,6 +108,12 @@ export default function ListingsPage() {
           </button>
           <button 
             className="btn btn-outline"
+            onClick={() => router.push(`/provider/listings/reviews/${experience.id}`)}
+          >
+            Reviews
+          </button>
+          <button 
+            className="btn btn-outline"
             onClick={() => router.push(`/experience/${experience.id}`)}
           >
             View Public

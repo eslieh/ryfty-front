@@ -42,6 +42,7 @@ class CachedExperience:
     max_price: float
     total_slots: int
     available_slots: int
+    avg_rating: int
     created_at: str
     updated_at: str
     
@@ -72,7 +73,8 @@ class CachedExperience:
             total_slots=sum(slot.capacity for slot in slots),
             available_slots=sum(slot.capacity - slot.booked for slot in slots),
             created_at=experience.created_at.isoformat() if experience.created_at else None,
-            updated_at=experience.updated_at.isoformat() if experience.updated_at else None
+            updated_at=experience.updated_at.isoformat() if experience.updated_at else None,
+            avg_rating = experience.avg_rating if experience.avg_rating else 0
         )
 
 @dataclass
@@ -125,6 +127,7 @@ class PublicExperienceSchema(Schema):
     max_price = fields.Float()
     total_slots = fields.Int()
     available_slots = fields.Int()
+    avg_rating = fields.Int()
     created_at = fields.DateTime()
 
 # Initialize schemas

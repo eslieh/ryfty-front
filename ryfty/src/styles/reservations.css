@@ -406,6 +406,28 @@
   height: 16px;
 }
 
+.checkin-cell {
+  display: flex;
+  align-items: center;
+}
+
+.not-checked-in {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  background: #f8f9fa;
+  color: #6c757d;
+  border-radius: 20px;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.not-checked-in svg {
+  width: 16px;
+  height: 16px;
+}
+
 /* ===== EMPTY STATE ===== */
 .empty-state {
   display: flex;
@@ -2262,7 +2284,7 @@
 
 .reservation-row {
   display: grid;
-  grid-template-columns: 2fr 1fr 1fr 1fr 1fr;
+  grid-template-columns: 2fr 1fr 1fr 1fr 1fr 1fr;
   gap: 16px;
   padding: 16px 24px;
   border-bottom: 1px solid #f3f4f6;

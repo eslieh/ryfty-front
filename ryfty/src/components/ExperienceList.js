@@ -276,7 +276,7 @@ export default function ExperienceList({ searchQuery = "" }) {
                     fill="currentColor"
                   />
                 </svg>
-                <span className="rating-score">{generateRating(experience.id)}</span>
+                <span className="rating-score">{experience.avg_rating || 0}</span>
               </div>
             </div>
           </motion.div>

@@ -22,14 +22,14 @@ services:
     depends_on:
       - redis
 
-  celery_beat:
-    build: .
-    container_name: celery_beat
-    command: celery -A app.celery beat --loglevel=info
-    env_file:
-      - .env
-    depends_on:
-      - redis
+  # celery_beat:
+  #   build: .
+  #   container_name: celery_beat
+  #   command: celery -A app.celery beat --loglevel=info
+  #   env_file:
+  #     - .env
+  #   depends_on:
+  #     - redis
 
   redis:
     image: redis:7

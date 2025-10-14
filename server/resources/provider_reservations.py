@@ -138,10 +138,12 @@ class ProviderReservations(Resource):
                     "end_time": res.slot.end_time.isoformat() if res.slot.end_time else None
                 },
                 "num_people": res.quantity,
-                "revocked": res.revoked,
+                "revocked": res.revocked,
                 "total_price": float(res.total_price) if res.total_price else 0.0,
                 "amount_paid": float(res.amount_paid) if res.amount_paid else 0.0,
                 "status": res.status,
+                "checked_in": res.checked_in,
+                "checkin_time": res.checkin_time.isoformat() if res.checkin_time else None,
                 "created_at": res.created_at.isoformat() if res.created_at else None
             }
             result.append(formatted_res)

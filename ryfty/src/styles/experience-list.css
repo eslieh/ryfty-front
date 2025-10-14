@@ -184,7 +184,7 @@
     gap: 1rem;
   }
   
-  .experience-image-container {
+  .experience-card-hm .experience-image-container {
     height: 180px;
   }
   
@@ -207,7 +207,7 @@
         gap: 1rem;
     }
   
-  .experience-image-container {
+    .experience-card-hm .experience-image-container {
     height: 160px;
   }
 }

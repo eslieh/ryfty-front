@@ -577,6 +577,34 @@
   font-weight: 500;
 }
 
+.scan-error small {
+  margin: 0.5rem 0 0 0;
+  font-size: 0.75rem;
+  opacity: 0.9;
+  font-weight: 400;
+}
+
+.scan-error.critical {
+  background: rgba(220, 38, 38, 0.95);
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  animation: criticalErrorPulse 0.5s ease-out;
+}
+
+@keyframes criticalErrorPulse {
+  0% {
+    transform: translateX(-50%) scale(0.95);
+    box-shadow: 0 4px 20px rgba(220, 38, 38, 0.3);
+  }
+  50% {
+    transform: translateX(-50%) scale(1.02);
+    box-shadow: 0 8px 32px rgba(220, 38, 38, 0.5);
+  }
+  100% {
+    transform: translateX(-50%) scale(1);
+    box-shadow: 0 4px 20px rgba(220, 38, 38, 0.3);
+  }
+}
+
 .scan-success {
   position: absolute;
   bottom: 20%;

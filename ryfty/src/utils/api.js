@@ -508,14 +508,22 @@ export const deviceCheckin = async (reservationId) => {
     // Success - customer checked in
     return { ...responseData, status: 'success' };
   } else if (response.status === 400) {
-    // Already checked in - return as normal response
-    return { ...responseData, status: 'already_checked_in' };
+    // Already checked in or other 400 errors
+    if (responseData.error === 'Already checked in') {
+      return { ...responseData, status: 'already_checked_in' };
+    } else {
+      // Other 400 errors (missing reservation_id, etc.)
+      throw new Error(responseData.error || 'Invalid check-in request');
+    }
+  } else if (response.status === 401) {
+    // Authorization errors
+    throw new Error(responseData.error || 'Device authorization expired');
   } else if (response.status === 404) {
-    // Reservation not found - return as normal response
+    // Reservation not found
     return { ...responseData, status: 'reservation_not_found' };
   } else {
     // Other errors
-    throw new Error(`Check-in failed: ${response.status} ${response.statusText}`);
+    throw new Error(responseData.error || `Check-in failed: ${response.status} ${response.statusText}`);
   }
 };
 
