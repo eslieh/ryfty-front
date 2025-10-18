@@ -438,8 +438,17 @@ class PublicExperienceList(Resource):
             query = query.filter(price_subquery.exists())
         
         # Filter out past experiences by default
-        query = query.filter(Experience.start_date >= date.today())
-        
+        # query = query.filter(Experience.start_date >= date.today())
+        upcoming_slot_exists = (
+            db.session.query(Slot.id)
+            .filter(
+                Slot.experience_id == Experience.id,
+                Slot.date >= date.today()  # or Slot.start_time if that's how your model works
+            )
+            .exists()
+        )
+        query = query.filter(upcoming_slot_exists)
+
         return query
     
     def _apply_sorting(self, query, sort_by):

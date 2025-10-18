@@ -190,19 +190,6 @@ class DisbursementResource(Resource):
             current_app.logger.error(f"Disbursement error: {e}")
             return {"error": "could not initiate disbursement"}, 500
 
-
-
-        from utils.subscribe_manager import push_to_queue
-
-        push_to_queue(
-            user_id,
-            "withdrawal_initiated",
-            {
-                "disbursement_id": str(api_disbursement.id),
-                "amount": str(amount),
-                "status": api_disbursement.status,
-            }
-        )
         # --- Queue async processing ---
         initiate_disbursement.delay(api_disbursement.id)
 

@@ -709,6 +709,7 @@ export default function ExperienceDetailClient({ id }) {
     setIsWaitingForPayment(false);
     setPaymentStatus('');
     setRedirectCountdown(0);
+    setReservationLoading(false); // Reset loading state
   };
 
   const handleReservationSubmit = async () => {
@@ -761,6 +762,7 @@ export default function ExperienceDetailClient({ id }) {
       const timeoutId = setTimeout(() => {
         console.log('Payment timeout reached');
         setPaymentStatus("⏰ Payment Timeout - Please check your phone or try again");
+        setReservationLoading(false); // Reset loading state on timeout
         // Close EventSource on timeout
         if (newEventSource) {
           newEventSource.close();
@@ -834,6 +836,7 @@ export default function ExperienceDetailClient({ id }) {
         }
         if (data.data?.state === "failed") {
           setPaymentStatus("❌ Payment Failed!");
+          setReservationLoading(false); // Reset loading state on failure
           // Don't close EventSource or reset states - let user decide when to close
         }
       };
@@ -841,6 +844,7 @@ export default function ExperienceDetailClient({ id }) {
       newEventSource.onerror = (error) => {
         console.error('EventSource error:', error);
         setPaymentStatus("❌ Connection Error");
+        setReservationLoading(false); // Reset loading state on error
         // Clear timeout on error
         if (paymentTimeout) {
           clearTimeout(paymentTimeout);
@@ -2350,6 +2354,7 @@ export default function ExperienceDetailClient({ id }) {
                                 setReservationStep(3);
                                 setIsWaitingForPayment(false);
                                 setPaymentStatus('');
+                                setReservationLoading(false); // Reset loading state
                               }}
                               className="reservation-btn reservation-btn-secondary"
                             >
@@ -2365,6 +2370,7 @@ export default function ExperienceDetailClient({ id }) {
                                 setReservationStep(1);
                                 setIsWaitingForPayment(false);
                                 setPaymentStatus('');
+                                setReservationLoading(false); // Reset loading state
                               }}
                               className="reservation-btn reservation-btn-primary"
                             >
@@ -2387,6 +2393,7 @@ export default function ExperienceDetailClient({ id }) {
                                 setReservationStep(3);
                                 setIsWaitingForPayment(false);
                                 setPaymentStatus('');
+                                setReservationLoading(false); // Reset loading state
                               }}
                               className="reservation-btn reservation-btn-secondary"
                             >
@@ -2407,6 +2414,7 @@ export default function ExperienceDetailClient({ id }) {
                                 setReservationStep(1);
                                 setIsWaitingForPayment(false);
                                 setPaymentStatus('');
+                                setReservationLoading(false); // Reset loading state
                               }}
                               className="reservation-btn reservation-btn-primary"
                             >
@@ -2425,6 +2433,7 @@ export default function ExperienceDetailClient({ id }) {
                               setReservationStep(1);
                               setIsWaitingForPayment(false);
                               setPaymentStatus('');
+                              setReservationLoading(false); // Reset loading state
                             }}
                             className="reservation-btn reservation-btn-secondary"
                           >

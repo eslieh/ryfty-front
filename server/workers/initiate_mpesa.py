@@ -10,6 +10,7 @@ from datetime import datetime
 from flask import current_app
 from utils.subscribe_manager import push_to_queue
 import os
+import decimal
 
 from celery_app import celery
 
@@ -259,3 +260,170 @@ def initiate_disbursement(self, api_disbursement_id):
         except Exception as e:
             logger.error(f"Error processing response for {api_disbursement_id}: {str(e)}")
             return {"error": "Invalid JSON response", "raw": response.text}
+        
+
+@celery.task(bind=True, name="workers.pay_track_disbursment_initiate", max_retries=3, default_retry_delay=30)
+def pay_track_disbursment_initiate(self, api_disbursement_id):
+    logger.info(f"Initiating disbursement for request {api_disbursement_id}")
+    with current_app.app_context():
+        try:
+            api_disbursement = ApiDisbursement.query.get(api_disbursement_id)
+            if not api_disbursement:
+                logger.error(f"ApiDisbursement with ID {api_disbursement_id} not found.")
+                return
+            disbursement_type = api_disbursement.disbursement_type
+            phone_number = None
+            paybill_number = None
+            account_number = None
+            command_type = None
+
+            amount = str(api_disbursement.amount)
+            
+            if disbursement_type == "settlement":
+                # get payment method    
+                payment_method = PaymentMethod.query.filter_by(user_id=api_disbursement.user_id).first()
+                if payment_method:
+                    if payment_method.default_method == "mpesa":
+                        phone_number = payment_method.mpesa_number
+                        command_type = "BusinessPayment"
+
+                        payload = {
+                            "amount": amount,
+                            "request_ref": str(api_disbursement_id),
+                            "mpesa_number": phone_number,
+                        }
+                    elif payment_method.default_method == "bank":
+                        paybill_number = payment_method.bank_id
+                        account_number = payment_method.bank_account_number
+                        command_type = "BusinessPayBill"
+                        payload = {
+                            "amount": amount,
+                            "request_ref": str(api_disbursement_id),
+                            "b2b_account": {
+                                "paybill_number": paybill_number,
+                                "account_number": account_number
+                            }
+                        }
+                    elif payment_method.default_method == "paybill":
+                        paybill_number = payment_method.paybill
+                        account_number = payment_method.account_no
+                        command_type = "BusinessPayBill"
+                        payload = {
+                            "amount": amount,
+                            "request_ref": str(api_disbursement_id),
+                            "b2b_account": {
+                                "paybill_number": paybill_number,
+                                "account_number": account_number
+                            }
+                        }
+                
+            elif disbursement_type == "refund":
+                if api_disbursement.mpesa_number:
+                    phone_number = api_disbursement.mpesa_number
+                    command_type = "BusinessPayment"
+                    payload = {
+                            "amount": amount,
+                            "request_ref": str(api_disbursement_id),
+                            "mpesa_number": phone_number,
+                        }
+                else:
+                    logger.error(f"Missing mpesa number for refund ApiDisbursement {api_disbursement_id}.")
+                    return
+            
+            else:
+                logger.error(f"Invalid disbursement type for ApiDisbursement {api_disbursement_id}.")
+                return
+            
+            
+            api_url = os.getenv("PAYTRACK_API_BASE", "https://pay.geninworld.com")
+            api_key = os.getenv("PAYTRACK_API_KEY")
+
+            headers = {
+                "Authorization": f"Bearer {api_key}",
+                "Content-Type": "application/json"
+            }
+        
+            response = requests.post(api_url, headers=headers, json=payload)
+            try:
+                response_data = response.json()
+                if response.status_code == 202:
+                    # Fix: Update the actual object, not the ID
+                    api_disbursement.status = "initiated"
+                    
+                    push_to_queue(api_disbursement.user_id, {"state": "pending_confirmation"})
+                    db.session.commit()
+                    logger.info(f"Payment request {api_disbursement_id} successfully initiated: {response_data}")
+                else:
+                    logger.error(f"Failed to initiate payment for {api_disbursement_id}: {response_data}")
+            except Exception as e:
+                logger.error(f"Error processing response for {api_disbursement_id}: {str(e)}")
+                return {"error": "Invalid JSON response", "raw": response.text}
+            # (rest of the function remains unchanged)
+            # ...
+        except Exception as e:
+            logger.exception(f"Error initiating disbursement for {api_disbursement_id}: {e}")
+            raise self.retry(exc=e)
+        
+@celery.task(bind=True, name="workers.pay_track_collection_initiate", max_retries=3, default_retry_delay=30)
+def pay_track_collection_initiate(self, api_collection_id):
+    try:
+        with current_app.app_context():
+            api_collection = ApiCollection.query.get(api_collection_id)
+            if not api_collection:
+                logger.error(f"ApiCollection with ID {api_collection_id} not found.")
+                return
+
+            phone_number = api_collection.mpesa_number
+            amount = api_collection.amount
+            if not phone_number or not amount:
+                logger.error(f"Missing phone number or amount for ApiCollection {api_collection_id}.")
+                return
+
+            def format_phone_number(number):
+                digits = re.sub(r'\D', '', number)
+                if re.match(r'^254\d{9}$', digits):
+                    return digits
+                if re.match(r'^0[17]\d{8}$', digits):
+                    return '254' + digits[1:]
+                logger.warning(f"Invalid phone number format: {number}")
+                return None
+
+            formatted_number = format_phone_number(phone_number)
+            if not formatted_number:
+                logger.error(f"Failed to format phone number: {phone_number}")
+                return
+
+            api_url = os.getenv("PAYTRACK_API_BASE", "https://pay.geninworld.com")
+            api_key = os.getenv("PAYTRACK_API_KEY")
+
+            payload = {
+                "amount": str(amount),
+                "request_ref": str(api_collection_id),
+                "currency": "KES",
+                "mpesa_number": formatted_number
+            }
+
+            headers = {
+                "Authorization": f"Bearer {api_key}",
+                "Content-Type": "application/json"
+            }
+
+            response = requests.post(f"{api_url}/api/payment_request", headers=headers, json=payload)
+            try:
+                response_data = response.json()
+                print(response_data)
+                if response.status_code == 202:
+                    api_collection.mpesa_checkout_request_id = response_data.get("checkout_request_id")
+                    api_collection.status = "initiated"
+                    push_to_queue(api_collection.user_id, {"state": "pending_confirmation"})
+                    db.session.commit()
+                    logger.info(f"Payment request {api_collection_id} successfully initiated: {response_data}")
+                else:
+                    logger.error(f"Failed to initiate payment for {api_collection_id}: {response_data}")
+            except Exception as e:
+                logger.error(f"Error processing response for {api_collection_id}: {str(e)}")
+                return {"error": "Invalid JSON response", "raw": response.text}
+            
+    except Exception as e:
+        logger.exception(f"Error initiating payment for {api_collection_id}: {e}")
+        raise self.retry(exc=e)

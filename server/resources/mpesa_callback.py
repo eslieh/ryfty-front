@@ -123,7 +123,7 @@ class MpesaB2cDisbursementCallback(Resource):
                 if api_disbursement.disbursement_type == "settlement":
                     nairobi_tz = pytz.timezone("Africa/Nairobi")
                     push_to_queue(api_disbursement.user_id, {
-                        "state": "disbursment.success",
+                        "state": "success",
                         "transaction_id": transaction_id,
                     })
                     # Current time in Nairobi
@@ -158,6 +158,10 @@ class MpesaB2cDisbursementCallback(Resource):
 
             else:
                 # Failed disbursement
+                push_to_queue(api_disbursement.user_id, {
+                    "state": "failed",
+                    "description": result_desc,
+                })
                 api_disbursement.status = "failed"
                 db.session.commit()
 
@@ -200,7 +204,7 @@ class MpesaB2bDisbursementCallback(Resource):
                 service_fee = get_b2c_business_charge(float(api_disbursement.amount))
                 db.session.commit()
                 push_to_queue(api_disbursement.user_id, {
-                    "state": "disbursment.success",
+                    "state": "success",
                     "transaction_id": transaction_id,
                 })
                 
@@ -226,8 +230,8 @@ class MpesaB2bDisbursementCallback(Resource):
             else:
                 # Failed disbursement
                 push_to_queue(api_disbursement.user_id, {
-                    "state": "disbursment.failed",
-                    "transaction_id": transaction_id,
+                    "state": "failed",
+                    "description": result_desc,
                 })
                 api_disbursement.status = "failed"
                 api_disbursement.description = result_desc
@@ -243,3 +247,170 @@ class MpesaB2bDisbursementCallback(Resource):
             return {"ResultCode": 1, "ResultDesc": "Internal server error"}, 500
 
 
+class PaytrackCallback(Resource):
+    def post(self):
+        """
+        Handle Paytrack payment callback.
+        Receives webhook events for COLLECTION or DISBURSEMENT.
+        """
+
+        # Parse JSON payload
+        data = request.get_json(force=True)
+        print(data)
+        current_app.logger.info(f"Paytrack callback received: {data}")
+
+        # --- Extract data safely ---
+        event_type = data.get("event_type")                  # COLLECTION or DISBURSEMENT
+        tenant_id = data.get("tenant_id")                    # Tenant UUID
+        request_id = data.get("request_id")                  # Request or transaction ID
+        status = data.get("status")                          # SUCCESS / FAILED
+        amount = data.get("amount")                          # Amount string or float
+        request_ref = data.get("request_ref")                # Client-side reference
+        currency = data.get("currency")                      # e.g. KES
+        created_at = data.get("created_at")                  # ISO timestamp string
+
+        transaction_ref = data.get("transaction_ref", None)        # M-Pesa or bank ref (optional)
+        remarks = data.get("remarks", None)    
+        mpesa_number = data.get("mpesa_number", None)              # M-Pesa number (optional)
+        mpesa_account_number = data.get("mpesa_account_number", None)  # M-Pesa account number (optional)
+        b2c_account = data.get("b2c_account", None)                  # B2C account details (optional)
+                            # Reason if failed (optional)
+
+        # --- Optional: Log each field clearly ---
+        current_app.logger.info(
+            f"""
+            Event Type: {event_type}
+            Tenant ID: {tenant_id}
+            Request ID: {request_id}
+            Status: {status}
+            Amount: {amount}
+            Request Ref: {request_ref}
+            Currency: {currency}
+            Created At: {created_at}
+            Transaction Ref: {transaction_ref}
+            Remarks: {remarks}
+            """
+        )
+
+        # --- Example handling logic ---
+        if event_type == "COLLECTION":
+            if status == "success":
+                api_collection = ApiCollection.query.get(request_ref)
+                if not api_collection:
+                    logger.warning(f"ApiDisbursement {request_ref} not found")
+                    return {"ResultCode": 1, "ResultDesc": "Collection not found"}, 404
+                
+                slot_id = api_collection.slot_id
+                amount = Decimal(str(amount))
+                transaction_id = transaction_ref
+                api_collection.status = "completed"
+                api_collection.transaction_reference = transaction_ref
+                api_collection.mpesa_checkout_request_id = request_id
+                api_collection.mpesa_transaction_id = transaction_ref
+                db.session.commit()
+
+                push_to_queue(api_collection.user_id, {
+                    "state": "success",
+                    "transaction_id": transaction_id,
+                })
+                
+                logg_wallet.delay(
+                    slot_id=slot_id,
+                    user_id=api_collection.user_id,
+                    quantity=api_collection.quantity,
+                    amount_paid=float(amount),
+                    status="completed",
+                    mpesa_number=mpesa_number,
+                    transaction_ref=transaction_id,
+                    reservation_id=None if api_collection.reservation_id is None else api_collection.reservation_id
+                )
+                db.session.commit()
+                # e.g. credit tenant wallet, mark invoice paid
+                pass
+            elif status == "failed":
+                api_collection = ApiCollection.query.get(request_ref)
+                if not api_collection:
+                    logger.warning(f"ApiDisbursement {request_ref} not found")
+                    return {"ResultCode": 1, "ResultDesc": "Collection not found"}, 404
+                # Failed payment
+                push_to_queue(api_collection.user_id, {
+                    "state": "failed",
+                    "error": "Transaction declined"
+                })
+                api_collection.status = "failed"
+                api_collection.desctription = remarks
+                db.session.commit()
+                logger.info(f"STK Callback failed for collection {str(api_collection.id)}: {remarks}")
+                # e.g. mark payment as failed
+                pass
+        
+
+        elif event_type == "DISBURSEMENT":
+            if status == "success":
+                api_disbursement = ApiDisbursement.query.get(request_ref)
+                if not api_disbursement:
+                    logger.warning(f"ApiDisbursement {request_ref} not found")
+                    return {"ResultCode": 1, "ResultDesc": "Disbursement not found"}, 404
+                api_disbursement.status = "completed"
+                api_disbursement.transaction_reference = transaction_id
+                service_fee = get_b2c_business_charge(float(api_disbursement.amount))
+                db.session.commit()
+                if api_disbursement.disbursement_type == "settlement":
+                    nairobi_tz = pytz.timezone("Africa/Nairobi")
+                    push_to_queue(api_disbursement.user_id, {
+                        "state": "success",
+                        "transaction_id": transaction_id,
+                    })
+                    # Current time in Nairobi
+                    timestamp = datetime.now(nairobi_tz).isoformat()
+
+                    send_payout_confirmation.delay(
+                        user_id=api_disbursement.user_id,
+                        amount=api_disbursement.amount,
+                        transaction_id=transaction_id,
+                        timestamp=timestamp
+                    )
+                    
+                    wallet_settlement.delay(
+                        user_id=api_disbursement.user_id,
+                        amount=float(api_disbursement.amount),
+                        checkout_id=request_id,
+                        b2c_account=b2c_account,
+                        mpesa_account_number = mpesa_account_number,
+                        transaction_ref=transaction_id,
+                        service_fee=service_fee
+                    )
+                elif api_disbursement.disbursement_type == "refund":
+                    refund_settlement.delay(
+                        user_id=api_disbursement.user_id,
+                        amount=float(api_disbursement.amount),
+                        refund_id=api_disbursement.refund_id,
+                        transaction_ref=transaction_id,
+                        service_fee=service_fee
+                    )
+        
+
+                logger.info(f"Disbursement Callback successful for disbursement {str(api_disbursement.id)}")
+                
+                # e.g. mark payout completed
+                pass
+            else:
+                api_collection = ApiDisbursement.query.get(request_ref)
+                if not api_collection:
+                    logger.warning(f"ApiDisbursement {request_ref} not found")
+                    return {"ResultCode": 1, "ResultDesc": "Collection not found"}, 404
+                
+                # e.g. alert or retry disbursement
+                # Failed disbursement
+                push_to_queue(api_disbursement.user_id, {
+                    "state": "failed",
+                    "description": remarks,
+                })
+                api_disbursement.status = "failed"
+                db.session.commit()
+
+                logger.info(f"Disbursement Callback failed for disbursement {api_disbursement}: {remarks}")
+                pass
+
+        # Return acknowledgment to Paytrack
+        return {"status": "success", "received_event": event_type}, 200

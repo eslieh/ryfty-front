@@ -12,7 +12,7 @@ from utils.tarrifs import get_b2c_business_charge, get_b2b_business_charge, get_
 logger = logging.getLogger(__name__)
 
 @celery.task(bind=True, name="workers.reservation_create", max_retries=3, default_retry_delay=30)
-def logg_wallet(self, slot_id, user_id, quantity, amount_paid, status, transaction_ref, reservation_id=None):
+def logg_wallet(self, slot_id, user_id, quantity, amount_paid, status, transaction_ref, reservation_id=None, mpesa_number=None):
     """
     Celery task to log a wallet transaction using the passed parameters.
     """
@@ -76,6 +76,7 @@ def logg_wallet(self, slot_id, user_id, quantity, amount_paid, status, transacti
                 amount=amount,
                 payment_method="mpesa",
                 platform_fee=platform_fee,
+                mpesa_number=mpesa_number,
                 slot_id=slot_id,
                 transaction_reference=transaction_ref,
                 status="success",
@@ -151,7 +152,7 @@ def logg_wallet(self, slot_id, user_id, quantity, amount_paid, status, transacti
 
 
 @celery.task(bind=True, name="workers.wallet_settlement", max_retries=3, default_retry_delay=30)
-def wallet_settlement(self, user_id, amount, checkout_id, transaction_ref, service_fee=0):
+def wallet_settlement(self, user_id, amount, checkout_id, transaction_ref, service_fee=0, mpesa_number=None, b2c_account = None, mpesa_account_number = None):
     """
     Celery task to handle wallet settlements.
     """
@@ -188,6 +189,8 @@ def wallet_settlement(self, user_id, amount, checkout_id, transaction_ref, servi
                 txn_id=transaction_ref,
                 status="completed",
                 service_fee=service_fee,
+                receiving_mpesa_number=mpesa_number,
+                receiving_b2c_account=b2c_account,
                 platform=(user.role == "admin")
             )
             db.session.add(settlement_txn)

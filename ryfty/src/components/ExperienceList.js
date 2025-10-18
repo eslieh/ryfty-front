@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { motion } from "framer-motion";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
@@ -16,11 +16,41 @@ export default function ExperienceList({ searchQuery = "" }) {
   const [loading, setLoading] = useState(true);
   const [searching, setSearching] = useState(false);
   const [error, setError] = useState(null);
+  const [hasNextPage, setHasNextPage] = useState(true);
+  const [nextCursor, setNextCursor] = useState(null);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const observerRef = useRef(null);
+  // Load more experiences function
+  const loadMoreExperiences = useCallback(async () => {
+    if (loadingMore || !hasNextPage) return;
+    
+    try {
+      setLoadingMore(true);
+      setError(null);
+      
+      const data = await fetchExperiences(searchQuery, nextCursor);
+      console.log('Loaded more experiences:', data);
+      
+      setExperiences(prev => [...prev, ...(data.experiences || [])]);
+      setHasNextPage(data.pagination?.has_next || false);
+      setNextCursor(data.pagination?.next_cursor || null);
+    } catch (err) {
+      console.error('Error loading more experiences:', err);
+      setError('Failed to load more experiences. Please try again.');
+    } finally {
+      setLoadingMore(false);
+    }
+  }, [searchQuery, nextCursor, hasNextPage, loadingMore]);
 
-  // Fetch experiences from API
+  // Initial load and search reset
   useEffect(() => {
     const loadExperiences = async () => {
       try {
+        // Reset pagination state when search query changes
+        setHasNextPage(true);
+        setNextCursor(null);
+        setLoadingMore(false);
+        
         // If this is the initial load, show full loading
         // If this is a search, show searching state
         if (isInitialLoad.current) {
@@ -31,7 +61,11 @@ export default function ExperienceList({ searchQuery = "" }) {
         setError(null);
         
         const data = await fetchExperiences(searchQuery);
+        console.log('Initial load data:', data);
+        
         setExperiences(data.experiences || []);
+        setHasNextPage(data.pagination?.has_next || false);
+        setNextCursor(data.pagination?.next_cursor || null);
         
         // Mark initial load as complete
         if (isInitialLoad.current) {
@@ -48,6 +82,33 @@ export default function ExperienceList({ searchQuery = "" }) {
 
     loadExperiences();
   }, [searchQuery]);
+
+  // Intersection Observer for infinite scroll
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const target = entries[0];
+        if (target.isIntersecting && hasNextPage && !loadingMore && !loading && !searching) {
+          loadMoreExperiences();
+        }
+      },
+      {
+        threshold: 0.1,
+        rootMargin: '100px'
+      }
+    );
+
+    const currentObserverRef = observerRef.current;
+    if (currentObserverRef) {
+      observer.observe(currentObserverRef);
+    }
+
+    return () => {
+      if (currentObserverRef) {
+        observer.unobserve(currentObserverRef);
+      }
+    };
+  }, [hasNextPage, loadingMore, loading, searching, loadMoreExperiences]);
 
   const toggleFavorite = (experienceId, event) => {
     event.stopPropagation(); // Prevent card click when clicking heart
@@ -281,7 +342,39 @@ export default function ExperienceList({ searchQuery = "" }) {
             </div>
           </motion.div>
         ))}
+        
+        {/* Infinite scroll trigger and loading indicator */}
+        {hasNextPage && (
+          <div ref={observerRef} className="infinite-scroll-trigger">
+            {loadingMore && (
+              <motion.div 
+                className="loading-more-indicator"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 0.3 }}
+              >
+                <div className="loading-more-content">
+                  <div className="loading-spinner"></div>
+                  <span>Loading more experiences...</span>
+                </div>
+              </motion.div>
+            )}
+          </div>
+        )}
+        
+        
       </motion.div>
+      {/* End of results indicator */}
+      {!hasNextPage && experiences.length > 0 && (
+          <motion.div 
+            className="end-of-results"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5 }}
+          >
+            <p>You've reached the end of the experiences</p>
+          </motion.div>
+        )}
     </div>
   );
 }

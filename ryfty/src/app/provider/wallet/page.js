@@ -94,11 +94,11 @@ export default function ProviderWallet() {
             console.log('Received event:', data);
 
             // Handle withdrawal-related events
-            if (data.type === 'withdrawal_initiated' || data.type === 'disbursment.success' || data.type === 'disbursment.failed') {
+            if (data.state === 'pending_confirmation' || data.state === 'success' || data.state === 'failed') {
               setWithdrawalStatus(data);
               
               // Refresh wallet data on successful/failed withdrawal
-              if (data.type === 'disbursment.success' || data.type === 'disbursment.failed') {
+              if (data.state === 'success' || data.state === 'failed') {
                 fetchWalletData().then(setWalletData).catch(console.error);
               }
             }
@@ -197,12 +197,34 @@ export default function ProviderWallet() {
     setIsWithdrawalModalOpen(true);
   };
 
-  const handleWithdrawalSuccess = (response) => {
-    console.log('Withdrawal initiated successfully:', response);
+  const handleWithdrawalSuccess = async (response) => {
+    console.log('Withdrawal completed successfully:', response);
+    
+    // Update withdrawal status
     setWithdrawalStatus({
-      type: 'withdrawal_initiated',
+      type: 'disbursment.success',
       data: response
     });
+
+    // Decrease the wallet balance by the withdrawn amount
+    if (response.amount && walletData?.wallet?.balance) {
+      const newBalance = parseFloat(walletData.wallet.balance) - parseFloat(response.amount);
+      setWalletData(prevData => ({
+        ...prevData,
+        wallet: {
+          ...prevData.wallet,
+          balance: newBalance.toString()
+        }
+      }));
+    }
+
+    // Refresh wallet data to get the latest information
+    try {
+      const updatedWalletData = await fetchWalletData();
+      setWalletData(updatedWalletData);
+    } catch (err) {
+      console.error('Error refreshing wallet data after withdrawal:', err);
+    }
   };
 
   const handleWithdrawalModalClose = () => {
@@ -537,10 +559,10 @@ export default function ProviderWallet() {
                 </div>
                 {withdrawalStatus.data && (
                   <div className="withdrawal-status-details">
-                    {withdrawalStatus.data.disbursement_id && (
+                    {(withdrawalStatus.data.transaction_id || withdrawalStatus.data.disbursement_id) && (
                       <div className="withdrawal-detail">
                         <span className="detail-label">Transaction ID:</span>
-                        <span className="detail-value">{withdrawalStatus.data.disbursement_id}</span>
+                        <span className="detail-value">{withdrawalStatus.data.transaction_id || withdrawalStatus.data.disbursement_id}</span>
                       </div>
                     )}
                     {withdrawalStatus.data.amount && (

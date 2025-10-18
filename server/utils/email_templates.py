@@ -292,7 +292,7 @@ table{border-spacing:0}td{padding:0}img{border:0}a{color:#00915a;text-decoration
 </div>
 
 <div class="c" style="margin-top:24px">
-<a href="https://ryfty.net/reservations/{reservation_id}" style="background:#00915a;color:#fff;padding:14px 28px;border-radius:24px;font-weight:600;display:inline-block">View Details</a>
+<a href="https://ryfty.net/reservations/d/{reservation_id}" style="background:#00915a;color:#fff;padding:14px 28px;border-radius:24px;font-weight:600;display:inline-block">View Details</a>
 </div>
 
 <div style="background:#f9fafb;margin-top:24px;padding:16px;border-radius:8px">

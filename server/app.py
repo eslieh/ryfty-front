@@ -23,7 +23,7 @@ from resources.experiences import ExperienceList, ExperienceDetail, SlotList, Sl
 from resources.checkin_resource import CheckinResource
 from resources.experiences_public import PublicExperienceList, PublicExperienceDetail, TrendingExperiences
 from resources.public_reservation_resource import PublicReservationResource, GetReservationsPublic, InstallmentReservationResource
-from resources.mpesa_callback import MpesaCallbackResource, MpesaB2bDisbursementCallback, MpesaB2cDisbursementCallback
+from resources.mpesa_callback import MpesaCallbackResource, MpesaB2bDisbursementCallback, MpesaB2cDisbursementCallback, PaytrackCallback
 from resources.provider_reservations import ProviderReservationsOptimized
 from resources.refund_resource import RefundRequest, RefundRequestLists, RefundInitiate
 from resources.wallet_resource import WalletResource, PaymentMethodResource, DisbursementResource
@@ -155,7 +155,9 @@ def create_app():
     # Public reservation endpoint
     api.add_resource(PublicReservationResource, "/public/reservations_request")
     api.add_resource(InstallmentReservationResource, "/public/partial_payment/<uuid:reservation_id>")
+
     # M-Pesa callback endpoint
+    api.add_resource(PaytrackCallback, "/payment/mpesa/paytrack/call_back")    
     api.add_resource(MpesaCallbackResource, "/payment/mpesa/call_back/<uuid:experience_id>/<uuid:slot_id>/<uuid:api_collection_id>")
     api.add_resource(MpesaB2cDisbursementCallback, "/payment/mpesa/b2c/disburse_call_back/<uuid:user_id>/<uuid:api_disbursement_id>/result")
     api.add_resource(MpesaB2bDisbursementCallback, "/payment/mpesa/b2b/disburse_call_back/<uuid:user_id>/<uuid:api_disbursement_id>/result")

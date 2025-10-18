@@ -305,6 +305,7 @@ class ReservationTxn(db.Model):
     amount = db.Column(db.Numeric(8, 2), nullable=False, index=True)
     payment_method = db.Column(db.Text, nullable=False, index=True)
     platform_fee = db.Column(db.Numeric(8, 2), nullable=False, index=True)
+    mpesa_number = db.Column(db.Text, nullable=True, index=True)
     slot_id = db.Column(UUID(as_uuid=True), db.ForeignKey("slots.id"), nullable=False, index=True)
     transaction_reference = db.Column(db.Text, nullable=False, unique=True, index=True)  # Unique index for reference
     status = db.Column(db.String(255), nullable=False, index=True)
@@ -458,6 +459,8 @@ class SettlementTxn(db.Model):
     service_fee = db.Column(db.Numeric(8, 2), nullable=False, index=True)
     platform = db.Column(db.Boolean, nullable=True, index=True)
     date_done = db.Column(db.DateTime(timezone=True), default=datetime.utcnow, nullable=False)
+    receiving_mpesa_number = db.Column(db.Text, nullable=True, index=True)
+    receiving_b2c_account = db.Column(db.JSON, nullable=True)
     __table_args__ = (
         # Composite indexes for settlement reporting
         Index('idx_settlement_user_amount', 'user_id', 'amount'),

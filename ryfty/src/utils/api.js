@@ -85,10 +85,21 @@ export const createExperience = async (experienceData) => {
   }
 };
 
-export const fetchExperiences = async (search = '') => {
-  const endpoint = search 
-    ? `/public/experiences?search=${encodeURIComponent(search)}`
-    : '/public/experiences';
+export const fetchExperiences = async (search = '', cursor = null, limit = 20) => {
+  const params = new URLSearchParams();
+  
+  if (search) {
+    params.append('search', search);
+  }
+  
+  if (cursor) {
+    params.append('cursor', cursor);
+  }
+  
+  params.append('limit', limit.toString());
+  
+  const queryString = params.toString();
+  const endpoint = `/public/experiences${queryString ? `?${queryString}` : ''}`;
     
   return await apiCall(endpoint);
 };
