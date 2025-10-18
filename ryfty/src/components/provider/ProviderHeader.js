@@ -168,7 +168,7 @@ export default function ProviderHeader({
                 className="switch-to-customer"
                 onClick={handleSwitchToCustomer}
               >
-                Switch to traveling
+                Switch to Customer
               </button>
               <div className="user-avatar">
                 {user?.avatar_url ? (

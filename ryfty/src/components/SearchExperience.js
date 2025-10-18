@@ -47,15 +47,16 @@ export default function SearchExperience({ onSearch }) {
 
   // Sample destination suggestions
   const destinationSuggestions = [
-    "New York, NY",
-    "Los Angeles, CA", 
-    "Paris, France",
-    "Tokyo, Japan",
-    "London, UK",
-    "Barcelona, Spain",
-    "Amsterdam, Netherlands",
-    "Berlin, Germany"
+    "Nairobi",
+    "Mombasa",
+    "Diani Beach",
+    "Maasai Mara National Reserve",
+    "Nakuru",
+    "Naivasha",
+    "Watamu",
+    "Lamu Island"
   ];
+  
 
   const filteredSuggestions = destinationSuggestions.filter(destination =>
     destination.toLowerCase().includes(searchData.where.toLowerCase())
