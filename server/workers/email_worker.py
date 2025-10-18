@@ -66,6 +66,7 @@ def _format_reservation_data(reservation):
         "amount_paid": float(reservation.amount_paid) if reservation.amount_paid else 0.0,
         "status": reservation.status,
         "created_at": reservation.created_at.isoformat() if reservation.created_at else None,
+        "slot_date": reservation.slot.date.isoformat() if reservation.slot.date else None,
     }
 
 

@@ -234,7 +234,7 @@ def reservation_receipt_email_template(reservation):
     total_price = reservation.get("total_price", 0.0)
     amount_paid = reservation.get("amount_paid", 0.0)
     status = reservation.get("status", "Confirmed").capitalize()
-    created_at = str(reservation.get("created_at", "today"))[:10]
+    slot_date = reservation.get("slot_date", "TBD")
     
     # Minimal CSS - only essential styles
     css = """body{margin:0;padding:0;background:#f8f8f8;font-family:Arial,sans-serif}
@@ -272,7 +272,7 @@ table{border-spacing:0}td{padding:0}img{border:0}a{color:#00915a;text-decoration
 <tr><td class="s">Slot:</td><td class="s" style="text-align:right">{slot_name}</td></tr>
 <tr><td class="s">Time:</td><td class="s" style="text-align:right">{start_time} - {end_time}</td></tr>
 <tr><td class="s">Party:</td><td class="s" style="text-align:right">{num_people} {"person" if num_people == 1 else "people"}</td></tr>
-<tr><td class="s">Date:</td><td class="s" style="text-align:right">{created_at}</td></tr>
+<tr><td class="s">Date:</td><td class="s" style="text-align:right">{slot_date}</td></tr>
 </table>
 </div>
 
@@ -709,7 +709,7 @@ def payout_confirmation_template(payment_data):
                                 </div>
                                 <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
                                     <span style="color: #6b7280;">Transaction Fee:</span>
-                                    <span style="font-weight: 500; color: #ef4444;">-KES {transaction_fee - amount:,.2f}</span>
+                                    <span style="font-weight: 500; color: #ef4444;">-KES {amount - transaction_fee:,.2f}</span>
                                 </div>
                                 <div style="display: flex; justify-content: space-between; font-weight: 600; color: #00915a; font-size: 16px;">
                                     <span>Net Amount:</span>
