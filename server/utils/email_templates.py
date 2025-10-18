@@ -705,11 +705,11 @@ def payout_confirmation_template(payment_data):
                             <div style="border-top: 1px solid #f0f0f0; padding-top: 12px; margin-top: 12px;">
                                 <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
                                     <span style="color: #6b7280;">Gross Amount:</span>
-                                    <span style="font-weight: 500; color: #1f2937;">KES {transaction_fee:,.2f}</span>
+                                    <span style="font-weight: 500; color: #1f2937;">KES {amount - transaction_fee:,.2f}</span>
                                 </div>
                                 <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
                                     <span style="color: #6b7280;">Transaction Fee:</span>
-                                    <span style="font-weight: 500; color: #ef4444;">-KES {amount - transaction_fee:,.2f}</span>
+                                    <span style="font-weight: 500; color: #ef4444;">-KES {transaction_fee:,.2f}</span>
                                 </div>
                                 <div style="display: flex; justify-content: space-between; font-weight: 600; color: #00915a; font-size: 16px;">
                                     <span>Net Amount:</span>
