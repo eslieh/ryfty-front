@@ -4,7 +4,7 @@ services:
   web:
     build: .
     container_name: flask_app
-    command: gunicorn --bind 0.0.0.0:5000 app:app --log-level info
+    command: gunicorn app:app --workers 1 --threads 2 --timeout 0 --worker-class gevent
 
     ports:
       - "5000:5000"
