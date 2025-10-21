@@ -343,7 +343,7 @@ def pay_track_disbursment_initiate(self, api_disbursement_id):
                 "Content-Type": "application/json"
             }
         
-            response = requests.post(api_url, headers=headers, json=payload)
+            response = requests.post(f"{api_url}/api/disburse_request", headers=headers, json=payload)
             try:
                 response_data = response.json()
                 if response.status_code == 202:
