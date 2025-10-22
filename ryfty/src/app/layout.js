@@ -2,8 +2,9 @@ import "./globals.css";
 import { AuthProvider } from "@/contexts/AuthContext";
 
 export const metadata = {
-  title: "Ryfty - Endless experiences awaits you ✨",
-  description: "Endless experiences awaits you ✨",
+  title: "Ryfty - Discover Amazing Local Experiences",
+  description: "Find and book unique local experiences, from cooking classes to adventure tours. Connect with passionate hosts and create unforgettable memories in your city.",
+  keywords: "local experiences, activities, tours, cooking classes, adventure, travel, booking, hosts, authentic experiences",
   icons: {
     icon: [
       { url: '/dot.png', sizes: 'any' },
@@ -17,7 +18,38 @@ export const metadata = {
       { rel: 'mask-icon', url: '/dot.png', color: '#00915a' },
     ],
   },
-  manifest: '/dot.png',
+  manifest: '/site.webmanifest',
+  openGraph: {
+    title: "Ryfty - Discover Amazing Local Experiences",
+    description: "Find and book unique local experiences, from cooking classes to adventure tours. Connect with passionate hosts and create unforgettable memories in your city.",
+    type: 'website',
+    siteName: 'Ryfty',
+    images: [
+      {
+        url: '/main.png',
+        width: 1200,
+        height: 630,
+        alt: 'Ryfty - Discover Amazing Local Experiences'
+      }
+    ]
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: "Ryfty - Discover Amazing Local Experiences",
+    description: "Find and book unique local experiences, from cooking classes to adventure tours. Connect with passionate hosts and create unforgettable memories in your city.",
+    images: ['/main.png']
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      'max-video-preview': -1,
+      'max-image-preview': 'large',
+      'max-snippet': -1,
+    },
+  }
 };
 import { Figtree } from "next/font/google";
 

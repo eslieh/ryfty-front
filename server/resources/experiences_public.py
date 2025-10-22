@@ -320,12 +320,15 @@ class PublicExperienceList(Resource):
             if cursor_conditions is not None:
                 query = query.filter(cursor_conditions)
         
-        # Apply sorting
-        query = self._apply_sorting(query, filters['sort_by'])
+        # Apply sorting (skip for search queries as they have their own ordering)
+        if not filters.get('search'):
+            query = self._apply_sorting(query, filters['sort_by'])
         
         # Execute query with limit + 1 for next cursor detection
         limit = filters['limit']
         experiences_raw = query.limit(limit + 1).all()
+        
+        # Handle search results differently (they return tuples)
         if filters.get('search'):
             experiences_raw = [exp for exp, score in experiences_raw]
         
@@ -372,31 +375,11 @@ class PublicExperienceList(Resource):
     def _build_optimized_query(self, filters):
         """Build optimized SQLAlchemy query with eager loading"""
         
-        # Base query with optimized joins - FIXED: Remove load_only() for now
-        query = (db.session.query(Experience)
-                .options(
-                    joinedload(Experience.provider),  # Load full provider data
-                    selectinload(Experience.slots)    # Load full slot data
-                )
-                .filter(Experience.status == filters['status']))
-        
-        # Apply filters
-        if filters.get('destinations'):
-            query = query.filter(Experience.destinations.op('&&')(filters['destinations']))
-        
-        if filters.get('activities'):
-            query = query.filter(Experience.activities.op('&&')(filters['activities']))
-        
-        if filters.get('start_date_from'):
-            query = query.filter(Experience.start_date >= filters['start_date_from'])
-        
-        if filters.get('start_date_to'):
-            query = query.filter(Experience.start_date <= filters['start_date_to'])
-        
         # Search functionality (fuzzy + ILIKE)
         if filters.get('search'):
             raw_search = filters['search']
 
+            # Create the score subquery
             score_subq = (
                 db.session.query(
                     Experience.id.label("exp_id"),
@@ -409,8 +392,10 @@ class PublicExperienceList(Resource):
                 .subquery()
             )
 
+            # Create aliased Experience for the main query
             scored_exp = aliased(Experience)
 
+            # Build the query with the aliased table
             query = (
                 db.session.query(scored_exp, score_subq.c.score)
                 .join(score_subq, scored_exp.id == score_subq.c.exp_id)
@@ -419,35 +404,96 @@ class PublicExperienceList(Resource):
                     selectinload(scored_exp.slots)
                 )
                 .filter(score_subq.c.score > 0.14)
-                .order_by(score_subq.c.score.desc())
+                .filter(scored_exp.status == filters['status'])
             )
 
+            # Apply filters using the aliased table
+            if filters.get('destinations'):
+                query = query.filter(scored_exp.destinations.op('&&')(filters['destinations']))
+            
+            if filters.get('activities'):
+                query = query.filter(scored_exp.activities.op('&&')(filters['activities']))
+            
+            if filters.get('start_date_from'):
+                query = query.filter(scored_exp.start_date >= filters['start_date_from'])
+            
+            if filters.get('start_date_to'):
+                query = query.filter(scored_exp.start_date <= filters['start_date_to'])
 
-        
-        # Price filtering (requires subquery for slot prices)
-        if filters.get('min_price') or filters.get('max_price'):
-            price_subquery = (db.session.query(Slot.experience_id)
-                            .filter(Slot.experience_id == Experience.id))
-            
-            if filters.get('min_price'):
-                price_subquery = price_subquery.filter(Slot.price >= filters['min_price'])
-            
-            if filters.get('max_price'):
-                price_subquery = price_subquery.filter(Slot.price <= filters['max_price'])
-            
-            query = query.filter(price_subquery.exists())
-        
-        # Filter out past experiences by default
-        # query = query.filter(Experience.start_date >= date.today())
-        upcoming_slot_exists = (
-            db.session.query(Slot.id)
-            .filter(
-                Slot.experience_id == Experience.id,
-                Slot.date >= date.today()  # or Slot.start_time if that's how your model works
+            # Price filtering for search queries
+            if filters.get('min_price') or filters.get('max_price'):
+                price_subquery = (db.session.query(Slot.experience_id)
+                                .filter(Slot.experience_id == scored_exp.id))
+                
+                if filters.get('min_price'):
+                    price_subquery = price_subquery.filter(Slot.price >= filters['min_price'])
+                
+                if filters.get('max_price'):
+                    price_subquery = price_subquery.filter(Slot.price <= filters['max_price'])
+                
+                query = query.filter(price_subquery.exists())
+
+            # Filter out past experiences - use the aliased table
+            upcoming_slot_exists = (
+                db.session.query(Slot.id)
+                .filter(
+                    Slot.experience_id == scored_exp.id,
+                    Slot.date >= date.today()
+                )
+                .exists()
             )
-            .exists()
-        )
-        query = query.filter(upcoming_slot_exists)
+            query = query.filter(upcoming_slot_exists)
+
+            # Order by score, then created_at, then id - all using the aliased table
+            query = query.order_by(score_subq.c.score.desc(), scored_exp.created_at.desc(), scored_exp.id.asc())
+            
+            return query
+
+        else:
+            # Non-search query path
+            query = (db.session.query(Experience)
+                    .options(
+                        joinedload(Experience.provider),
+                        selectinload(Experience.slots)
+                    )
+                    .filter(Experience.status == filters['status']))
+            
+            # Apply filters
+            if filters.get('destinations'):
+                query = query.filter(Experience.destinations.op('&&')(filters['destinations']))
+            
+            if filters.get('activities'):
+                query = query.filter(Experience.activities.op('&&')(filters['activities']))
+            
+            if filters.get('start_date_from'):
+                query = query.filter(Experience.start_date >= filters['start_date_from'])
+            
+            if filters.get('start_date_to'):
+                query = query.filter(Experience.start_date <= filters['start_date_to'])
+            
+            # Price filtering (requires subquery for slot prices)
+            if filters.get('min_price') or filters.get('max_price'):
+                price_subquery = (db.session.query(Slot.experience_id)
+                                .filter(Slot.experience_id == Experience.id))
+                
+                if filters.get('min_price'):
+                    price_subquery = price_subquery.filter(Slot.price >= filters['min_price'])
+                
+                if filters.get('max_price'):
+                    price_subquery = price_subquery.filter(Slot.price <= filters['max_price'])
+                
+                query = query.filter(price_subquery.exists())
+            
+            # Filter out past experiences
+            upcoming_slot_exists = (
+                db.session.query(Slot.id)
+                .filter(
+                    Slot.experience_id == Experience.id,
+                    Slot.date >= date.today()
+                )
+                .exists()
+            )
+            query = query.filter(upcoming_slot_exists)
 
         return query
     
