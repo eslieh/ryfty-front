@@ -46,6 +46,10 @@ export default function HostExperience() {
     }
   };
 
+  const handlePricingClick = () => {
+    router.push('/host-experience/pricing');
+  };
+
   // Image object for easy management
   const images = {
     hero_section: {
@@ -90,20 +94,28 @@ export default function HostExperience() {
             <img src="/dot.png" alt="Ryfty Logo" className="logo" />
           </motion.div>
           
-          <button 
-            className="btn btn-primary" 
-            onClick={handleGetStarted}
-            disabled={isLoading}
-          >
-            {isLoading ? (
-              <div className="loading-spinner">
-                <div className="spinner"></div>
-                <span>Loading...</span>
-              </div>
-            ) : (
-              "Get Started"
-            )}
-          </button>
+          <div className="header-buttons">
+            <button 
+              className="btn btn-secondary" 
+              onClick={handlePricingClick}
+            >
+              Pricing
+            </button>
+            <button 
+              className="btn btn-primary" 
+              onClick={handleGetStarted}
+              disabled={isLoading}
+            >
+              {isLoading ? (
+                <div className="loading-spinner">
+                  <div className="spinner"></div>
+                  <span>Loading...</span>
+                </div>
+              ) : (
+                "Get Started"
+              )}
+            </button>
+          </div>
         </div>
       </motion.header>
 
@@ -195,6 +207,39 @@ export default function HostExperience() {
                 <div className="stat-number">$2M+</div>
                 <div className="stat-label">earned by hosts</div>
               </div>
+            </div>
+          </div>
+        </section>
+
+        {/* 💰 Pricing Section */}
+        <section className="pricing-preview-section">
+          <div className="section-container">
+            <h2 className="section-headline">Simple, Transparent Pricing</h2>
+            <p className="section-subtext">Keep more of what you earn with our straightforward 5% platform fee. No hidden costs, no surprises.</p>
+            <div className="pricing-preview-cards">
+              <div className="pricing-preview-card">
+                <div className="card-icon">💰</div>
+                <h3>5% Platform Fee</h3>
+                <p>Only pay when you earn. No setup fees, no monthly charges.</p>
+              </div>
+              <div className="pricing-preview-card">
+                <div className="card-icon">⚡</div>
+                <h3>Instant Payouts</h3>
+                <p>Get paid directly to your M-Pesa within 24 hours.</p>
+              </div>
+              <div className="pricing-preview-card">
+                <div className="card-icon">🔒</div>
+                <h3>No Hidden Fees</h3>
+                <p>What you see is what you pay. Transparent pricing always.</p>
+              </div>
+            </div>
+            <div className="pricing-cta">
+              <button 
+                className="btn btn-primary large" 
+                onClick={handlePricingClick}
+              >
+                View Detailed Pricing
+              </button>
             </div>
           </div>
         </section>
