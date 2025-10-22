@@ -26,7 +26,7 @@ from resources.public_reservation_resource import PublicReservationResource, Get
 from resources.mpesa_callback import MpesaCallbackResource, MpesaB2bDisbursementCallback, MpesaB2cDisbursementCallback, PaytrackCallback
 from resources.provider_reservations import ProviderReservationsOptimized
 from resources.refund_resource import RefundRequest, RefundRequestLists, RefundInitiate
-from resources.wallet_resource import WalletResource, PaymentMethodResource, DisbursementResource
+from resources.wallet_resource import WalletResource, PaymentMethodResource, DisbursementInitResource, DisbursementVerifyResource
 from resources.test import TestSendPayoutConfirmation,TestSendReservation
 from resources.review_resource import ExperienceReviewsResource, PostReviewResource, ExperienceStatsResource
 
@@ -172,7 +172,8 @@ def create_app():
     # wallet processing resources
     api.add_resource(WalletResource, "/wallet")
     api.add_resource(PaymentMethodResource, "/wallet/payment-method", "/wallet/payment-method/<uuid:method_id>")
-    api.add_resource(DisbursementResource,  "/api/payment/initiate")
+    api.add_resource(DisbursementInitResource,  "/api/payment/initiate")
+    api.add_resource(DisbursementVerifyResource,  "/api/payment/verify")
     
     # checkin resource 
     api.add_resource(CheckinResource, '/experiences/<uuid:experience_id>/checkin', '/experiences/<uuid:experience_id>/checkin/<uuid:slot_id>')

@@ -347,6 +347,7 @@ class PaytrackCallback(Resource):
 
         elif event_type == "DISBURSEMENT":
             if status == "success":
+                transaction_id = transaction_ref
                 api_disbursement = ApiDisbursement.query.get(request_ref)
                 if not api_disbursement:
                     logger.warning(f"ApiDisbursement {request_ref} not found")
@@ -395,8 +396,8 @@ class PaytrackCallback(Resource):
                 # e.g. mark payout completed
                 pass
             else:
-                api_collection = ApiDisbursement.query.get(request_ref)
-                if not api_collection:
+                api_disbursement = ApiDisbursement.query.get(request_ref)
+                if not api_disbursement:
                     logger.warning(f"ApiDisbursement {request_ref} not found")
                     return {"ResultCode": 1, "ResultDesc": "Collection not found"}, 404
                 
@@ -409,7 +410,7 @@ class PaytrackCallback(Resource):
                 api_disbursement.status = "failed"
                 db.session.commit()
 
-                logger.info(f"Disbursement Callback failed for disbursement {api_disbursement}: {remarks}")
+                logger.info(f"Disbursement Callback failed for disbursement {api_disbursement.id}: {remarks}")
                 pass
 
         # Return acknowledgment to Paytrack

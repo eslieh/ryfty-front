@@ -262,6 +262,7 @@ class ApiCollection(db.Model):
     slot_id = db.Column(UUID(as_uuid=True), db.ForeignKey("slots.id"), nullable=False, index=True)
     user_id = db.Column(UUID(as_uuid=True), db.ForeignKey("users.id"), nullable=False, index=True)
     quantity = db.Column(db.Integer, nullable=False)
+
     reservation_id = db.Column(UUID(as_uuid=True), db.ForeignKey("reservations.id"), nullable=True, index=True)
     experience_id = db.Column(UUID(as_uuid=True), db.ForeignKey("experiences.id"), nullable=False, index=True)
     amount = db.Column(db.Numeric(8, 2), nullable=False, index=True)
@@ -283,7 +284,9 @@ class ApiDisbursement(db.Model):
     user_id = db.Column(UUID(as_uuid=True), db.ForeignKey("users.id"), nullable=False, index=True)
     amount = db.Column(db.Numeric(8, 2), nullable=False, index=True)
     refund_id = db.Column(UUID(as_uuid=True), db.ForeignKey("reservation_refunds.id"), nullable=True, index=True)
-    
+    authorization_token = db.Column(db.String(10), nullable=True)
+    expires_at = db.Column(db.DateTime, nullable=True)
+    authorized = db.Column(db.Boolean, default=False, nullable=True)
     mpesa_checkout_request_id = db.Column(db.Text, nullable=True, unique=True, index=True)  # Unique index for checkout ID
     transaction_reference = db.Column(db.Text, nullable=True, unique=True, index=True)  # Unique index for reference
     status = db.Column(db.String(255), nullable=False, index=True)

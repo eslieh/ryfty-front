@@ -202,6 +202,108 @@ def password_recovery_email_template(name, token):
     </body>
     """
 
+
+def payout_authorization_mail(transaction, token):
+    user_name = transaction.get("user", {}).get("name", "Valued Customer")
+    amount = transaction.get("amount", 0.0)
+    b2b_account = transaction.get("b2b_account")
+    mpesa_number = transaction.get("mpesa_number")
+    name = first_name(user_name)
+
+    destination_text = ""
+    if b2b_account:
+        b2b_paybill_number = b2b_account.get("paybill", "N/A")
+        b2b_account_number = b2b_account.get("account_no", "N/A")
+        destination_text = f"Paybill {b2b_paybill_number}, Account {b2b_account_number}"
+    elif mpesa_number:
+        destination_text = f"M-Pesa Number {mpesa_number}"
+
+    return f"""
+    <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif; color: #1a1a1a; padding: 20px; margin: 0; min-height: 100vh;">
+        <div style="max-width: 600px; margin: auto; background: #ffffff; border-radius: 16px; box-shadow: 0 10px 40px rgba(0,0,0,0.1); overflow: hidden;">
+            
+            <!-- Header -->
+            <div style="background: #ffffff; padding: 32px 40px 24px; text-align: center; border-bottom: 1px solid #f0f0f0;">
+                <img src="{full_logo}" alt="Ryfty" style="height: 48px; width: auto; margin-bottom: 8px;">
+            </div>
+            
+            <!-- Main Content -->
+            <div style="padding: 48px 40px;">
+                <div style="text-align: center; margin-bottom: 40px;">
+                    <h1 style="margin: 0 0 16px; font-size: 26px; font-weight: 600; color: #1a1a1a; line-height: 1.3;">
+                        Confirm Your Payout, {name}
+                    </h1>
+                    <p style="margin: 0; font-size: 18px; color: #6b7280; line-height: 1.5;">
+                        You're about to authorize a payout from your Ryfty account.
+                    </p>
+                </div>
+                
+                <!-- Transaction Details -->
+                <div style="background: #f9fafb; border-radius: 12px; padding: 24px; margin-bottom: 32px; border: 1px solid #e5e7eb;">
+                    <h3 style="margin: 0 0 12px; font-size: 18px; font-weight: 600; color: #111827;">
+                        Payout Details
+                    </h3>
+                    <p style="margin: 6px 0; font-size: 16px; color: #374151;">
+                        <strong>Amount:</strong> KES {amount:,.2f}
+                    </p>
+                    <p style="margin: 6px 0; font-size: 16px; color: #374151;">
+                        <strong>Destination:</strong> {destination_text}
+                    </p>
+                </div>
+                
+                <!-- Verification Code -->
+                <div style="background: #f8fffe; border: 2px solid #dcfce7; border-radius: 16px; padding: 32px; text-align: center; margin-bottom: 32px;">
+                    <p style="margin: 0 0 16px; font-size: 16px; color: #374151; font-weight: 500;">
+                        To confirm and authorize this payout, enter the code below:
+                    </p>
+                    <div style="background: #00915a; color: white; padding: 20px 32px; border-radius: 12px; display: inline-block; box-shadow: 0 4px 16px rgba(0, 145, 90, 0.25);">
+                        <span style="font-size: 32px; font-weight: 700; letter-spacing: 6px; font-family: 'Courier New', monospace;">
+                            {token}
+                        </span>
+                    </div>
+                    <p style="margin-top: 24px; font-size: 14px; color: #92400e; background: #fef3c7; padding: 12px; border-radius: 8px; border-left: 4px solid #f59e0b;">
+                        This code expires in 30 minutes.
+                    </p>
+                </div>
+                
+                <!-- Security Notice -->
+                <div style="text-align: center;">
+                    <p style="margin: 0; font-size: 14px; color: #6b7280; line-height: 1.5;">
+                        Didn’t request this payout? Ignore this email or contact <a href="mailto:support@ryfty.net" style="color: #00915a; text-decoration: none;">support@ryfty.net</a> immediately.<br>
+                        For your safety, never share this code with anyone.
+                    </p>
+                </div>
+            </div>
+            
+            <!-- Footer -->
+            <div style="background: #f9fafb; padding: 32px 40px; border-top: 1px solid #f0f0f0;">
+                <div style="text-align: center;">
+                    <img src="{full_logo}" alt="Ryfty" style="height: 50px; width: auto; margin-bottom: 16px; opacity: 0.7;">
+                    <p style="margin: 0 0 8px; font-size: 16px; color: #1f2937; font-weight: 600;">
+                        Ryfty
+                    </p>
+                    <p style="margin: 0 0 16px; font-size: 14px; color: #6b7280;">
+                        In the end, we only keep the experiences. ✨
+                    </p>
+                    <div style="margin-bottom: 16px;">
+                        <a href="https://ryfty.net" style="color: #00915a; text-decoration: none; font-size: 14px; margin: 0 12px;">
+                            Visit Website
+                        </a>
+                        <a href="mailto:support@ryfty.net" style="color: #00915a; text-decoration: none; font-size: 14px; margin: 0 12px;">
+                            Contact Support
+                        </a>
+                    </div>
+                    <div style="border-top: 1px solid #e5e7eb; padding-top: 16px;">
+                        <p style="margin: 0; font-size: 12px; color: #9ca3af;">
+                            © 2025 Ryfty. All rights reserved.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </body>
+    """
+
 def reservation_receipt_email_template(reservation):
     """
     Generates a professional, mobile-friendly, and size-optimized HTML email receipt.

@@ -5,7 +5,13 @@ from flask_restful import Resource
 from workers.initiate_mpesa import pay_track_disbursment_initiate
 from decimal import Decimal
 from utils.tarrifs import get_b2b_business_charge, get_b2c_business_charge
+from utils.email_templates import payout_authorization_mail
+from workers.email_worker import send_email_async_task
 from decimal import Decimal, InvalidOperation
+import random
+import string
+from datetime import datetime, timedelta
+import uuid
 from sqlalchemy.exc import SQLAlchemyError
 
 class WalletResource(Resource):
@@ -124,22 +130,23 @@ class PaymentMethodResource(Resource):
 
 
 
-class DisbursementResource(Resource):
+# ---------- STEP 1: Initiate disbursement & send auth email ----------
+class DisbursementInitResource(Resource):
     @jwt_required()
     def post(self):
-        """Initiate a wallet disbursement (withdrawal)"""
+        """Create a pending disbursement and send authorization email"""
         user_id = get_jwt_identity()
-        if not user_id:
-            return {"error": "user not found"}, 404
-
         data = request.get_json() or {}
+
+        user = User.query.get(user_id)
+        if not user:
+            return {"error": "user not found"}, 404
 
         # --- Validate amount ---
         try:
             amount = Decimal(data.get("amount", 0))
         except (InvalidOperation, TypeError):
             return {"error": "invalid amount format"}, 400
-
         if amount <= 0:
             return {"error": "amount must be greater than zero"}, 400
 
@@ -148,57 +155,101 @@ class DisbursementResource(Resource):
         if not wallet:
             return {"error": "wallet not found"}, 404
 
-        # Charges
+        # --- Payment method ---
+        payment_method = PaymentMethod.query.filter_by(user_id=user_id).first()
+        if not payment_method:
+            return {"error": "payment method not found"}, 400
+
+        # --- Calculate available balance ---
         b2c_charge = Decimal(get_b2c_business_charge(float(amount)))
         b2b_charge = Decimal(get_b2b_business_charge(float(amount)))
+        required = amount + min(b2c_charge, b2b_charge)
 
-        # Required funds = amount + charge
-        required_b2c = amount + b2c_charge
-        required_b2b = amount + b2b_charge
+        if wallet.balance < required:
+            return {
+                "error": "insufficient funds",
+                "amount_withdrawable": str(wallet.balance - b2b_charge)
+            }, 400
 
-        if wallet.balance < min(required_b2c, required_b2b):
-            withdrawable = wallet.balance - b2b_charge
-            return {"error": "insufficient funds", "amount_withdrawable": withdrawable}, 400
+       
 
-        # --- Payment method check ---
-        payment_method = PaymentMethod.query.filter_by(
-            user_id=user_id
-        ).first()
+        # --- Generate verification token ---
+        token = ''.join(random.choices(string.digits, k=6))
+        expires_at = datetime.utcnow() + timedelta(minutes=30)
 
-        if not payment_method:
-            payment_method = PaymentMethod.query.filter_by(user_id=user_id).first()
+         # --- Create pending disbursement ---
+        disbursement = ApiDisbursement(
+            user_id=user_id,
+            amount=amount,
+            status="awaiting_authorization",
+            description="User settlement withdrawal",
+            disbursement_type="settlement",
+            authorization_token=token,
+            expires_at=expires_at
+        )
+        db.session.add(disbursement)
+        db.session.commit()
 
-        if not payment_method:
-            return {"error": "payment method not found, please create one"}, 400
-
-        # --- Create disbursement record ---
+        # --- Send email ---
         try:
-            api_disbursement = ApiDisbursement(
-                user_id=user_id,
-                amount=amount,
-                status="pending",  # better than "posted"
-                description="User settlement withdrawal",
-                disbursement_type = "settlement"
-            )
-
-            db.session.add(api_disbursement)
-
-            db.session.commit()
-
-        except SQLAlchemyError as e:
-            db.session.rollback()
-            current_app.logger.error(f"Disbursement error: {e}")
-            return {"error": "could not initiate disbursement"}, 500
-
-        # --- Queue async processing ---
-        pay_track_disbursment_initiate.delay(api_disbursement.id)
+            transaction = {
+                "user": {"name": user.name},
+                "amount": float(amount),
+                "b2b_account": payment_method.to_dict() if payment_method.default_method == "paybill" or payment_method.default_method == "bank" else None,
+                "mpesa_number": payment_method.mpesa_number if payment_method.default_method == "mpesa" else None
+            }
+            html = payout_authorization_mail(transaction, token)
+            text = "Use the code {} to authorize your payout of KES {:.2f}. This code expires in 30 minutes.".format(token, amount)
+            send_email_async_task.delay(user.email, "Authorize Your Payout", html, text)
+        except Exception as e:
+            current_app.logger.error(f"Email send failed: {e}")
 
         return {
             "success": True,
-            "message": "Disbursement initiated successfully",
-            "disbursement_id": str(api_disbursement.id),
-            "amount": str(amount),
-            "status": api_disbursement.status,
-        }, 201
+            "message": "Authorization code sent to your email",
+            "disbursement_id": str(disbursement.id)
+        }, 200
 
-        
+
+# ---------- STEP 2: Verify code & trigger worker ----------
+class DisbursementVerifyResource(Resource):
+    @jwt_required()
+    def post(self):
+        """Verify payout authorization and start worker"""
+        user_id = get_jwt_identity()
+        data = request.get_json() or {}
+
+        disbursement_id = data.get("disbursement_id")
+        token = data.get("token")
+
+        if not disbursement_id or not token:
+            return {"error": "missing disbursement_id or token"}, 400
+
+        # --- Approve disbursement ---
+        disbursement = ApiDisbursement.query.filter_by(
+            id=disbursement_id, user_id=user_id
+        ).first()
+
+        if not disbursement or disbursement.authorization_token != token:
+            return {"error": "invalid disbursement or token"}, 401
+
+        if not disbursement:
+            return {"error": "disbursement not found"}, 404
+        if disbursement.status != "awaiting_authorization":
+            return {"error": "disbursement already processed"}, 400
+
+        disbursement.status = "pending"
+        disbursement.authorization_token = None
+        disbursement.expires_at = None
+        disbursement.authorized = True
+        db.session.commit()
+
+        # --- Queue payout ---
+        pay_track_disbursment_initiate.delay(disbursement.id)
+
+        return {
+            "success": True,
+            "message": "Payout authorized and queued for processing",
+            "disbursement_id": str(disbursement.id),
+            "amount": str(disbursement.amount)
+        }, 200

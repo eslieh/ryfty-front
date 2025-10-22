@@ -713,6 +713,7 @@ export default function ProviderWallet() {
         onClose={handleWithdrawalModalClose}
         onSuccess={handleWithdrawalSuccess}
         walletBalance={walletData?.wallet?.balance || 0}
+        walletData={walletData}
       />
     </div>
   );

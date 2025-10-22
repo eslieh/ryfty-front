@@ -263,7 +263,7 @@ export const deletePaymentMethod = async (methodId) => {
 /**
  * Initiate a withdrawal (requires authentication)
  * @param {number} amount - Amount to withdraw
- * @returns {Promise<Object>} - Withdrawal response
+ * @returns {Promise<Object>} - Withdrawal response with disbursement_id
  */
 export const initiateWithdrawal = async (amount) => {
   const token = getAuthToken();
@@ -294,6 +294,52 @@ export const initiateWithdrawal = async (amount) => {
       throw new Error(responseData.error || 'Server error occurred');
     } else {
       throw new Error(`Withdrawal failed: ${response.status} ${response.statusText}`);
+    }
+  }
+
+  return responseData;
+};
+
+/**
+ * Verify withdrawal with authorization code (requires authentication)
+ * @param {string} disbursementId - Disbursement ID from initiate response
+ * @param {string} token - Authorization code sent to email
+ * @returns {Promise<Object>} - Verification response
+ */
+export const verifyWithdrawal = async (disbursementId, token) => {
+  const authToken = getAuthToken();
+  
+  if (!authToken) {
+    throw new Error('Authentication required');
+  }
+
+  const baseUrl = config.api.forceLocalhost ? 'http://localhost:5000' : config.api.baseUrl;
+  const response = await fetch(`${baseUrl}/api/payment/verify`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${authToken}`
+    },
+    body: JSON.stringify({ 
+      disbursement_id: disbursementId,
+      token: token
+    })
+  });
+
+  const responseData = await response.json();
+
+  if (!response.ok) {
+    // Handle specific error cases
+    if (response.status === 400) {
+      throw new Error(responseData.error || 'Invalid verification request');
+    } else if (response.status === 401) {
+      throw new Error(responseData.error || 'Invalid disbursement or token');
+    } else if (response.status === 404) {
+      throw new Error(responseData.error || 'Disbursement not found');
+    } else if (response.status === 500) {
+      throw new Error(responseData.error || 'Server error occurred');
+    } else {
+      throw new Error(`Verification failed: ${response.status} ${response.statusText}`);
     }
   }
 
