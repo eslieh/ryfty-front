@@ -195,7 +195,14 @@ class DisbursementInitResource(Resource):
             transaction = {
                 "user": {"name": user.name},
                 "amount": float(amount),
-                "b2b_account": payment_method.to_dict() if payment_method.default_method == "paybill" or payment_method.default_method == "bank" else None,
+                "b2b_account": {
+                    "paybill":payment_method.paybill,
+                    "account_no": payment_method.account_no
+                } if payment_method.default_method == "paybill" else None,
+                "bank_account": {
+                    "bank_id": payment_method.bank_id,
+                    "account_number": payment_method.bank_account_number
+                } if payment_method.default_method == "bank" else None,
                 "mpesa_number": payment_method.mpesa_number if payment_method.default_method == "mpesa" else None
             }
             html = payout_authorization_mail(transaction, token)

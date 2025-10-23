@@ -201,6 +201,35 @@ def password_recovery_email_template(name, token):
         </div>
     </body>
     """
+BANK_DATA = [
+    {"bank_name": "Equity Bank", "paybill_number": "247247"},
+    {"bank_name": "Co-operative Bank", "paybill_number": "400200"},
+    {"bank_name": "Standard Chartered Bank", "paybill_number": "329329"},
+    {"bank_name": "Absa Bank", "paybill_number": "303030"},
+    {"bank_name": "Family Bank", "paybill_number": "222111"},
+    {"bank_name": "I&M Bank", "paybill_number": "542542"},
+    {"bank_name": "National Bank", "paybill_number": "547700"},
+    {"bank_name": "Diamond Trust Bank", "paybill_number": "516600"},
+    {"bank_name": "Ecobank", "paybill_number": "700201"},
+    {"bank_name": "Jamii Bora Bank", "paybill_number": "529901"},
+    {"bank_name": "Bank of Africa", "paybill_number": "972900"},
+    {"bank_name": "UBA Bank", "paybill_number": "559900"},
+    {"bank_name": "Prime Bank", "paybill_number": "982800"},
+    {"bank_name": "Guaranty Trust Bank", "paybill_number": "910200"},
+    {"bank_name": "Gulf African Bank", "paybill_number": "985050"},
+    {"bank_name": "Housing Finance Company", "paybill_number": "100400"},
+    {"bank_name": "Consolidated Bank", "paybill_number": "508400"},
+    {"bank_name": "Credit Bank", "paybill_number": "972700"},
+    {"bank_name": "Equatorial Commercial Bank", "paybill_number": "498100"},
+    {"bank_name": "Sidian Bank", "paybill_number": "111999"}
+]
+
+# Helper: find bank by ID or paybill
+def get_bank_name_by_id(bank_id):
+    for bank in BANK_DATA:
+        if str(bank.get("paybill_number")) == str(bank_id):
+            return bank.get("bank_name")
+    return None
 
 
 def payout_authorization_mail(transaction, token):
@@ -208,6 +237,7 @@ def payout_authorization_mail(transaction, token):
     amount = transaction.get("amount", 0.0)
     b2b_account = transaction.get("b2b_account")
     mpesa_number = transaction.get("mpesa_number")
+    banck_account = transaction.get("bank_account")
     name = first_name(user_name)
 
     destination_text = ""
@@ -217,7 +247,14 @@ def payout_authorization_mail(transaction, token):
         destination_text = f"Paybill {b2b_paybill_number}, Account {b2b_account_number}"
     elif mpesa_number:
         destination_text = f"M-Pesa Number {mpesa_number}"
-
+    elif banck_account:
+        bank_id = banck_account.get("bank_id", "N/A")
+        account_number = banck_account.get("account_number", "N/A")
+        bank_name = get_bank_name_by_id(bank_id)
+        if bank_name:
+            destination_text = f"{bank_name}, Account {account_number}"
+        else:
+            destination_text = f"Bank ID {bank_id}, Account {account_number}"
     return f"""
     <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif; color: #1a1a1a; padding: 20px; margin: 0; min-height: 100vh;">
         <div style="max-width: 600px; margin: auto; background: #ffffff; border-radius: 16px; box-shadow: 0 10px 40px rgba(0,0,0,0.1); overflow: hidden;">
