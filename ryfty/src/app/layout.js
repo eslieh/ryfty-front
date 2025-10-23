@@ -26,7 +26,7 @@ export const metadata = {
     siteName: 'Ryfty',
     images: [
       {
-        url: '/main.png',
+        url: '/iconss.png',
         width: 1200,
         height: 630,
         alt: 'Ryfty - Discover Amazing Local Experiences'
@@ -37,7 +37,7 @@ export const metadata = {
     card: 'summary_large_image',
     title: "Ryfty - Discover Amazing Local Experiences",
     description: "Find and book unique local experiences, from cooking classes to adventure tours. Connect with passionate hosts and create unforgettable memories in your city.",
-    images: ['/main.png']
+    images: ['/iconss.png']
   },
   robots: {
     index: true,
