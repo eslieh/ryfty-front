@@ -118,7 +118,6 @@ export const AuthProvider = ({ children }) => {
   // Login with email and password
   const login = async (email, password) => {
     try {
-      dispatch({ type: 'SET_LOADING', payload: true });
       dispatch({ type: 'CLEAR_ERROR' });
 
       const response = await fetch(`${getApiBaseUrl()}/auth/signin`, {
@@ -135,13 +134,24 @@ export const AuthProvider = ({ children }) => {
       const data = await response.json();
 
       if (response.ok) {
+        // Ensure user data has all required fields including bio
+        const completeUserData = {
+          id: data.user.id,
+          email: data.user.email,
+          name: data.user.name,
+          phone: data.user.phone || null,
+          avatar_url: data.user.avatar_url || null,
+          bio: data.user.bio || null,
+          role: data.user.role || 'customer'
+        };
+        
         setAuthToken(data.access_token);
-        setUserData(data.user);
-        dispatch({ type: 'SET_USER', payload: data.user });
-        return { success: true, user: data.user };
+        setUserData(completeUserData);
+        dispatch({ type: 'SET_USER', payload: completeUserData });
+        return { success: true, user: completeUserData };
       } else {
-        dispatch({ type: 'SET_ERROR', payload: data.message || 'Login failed' });
-        return { success: false, error: data.message };
+        dispatch({ type: 'SET_ERROR', payload: data.error || 'Login failed' });
+        return { success: false, error: data.error || 'Login failed' };
       }
     } catch (error) {
       const errorMessage = 'Network error. Please try again.';
@@ -153,7 +163,6 @@ export const AuthProvider = ({ children }) => {
   // Register new user
   const register = async (userData) => {
     try {
-      dispatch({ type: 'SET_LOADING', payload: true });
       dispatch({ type: 'CLEAR_ERROR' });
 
       const payload = {
@@ -181,7 +190,6 @@ export const AuthProvider = ({ children }) => {
       const data = await response.json();
 
       if (response.ok) {
-        dispatch({ type: 'SET_LOADING', payload: false });
         return { 
           success: true, 
           message: data.message || 'Registration successful. Please check your email/phone for verification code.',
@@ -190,8 +198,8 @@ export const AuthProvider = ({ children }) => {
           phone: userData.phone
         };
       } else {
-        dispatch({ type: 'SET_ERROR', payload: data.message || 'Registration failed' });
-        return { success: false, error: data.message };
+        dispatch({ type: 'SET_ERROR', payload: data.error || 'Registration failed' });
+        return { success: false, error: data.error || 'Registration failed' };
       }
     } catch (error) {
       const errorMessage = 'Network error. Please try again.';
@@ -203,7 +211,6 @@ export const AuthProvider = ({ children }) => {
   // Verify account with email and token
   const verifyAccount = async (email, token) => {
     try {
-      dispatch({ type: 'SET_LOADING', payload: true });
       dispatch({ type: 'CLEAR_ERROR' });
 
       const response = await fetch(`${getApiBaseUrl()}/auth/verify`, {
@@ -240,8 +247,8 @@ export const AuthProvider = ({ children }) => {
           message: data.message || 'Account verified successfully!' 
         };
       } else {
-        dispatch({ type: 'SET_ERROR', payload: data.message || 'Verification failed' });
-        return { success: false, error: data.message };
+        dispatch({ type: 'SET_ERROR', payload: data.error || 'Verification failed' });
+        return { success: false, error: data.error || 'Verification failed' };
       }
     } catch (error) {
       const errorMessage = 'Network error. Please try again.';
@@ -253,7 +260,6 @@ export const AuthProvider = ({ children }) => {
   // Request password reset
   const requestPasswordReset = async (email) => {
     try {
-      dispatch({ type: 'SET_LOADING', payload: true });
       dispatch({ type: 'CLEAR_ERROR' });
 
       const response = await fetch(`${getApiBaseUrl()}/auth/reset/request`, {
@@ -267,14 +273,13 @@ export const AuthProvider = ({ children }) => {
       const data = await response.json();
 
       if (response.ok) {
-        dispatch({ type: 'SET_LOADING', payload: false });
         return { 
           success: true, 
           message: data.message || 'Password reset code sent to your email.' 
         };
       } else {
-        dispatch({ type: 'SET_ERROR', payload: data.message || 'Failed to send reset code' });
-        return { success: false, error: data.message };
+        dispatch({ type: 'SET_ERROR', payload: data.error || 'Failed to send reset code' });
+        return { success: false, error: data.error || 'Failed to send reset code' };
       }
     } catch (error) {
       const errorMessage = 'Network error. Please try again.';
@@ -286,7 +291,6 @@ export const AuthProvider = ({ children }) => {
   // Reset password with token
   const resetPassword = async (email, token, password) => {
     try {
-      dispatch({ type: 'SET_LOADING', payload: true });
       dispatch({ type: 'CLEAR_ERROR' });
 
       const response = await fetch(`${getApiBaseUrl()}/auth/reset/verify`, {
@@ -304,14 +308,13 @@ export const AuthProvider = ({ children }) => {
       const data = await response.json();
 
       if (response.ok) {
-        dispatch({ type: 'SET_LOADING', payload: false });
         return { 
           success: true, 
           message: data.message || 'Password reset successfully!' 
         };
       } else {
-        dispatch({ type: 'SET_ERROR', payload: data.message || 'Password reset failed' });
-        return { success: false, error: data.message };
+        dispatch({ type: 'SET_ERROR', payload: data.error || 'Password reset failed' });
+        return { success: false, error: data.error || 'Password reset failed' };
       }
     } catch (error) {
       const errorMessage = 'Network error. Please try again.';
@@ -324,7 +327,6 @@ export const AuthProvider = ({ children }) => {
   const loginWithToken = async (token, userData) => {
     try {
       console.log('loginWithToken called with:', { token, userData });
-      dispatch({ type: 'SET_LOADING', payload: true });
       dispatch({ type: 'CLEAR_ERROR' });
 
       // Ensure user data has all required fields
@@ -362,7 +364,6 @@ export const AuthProvider = ({ children }) => {
   // Google OAuth login
   const loginWithGoogle = async (googleToken) => {
     try {
-      dispatch({ type: 'SET_LOADING', payload: true });
       dispatch({ type: 'CLEAR_ERROR' });
 
       const response = await fetch(`${getApiBaseUrl()}/auth/google`, {
@@ -381,8 +382,8 @@ export const AuthProvider = ({ children }) => {
         dispatch({ type: 'SET_USER', payload: data.user });
         return { success: true, user: data.user };
       } else {
-        dispatch({ type: 'SET_ERROR', payload: data.message || 'Google login failed' });
-        return { success: false, error: data.message };
+        dispatch({ type: 'SET_ERROR', payload: data.error || 'Google login failed' });
+        return { success: false, error: data.error || 'Google login failed' };
       }
     } catch (error) {
       const errorMessage = 'Google login failed. Please try again.';
@@ -411,7 +412,6 @@ export const AuthProvider = ({ children }) => {
 
   const verifyPhoneCode = async (phoneNumber, code) => {
     try {
-      dispatch({ type: 'SET_LOADING', payload: true });
       dispatch({ type: 'CLEAR_ERROR' });
 
       const response = await fetch(`${getApiBaseUrl()}/auth/phone/verify`, {
@@ -441,8 +441,8 @@ export const AuthProvider = ({ children }) => {
         dispatch({ type: 'SET_USER', payload: completeUserData });
         return { success: true, user: completeUserData };
       } else {
-        dispatch({ type: 'SET_ERROR', payload: data.message || 'Phone verification failed' });
-        return { success: false, error: data.message };
+        dispatch({ type: 'SET_ERROR', payload: data.error || 'Phone verification failed' });
+        return { success: false, error: data.error || 'Phone verification failed' };
       }
     } catch (error) {
       const errorMessage = 'Phone verification failed. Please try again.';

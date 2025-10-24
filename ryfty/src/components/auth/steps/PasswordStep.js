@@ -38,7 +38,7 @@ export default function PasswordStep({ formData, updateFormData, nextStep }) {
                         (formData.userType === 'provider' ? '/provider/dashboard' : '/');
         router.push(redirect);
       } else {
-        setError(result.error || 'Invalid email or password');
+        setError(result.error || 'Invalid credentials');
       }
     } catch (error) {
       setError('Something went wrong. Please try again.');

@@ -234,7 +234,7 @@ export default function PrivacyPolicy() {
               <h3>9.2 Data Protection Officer</h3>
               <p>
                 We have appointed a Data Protection Officer to oversee our data protection practices. 
-                You can contact them at privacy@ryfty.com.
+                You can contact them at privacy@ryfty.net.
               </p>
             </section>
 
@@ -253,14 +253,14 @@ export default function PrivacyPolicy() {
                 If you have any questions about this Privacy Policy or our data practices, please contact us:
               </p>
               <ul>
-                <li><strong>Email:</strong> privacy@ryfty.com</li>
-                <li><strong>Support Email:</strong> support@ryfty.com</li>
-                <li><strong>Address:</strong> [Your Business Address]</li>
-                <li><strong>Phone:</strong> [Your Contact Number]</li>
+                <li><strong>Email:</strong> privacy@ryfty.net</li>
+                <li><strong>Support Email:</strong> support@ryfty.net</li>
+                <li><strong>Address:</strong> Nairobi, Kenya</li>
+                <li><strong>Phone:</strong> +254 795 739288</li>
               </ul>
               <p>
                 For data protection inquiries specifically, please contact our Data Protection Officer at 
-                dpo@ryfty.com.
+                dpo@ryfty.net.
               </p>
             </section>
           </motion.div>

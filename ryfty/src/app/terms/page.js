@@ -310,9 +310,9 @@ export default function TermsOfUse() {
                 If you have any questions about these Terms, please contact us at:
               </p>
               <ul>
-                <li>Email: support@ryfty.com</li>
-                <li>Address: [Your Business Address]</li>
-                <li>Phone: [Your Contact Number]</li>
+                <li>Email: support@ryfty.net</li>
+                <li>Address: Nairobi, Kenya</li>
+                <li>Phone: +254 795 739288</li>
               </ul>
             </section>
           </motion.div>

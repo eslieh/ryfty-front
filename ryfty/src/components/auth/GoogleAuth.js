@@ -34,7 +34,7 @@ export default function GoogleAuth({ userType, mode = 'login', onSuccess }) {
       });
 
       // Redirect to backend Google OAuth endpoint
-      const googleAuthUrl = `${getApiBaseUrl()}/login/google?${params.toString()}`;
+      const googleAuthUrl = `${getApiBaseUrl()}/auth/google?${params.toString()}`;
       
       // Store current state in sessionStorage to restore after redirect
       sessionStorage.setItem('ryfty-auth-state', JSON.stringify({

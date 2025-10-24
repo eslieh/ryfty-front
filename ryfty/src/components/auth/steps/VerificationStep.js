@@ -57,7 +57,7 @@ export default function VerificationStep({ formData, email, onSuccess }) {
           router.push(redirect);
         }
       } else {
-        setError(result.error || 'Invalid verification code');
+        setError(result.error || 'Invalid or expired token');
       }
     } catch (error) {
       setError('Something went wrong. Please try again.');
