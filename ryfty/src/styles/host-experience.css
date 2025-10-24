@@ -757,6 +757,7 @@
   font-size: clamp(2rem, 4vw, 3rem);
   font-weight: 700;
   margin: 0 0 1.5rem 0;
+  color: white;
 }
 
 .final-cta-section p {
@@ -1934,7 +1935,7 @@
 
 
 .section-subtext {
-    color: #717171;
+    /* color: #717171; */
     margin: 0 0 48px;
     font-size: 20px;
     line-height: 1.5;
@@ -2061,7 +2062,9 @@
   color: #222;
   margin: 0;
 }
-
+.hero-image-io {
+  width: 50%;
+}
 /* ===== HOW IT WORKS SECTION ===== */
 .how-it-works-section {
   background: white;
@@ -2203,6 +2206,7 @@
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 48px;
+  text-align: start;
 }
 
 .tool-column p {
@@ -2441,4 +2445,7 @@
         font-size: 0.8rem;
         padding: 0.4rem 0.8rem;
     }
+    .hero-image-io {
+      width: 80%;
+  }
 }
