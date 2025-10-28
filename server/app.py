@@ -109,6 +109,8 @@ def create_app():
             "https://www.googleapis.com/auth/userinfo.profile",
         ],
         redirect_url="/auth/google",
+        offline=True,  # <-- this ensures we get a refresh token
+        reprompt_consent=True  # <-- ensures Google prompts again if needed
     )
     app.register_blueprint(google_bp, url_prefix="/login")
     app.register_blueprint(events_bp)
