@@ -1,6 +1,7 @@
 from flask import redirect, jsonify, url_for, request
 from flask_restful import Resource
 from flask_dance.contrib.google import google
+from oauthlib.oauth2.rfc6749.errors import TokenExpiredError
 from flask_jwt_extended import create_access_token, get_jwt_identity, jwt_required
 from models import db, User, VerificationToken
 from flask_bcrypt import Bcrypt
@@ -20,28 +21,33 @@ class GoogleAuth(Resource):
         if not google.authorized:
             return redirect(url_for("google.login"))
 
-        resp = google.get("/oauth2/v2/userinfo")
-        if not resp.ok:
-            return {"error": "Failed to fetch user info from Google"}, 400
+        try:
+        
+            resp = google.get("/oauth2/v2/userinfo")
+            if not resp.ok:
+                return {"error": "Failed to fetch user info from Google"}, 400
 
-        user_info = resp.json()
-        email = user_info["email"]
-        name = user_info.get("name", "")
-        profile = user_info.get("picture", "")
+            user_info = resp.json()
+            email = user_info["email"]
+            name = user_info.get("name", "")
+            profile = user_info.get("picture", "")
 
-        # Check if user exists, else create
-        user = User.query.filter_by(email=email).first()
-        if not user:
-            user = User(email=email, name=name, avatar_url=profile, is_email_verified=True)
-            db.session.add(user)
-            db.session.commit()
+            # Check if user exists, else create
+            user = User.query.filter_by(email=email).first()
+            if not user:
+                user = User(email=email, name=name, avatar_url=profile, is_email_verified=True)
+                db.session.add(user)
+                db.session.commit()
 
-        # Create JWT token
-        access_token = create_access_token(identity=str(user.id))
-        redirect_url = f"{FRONTEND_URL}/auth/callback?{urlencode({'token': access_token, 'email': user.email, 'id': user.id, 'name': user.name, 'avatar_url': user.avatar_url, 'role': user.role, 'bio': user.bio})}"
-        return redirect(redirect_url)
-        # return {"access_token": access_token, "user": {"id": str(user.id), "email": user.email, "avatar_url":user.avatar_url, "name": user.name}}, 200
-
+            # Create JWT token
+            access_token = create_access_token(identity=str(user.id))
+            redirect_url = f"{FRONTEND_URL}/auth/callback?{urlencode({'token': access_token, 'email': user.email, 'id': user.id, 'name': user.name, 'avatar_url': user.avatar_url, 'role': user.role, 'bio': user.bio})}"
+            return redirect(redirect_url)
+            # return {"access_token": access_token, "user": {"id": str(user.id), "email": user.email, "avatar_url":user.avatar_url, "name": user.name}}, 200
+        except TokenExpiredError:
+            return redirect(url_for("google.login"))
+        except Exception as e:
+            return {"error": "An error occurred during Google authentication", "details": str(e)}, 500
 
 class Login(Resource):
     def post(self):
