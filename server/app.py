@@ -51,7 +51,6 @@ def create_app():
 
     # Extensions
     db.init_app(app)
-    # ✅ All keys in UPPERCASE
     app.config.update(
         CELERY_BROKER_URL= app.config["CELERY_BROKER_URL"],
         CELERY_RESULT_BACKEND=app.config["CELERY_RESULT_BACKEND"],

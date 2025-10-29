@@ -193,7 +193,7 @@ export default function HostExperience() {
           </div>
         </section>
 
-        {/* 📊 Statistics Section */}
+        {/* 📊 Statistics Section
         <section className="statistics-section">
           <div className="section-container">
             <h2 className="section-headline">Millions of guests. The most loved brand in travel.</h2>
@@ -209,7 +209,7 @@ export default function HostExperience() {
               </div>
             </div>
           </div>
-        </section>
+        </section> */}
 
         {/* 💰 Pricing Section */}
         <section className="pricing-preview-section">
