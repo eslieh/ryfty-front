@@ -130,8 +130,8 @@ export default function ExperienceDetailClient({ id }) {
           : new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1);
         const endDate = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 0);
         
-        const startDateStr = startDate.toISOString().split('T')[0];
-        const endDateStr = endDate.toISOString().split('T')[0];
+        const startDateStr = formatDateKey(startDate);
+        const endDateStr = formatDateKey(endDate);
         
         console.log('Fetching slots for month:', { startDateStr, endDateStr });
         
@@ -376,6 +376,14 @@ export default function ExperienceDetailClient({ id }) {
 
   const getFirstDayOfMonth = (date) => {
     return new Date(date.getFullYear(), date.getMonth(), 1).getDay();
+  };
+
+  // Returns YYYY-MM-DD in local time (avoids UTC shift)
+  const formatDateKey = (date) => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
   };
 
   const getSlotsForDate = (dateStr) => {
@@ -2513,7 +2521,7 @@ export default function ExperienceDetailClient({ id }) {
                     {Array.from({ length: getDaysInMonth(currentMonth) }, (_, i) => {
                       const day = i + 1;
                       const date = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), day);
-                      const dateStr = date.toISOString().split('T')[0];
+                      const dateStr = formatDateKey(date);
                       const daySlots = getSlotsForDate(dateStr);
                       const hasSlots = daySlots.length > 0;
                       const isSelected = selectedDate === dateStr;

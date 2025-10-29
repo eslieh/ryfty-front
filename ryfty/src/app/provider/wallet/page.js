@@ -45,6 +45,11 @@ export default function ProviderWallet() {
   const [withdrawalStatus, setWithdrawalStatus] = useState(null);
   const [eventSource, setEventSource] = useState(null);
   const [eventSourceStatus, setEventSourceStatus] = useState('connecting'); // 'connecting', 'connected', 'disconnected'
+  // Pagination state
+  const [settlementPage, setSettlementPage] = useState(1);
+  const [settlementPerPage, setSettlementPerPage] = useState(5);
+  const [refundPage, setRefundPage] = useState(1);
+  const [refundPerPage, setRefundPerPage] = useState(5);
   
   const { isAuthenticated, user, isProvider } = useAuth();
   const router = useRouter();
@@ -61,7 +66,12 @@ export default function ProviderWallet() {
       setError(null);
       
       try {
-        const response = await fetchWalletData();
+        const response = await fetchWalletData({
+          settlementPage,
+          settlementPerPage,
+          refundPage,
+          refundPerPage,
+        });
         setWalletData(response);
       } catch (err) {
         console.error('Error fetching wallet data:', err);
@@ -72,7 +82,7 @@ export default function ProviderWallet() {
     };
 
     fetchData();
-  }, [isAuthenticated, isProvider]);
+  }, [isAuthenticated, isProvider, settlementPage, settlementPerPage, refundPage, refundPerPage]);
 
   // Set up EventSource for real-time withdrawal updates
   useEffect(() => {
@@ -99,7 +109,12 @@ export default function ProviderWallet() {
               
               // Refresh wallet data on successful/failed withdrawal
               if (data.state === 'success' || data.state === 'failed') {
-                fetchWalletData().then(setWalletData).catch(console.error);
+                fetchWalletData({
+                  settlementPage,
+                  settlementPerPage,
+                  refundPage,
+                  refundPerPage,
+                }).then(setWalletData).catch(console.error);
               }
             }
           } catch (err) {
@@ -137,7 +152,7 @@ export default function ProviderWallet() {
         setEventSourceStatus('disconnected');
       }
     };
-  }, [isAuthenticated, user?.id]);
+  }, [isAuthenticated, user?.id, settlementPage, settlementPerPage, refundPage, refundPerPage]);
 
   const formatCurrency = (amount) => {
     return new Intl.NumberFormat('en-KE', {
@@ -175,7 +190,12 @@ export default function ProviderWallet() {
     try {
       await deletePaymentMethod(methodId);
       // Refresh wallet data
-      const response = await fetchWalletData();
+      const response = await fetchWalletData({
+        settlementPage,
+        settlementPerPage,
+        refundPage,
+        refundPerPage,
+      });
       setWalletData(response);
     } catch (err) {
       console.error('Error deleting payment method:', err);
@@ -186,7 +206,12 @@ export default function ProviderWallet() {
   const handleModalSuccess = async () => {
     // Refresh wallet data after successful add/edit
     try {
-      const response = await fetchWalletData();
+      const response = await fetchWalletData({
+        settlementPage,
+        settlementPerPage,
+        refundPage,
+        refundPerPage,
+      });
       setWalletData(response);
     } catch (err) {
       console.error('Error refreshing wallet data:', err);
@@ -220,7 +245,12 @@ export default function ProviderWallet() {
 
     // Refresh wallet data to get the latest information
     try {
-      const updatedWalletData = await fetchWalletData();
+      const updatedWalletData = await fetchWalletData({
+        settlementPage,
+        settlementPerPage,
+        refundPage,
+        refundPerPage,
+      });
       setWalletData(updatedWalletData);
     } catch (err) {
       console.error('Error refreshing wallet data after withdrawal:', err);
@@ -298,6 +328,14 @@ export default function ProviderWallet() {
     </motion.div>
   );
 
+  const getPaymentMethodType = (pm) => {
+    if (pm.bank_account_number || pm.bank_id) return 'Bank';
+    if (pm.paybill || pm.account_no) return 'Paybill';
+    if (pm.till_number) return 'Till';
+    if (pm.mpesa_number) return 'M-Pesa';
+    return 'Payment Method';
+  };
+
   const PaymentMethodCard = ({ paymentMethod }) => (
     <motion.div
       className="payment-method-card"
@@ -311,54 +349,49 @@ export default function ProviderWallet() {
             <path d="M3 3H21L19 21H5L3 3Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
             <path d="M16 17H21V21H3V17H8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
           </svg>
-          <span className="method-name">{paymentMethod.default_method.toUpperCase()}</span>
+          <span className="method-name">{getPaymentMethodType(paymentMethod)}</span>
         </div>
-        <div className="payment-method-status">Default</div>
+        {paymentMethod.default_method && (
+          <div className="payment-method-status">Default</div>
+        )}
       </div>
       
       <div className="payment-method-details">
-        {/* M-Pesa method - only show M-Pesa number */}
-        {paymentMethod.default_method === 'mpesa' && paymentMethod.mpesa_number && (
+        {paymentMethod.mpesa_number && (
           <div className="payment-detail">
             <span className="detail-label">M-Pesa Number:</span>
             <span className="detail-value">{paymentMethod.mpesa_number}</span>
           </div>
         )}
-        
-        {/* Paybill method - show paybill and account number */}
-        {paymentMethod.default_method === 'paybill' && (
-          <>
-            {paymentMethod.paybill && (
-              <div className="payment-detail">
-                <span className="detail-label">Paybill:</span>
-                <span className="detail-value">{paymentMethod.paybill}</span>
-              </div>
-            )}
-            {paymentMethod.account_no && (
-              <div className="payment-detail">
-                <span className="detail-label">Account Number:</span>
-                <span className="detail-value">{paymentMethod.account_no}</span>
-              </div>
-            )}
-          </>
+        {paymentMethod.paybill && (
+          <div className="payment-detail">
+            <span className="detail-label">Paybill:</span>
+            <span className="detail-value">{paymentMethod.paybill}</span>
+          </div>
         )}
-        
-        {/* Bank method - show bank account number and bank ID */}
-        {paymentMethod.default_method === 'bank' && (
-          <>
-            {paymentMethod.bank_account_number && (
-              <div className="payment-detail">
-                <span className="detail-label">Bank Account:</span>
-                <span className="detail-value">{paymentMethod.bank_account_number}</span>
-              </div>
-            )}
-            {paymentMethod.bank_id && (
-              <div className="payment-detail">
-                <span className="detail-label">Bank ID:</span>
-                <span className="detail-value">{paymentMethod.bank_id}</span>
-              </div>
-            )}
-          </>
+        {paymentMethod.account_no && (
+          <div className="payment-detail">
+            <span className="detail-label">Account Number:</span>
+            <span className="detail-value">{paymentMethod.account_no}</span>
+          </div>
+        )}
+        {paymentMethod.till_number && (
+          <div className="payment-detail">
+            <span className="detail-label">Till Number:</span>
+            <span className="detail-value">{paymentMethod.till_number}</span>
+          </div>
+        )}
+        {paymentMethod.bank_account_number && (
+          <div className="payment-detail">
+            <span className="detail-label">Bank Account:</span>
+            <span className="detail-value">{paymentMethod.bank_account_number}</span>
+          </div>
+        )}
+        {paymentMethod.bank_id && (
+          <div className="payment-detail">
+            <span className="detail-label">Bank ID:</span>
+            <span className="detail-value">{paymentMethod.bank_id}</span>
+          </div>
         )}
       </div>
 
@@ -638,8 +671,8 @@ export default function ProviderWallet() {
               </div>
               
               <div className="settlements-list">
-                {walletData.settlements.length > 0 ? (
-                  walletData.settlements.map((settlement) => (
+                {walletData.settlements?.items?.length > 0 ? (
+                  walletData.settlements.items.map((settlement) => (
                     <SettlementCard key={settlement.id} settlement={settlement} />
                   ))
                 ) : (
@@ -656,6 +689,27 @@ export default function ProviderWallet() {
                   </div>
                 )}
               </div>
+              {walletData.settlements && (
+                <div className="pagination-controls">
+                  <button
+                    className="btn btn-secondary btn-sm"
+                    disabled={walletData.settlements.page <= 1}
+                    onClick={() => setSettlementPage((p) => Math.max(1, p - 1))}
+                  >
+                    Previous
+                  </button>
+                  <span className="pagination-info">
+                    Page {walletData.settlements.page} of {walletData.settlements.pages}
+                  </span>
+                  <button
+                    className="btn btn-secondary btn-sm"
+                    disabled={walletData.settlements.page >= walletData.settlements.pages}
+                    onClick={() => setSettlementPage((p) => p + 1)}
+                  >
+                    Next
+                  </button>
+                </div>
+              )}
             </motion.div>
 
             {/* Refunds */}
@@ -676,8 +730,8 @@ export default function ProviderWallet() {
               </div>
               
               <div className="refunds-list">
-                {walletData.refunds.length > 0 ? (
-                  walletData.refunds.map((refund) => (
+                {walletData.refunds?.items?.length > 0 ? (
+                  walletData.refunds.items.map((refund) => (
                     <RefundCard key={refund.id} refund={refund} />
                   ))
                 ) : (
@@ -694,6 +748,27 @@ export default function ProviderWallet() {
                   </div>
                 )}
               </div>
+              {walletData.refunds && (
+                <div className="pagination-controls">
+                  <button
+                    className="btn btn-secondary btn-sm"
+                    disabled={walletData.refunds.page <= 1}
+                    onClick={() => setRefundPage((p) => Math.max(1, p - 1))}
+                  >
+                    Previous
+                  </button>
+                  <span className="pagination-info">
+                    Page {walletData.refunds.page} of {walletData.refunds.pages}
+                  </span>
+                  <button
+                    className="btn btn-secondary btn-sm"
+                    disabled={walletData.refunds.page >= walletData.refunds.pages}
+                    onClick={() => setRefundPage((p) => p + 1)}
+                  >
+                    Next
+                  </button>
+                </div>
+              )}
             </motion.div>
           </div>
         </motion.main>
