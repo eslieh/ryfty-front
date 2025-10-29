@@ -130,7 +130,7 @@ export const fetchProviderExperience = async (id) => {
  */
 export const updateExperience = async (id, data) => {
   return await apiCall(`/experiences/${id}`, {
-    method: 'PUT',
+    method: 'PATCH',
     body: JSON.stringify(data)
   });
 };

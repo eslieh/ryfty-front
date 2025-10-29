@@ -438,13 +438,13 @@ class SlotList(Resource):
         if not experience:
             return {"error": "Experience not found"}, 404
         
-        # Validate slot date is within experience date range
-        slot_date = validated_data["date"]
-        if slot_date < experience.start_date:
-            return {"error": "Slot date cannot be before experience start date"}, 400
+        # # Validate slot date is within experience date range
+        # slot_date = validated_data["date"]
+        # if slot_date < experience.start_date:
+        #     return {"error": "Slot date cannot be before experience start date"}, 400
         
-        if experience.end_date and slot_date > experience.end_date:
-            return {"error": "Slot date cannot be after experience end date"}, 400
+        # if experience.end_date and slot_date > experience.end_date:
+        #     return {"error": "Slot date cannot be after experience end date"}, 400
         
         # Create slot
         slot = Slot(

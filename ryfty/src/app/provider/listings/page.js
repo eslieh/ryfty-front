@@ -68,7 +68,7 @@ export default function ListingsPage() {
       
       <div className="experience-content">
         <h3 className="experience-title">{experience.title}</h3>
-        <p className="experience-description">{experience.description || 'No description available'}</p>
+        {/* <p className="experience-description">{experience.description || 'No description available'}</p> */}
         
         <div className="experience-metrics">
           <div className="metric-item">

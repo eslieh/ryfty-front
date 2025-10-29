@@ -1271,7 +1271,7 @@ export default function ManageExperiencePage() {
                     className={`tab-button ${activeTab === tab.id ? 'active' : ''}`}
                     onClick={() => setActiveTab(tab.id)}
                   >
-                    <span className="tab-icon">{tab.icon}</span>
+                    {/* <span className="tab-icon">{tab.icon}</span> */}
                     <span className="tab-label">{tab.label}</span>
                   </button>
                 ))}
