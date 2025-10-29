@@ -220,8 +220,22 @@ export const deleteSlot = async (slotId) => {
  * Fetch wallet data (requires authentication)
  * @returns {Promise<Object>} - Wallet data including balance, payment methods, settlements, and refunds
  */
-export const fetchWalletData = async () => {
-  return await apiCall('/wallet');
+export const fetchWalletData = async ({
+  settlementPage = 1,
+  settlementPerPage = 5,
+  refundPage = 1,
+  refundPerPage = 5,
+} = {}) => {
+  const params = new URLSearchParams();
+
+  if (settlementPage != null) params.append('settlement_page', settlementPage.toString());
+  if (settlementPerPage != null) params.append('settlement_per_page', settlementPerPage.toString());
+  if (refundPage != null) params.append('refund_page', refundPage.toString());
+  if (refundPerPage != null) params.append('refund_per_page', refundPerPage.toString());
+
+  const qs = params.toString();
+  const endpoint = `/wallet${qs ? `?${qs}` : ''}`;
+  return await apiCall(endpoint);
 };
 
 /**

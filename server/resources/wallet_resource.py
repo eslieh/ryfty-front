@@ -3,21 +3,21 @@ from flask import current_app, request
 from flask_jwt_extended import get_jwt_identity, jwt_required
 from flask_restful import Resource
 from workers.initiate_mpesa import pay_track_disbursment_initiate
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 from utils.tarrifs import get_b2b_business_charge, get_b2c_business_charge
 from utils.email_templates import payout_authorization_mail
 from workers.email_worker import send_email_async_task
-from decimal import Decimal, InvalidOperation
+from datetime import datetime, timedelta
 import random
 import string
-from datetime import datetime, timedelta
 import uuid
 from sqlalchemy.exc import SQLAlchemyError
+
 
 class WalletResource(Resource):
     @jwt_required()
     def get(self):
-        """Get wallet details, payment methods, settlement txns and refunds"""
+        """Get wallet details, payment methods, settlement txns, and refunds with independent pagination"""
         user_id = get_jwt_identity()
         if not user_id:
             return {"error": "unauthorized user request"}, 403
@@ -46,8 +46,18 @@ class WalletResource(Resource):
             "bank_account_number": m.bank_account_number
         } for m in methods]
 
-        # Settlement Transactions
-        settlements = SettlementTxn.query.filter_by(user_id=user_id).all()
+        # Independent pagination parameters
+        settlement_page = request.args.get("settlement_page", 1, type=int)
+        settlement_per_page = request.args.get("settlement_per_page", 10, type=int)
+
+        refund_page = request.args.get("refund_page", 1, type=int)
+        refund_per_page = request.args.get("refund_per_page", 10, type=int)
+
+        # Settlement Transactions (paginated)
+        settlements_paginated = SettlementTxn.query.filter_by(user_id=user_id)\
+            .order_by(SettlementTxn.date_done.desc())\
+            .paginate(page=settlement_page, per_page=settlement_per_page, error_out=False)
+
         settlement_data = [{
             "id": str(s.id),
             "amount": str(s.amount),
@@ -56,24 +66,40 @@ class WalletResource(Resource):
             "service_fee": str(s.service_fee),
             "platform": s.platform,
             "date_done": s.date_done.isoformat()
-        } for s in settlements]
+        } for s in settlements_paginated.items]
 
-        # Refund Transactions
-        refunds = ReservationRefund.query.filter_by(user_id=user_id).all()
+        # Refund Transactions (paginated)
+        refunds_paginated = ReservationRefund.query.filter_by(user_id=user_id)\
+            .order_by(ReservationRefund.processed_at.desc())\
+            .paginate(page=refund_page, per_page=refund_per_page, error_out=False)
+
         refund_data = [{
             "id": str(r.id),
             "approved_amount": str(r.approved_amount),
             "status": r.status,
             "reason": r.reason,
             "processed_at": r.processed_at.isoformat() if r.processed_at else None
-        } for r in refunds]
+        } for r in refunds_paginated.items]
 
         return {
             "wallet": wallet_data,
             "payment_methods": payment_methods,
-            "settlements": settlement_data,
-            "refunds": refund_data
+            "settlements": {
+                "items": settlement_data,
+                "page": settlements_paginated.page,
+                "pages": settlements_paginated.pages,
+                "total": settlements_paginated.total,
+                "per_page": settlement_per_page
+            },
+            "refunds": {
+                "items": refund_data,
+                "page": refunds_paginated.page,
+                "pages": refunds_paginated.pages,
+                "total": refunds_paginated.total,
+                "per_page": refund_per_page
+            }
         }, 200
+
 
 class PaymentMethodResource(Resource):
     @jwt_required()
