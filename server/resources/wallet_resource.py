@@ -80,7 +80,7 @@ class WalletResource(Resource):
             "reason": r.reason,
             "processed_at": r.processed_at.isoformat() if r.processed_at else None
         } for r in refunds_paginated.items]
-     
+
         return {
             "wallet": wallet_data,
             "payment_methods": payment_methods,

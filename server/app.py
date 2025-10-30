@@ -46,7 +46,10 @@ def create_app():
     
     app.config.from_object(Config)
     app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
-        "poolclass": sqlalchemy.pool.NullPool
+        "pool_pre_ping": True,
+        "pool_recycle": 300,
+        "pool_size": 5,
+        "max_overflow": 2,
     }
 
     # Extensions
