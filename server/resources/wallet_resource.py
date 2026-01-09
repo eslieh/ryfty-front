@@ -2,7 +2,7 @@ from models import db, SettlementTxn, ApiDisbursement, UserWallet, ReservationRe
 from flask import current_app, request
 from flask_jwt_extended import get_jwt_identity, jwt_required
 from flask_restful import Resource
-from workers.initiate_mpesa import pay_track_disbursment_initiate
+from workers.initiate_mpesa import initiate_disbursement as pay_track_disbursment_initiate
 from decimal import Decimal, InvalidOperation
 from utils.tarrifs import get_b2b_business_charge, get_b2c_business_charge
 from utils.email_templates import payout_authorization_mail

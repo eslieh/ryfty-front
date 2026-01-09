@@ -9,7 +9,7 @@ from sqlalchemy.orm import joinedload, selectinload, contains_eager
 from sqlalchemy.exc import SQLAlchemyError, IntegrityError
 from utils.subscribe_manager import push_to_queue
 from sqlalchemy.dialects.postgresql import JSONB
-from workers.initiate_mpesa import initiate_payment, pay_track_collection_initiate
+from workers.initiate_mpesa import initiate_payment
 import json
 from decimal import Decimal 
 from datetime import datetime, timedelta
@@ -80,7 +80,7 @@ class PublicReservationResource(Resource):
         # -----------------------
         
         # initiate_payment.delay(api_collection.id)
-        pay_track_collection_initiate.delay(api_collection.id)
+        initiate_payment.delay(api_collection.id)
         
         
 
@@ -141,7 +141,7 @@ class InstallmentReservationResource(Resource):
         # -----------------------
         
         # initiate_payment.delay(api_collection.id)
-        pay_track_collection_initiate.delay(api_collection.id)
+        initiate_payment.delay(api_collection.id)
         
         
 

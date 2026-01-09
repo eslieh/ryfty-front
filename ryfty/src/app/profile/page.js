@@ -260,7 +260,7 @@ export default function ProfilePage() {
       bio: profileData?.bio || '',
       avatar_url: profileData?.avatar_url || ''
     });
-    setIsEditing(false);
+    setIsEditing(false); 
     setError(null);
   };
 

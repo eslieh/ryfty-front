@@ -53,7 +53,7 @@ class DeviceAuthorization(Resource):
             "device_name": device_name,
             "experience_id": experience_id,
             "slot_id": slot_id,
-            "authorized_by": provider_id,
+            "authorized_by": provider_id, 
             "authorized_at": datetime.utcnow().isoformat(),
             "expires_at": (datetime.utcnow() + timedelta(hours=8)).isoformat(),
             "active": True,

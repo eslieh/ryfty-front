@@ -7,7 +7,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from typing import Optional
 from workers.email_worker import send_reservation_email_async
 from sqlalchemy import func
-from utils.tarrifs import get_b2c_business_charge, get_b2b_business_charge, get_original_b2b_amount, get_original_b2c_value
+# from utils.tarrifs import get_b2c_business_charge, get_b2b_business_charge, get_original_b2b_amount, get_original_b2c_value
 
 logger = logging.getLogger(__name__)
 
