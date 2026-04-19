@@ -175,26 +175,22 @@ const PaymentMethodModal = ({ isOpen, onClose, onSuccess, editingMethod = null }
         onClick={onClose}
       >
         <motion.div
-          className="modal-content payment-method-modal"
+          className="modal-content premium-modal-container"
           initial={{ opacity: 0, scale: 0.95, y: 20 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.95, y: 20 }}
           onClick={(e) => e.stopPropagation()}
         >
-          <div className="modal-header">
+          <div className="premium-modal-content">
+            <button className="premium-modal-close" onClick={onClose} disabled={loading}>
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M18 6L6 18M6 6L18 18" />
+              </svg>
+            </button>
+            
             <h2 className="modal-title">
               {editingMethod ? 'Edit Payment Method' : 'Add Payment Method'}
             </h2>
-            <button 
-              className="modal-close"
-              onClick={onClose}
-              disabled={loading}
-            >
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-                <path d="M18 6L6 18M6 6L18 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
-            </button>
-          </div>
 
           <form onSubmit={handleSubmit} className="payment-method-form">
             {/* Method Type Selection */}
@@ -359,34 +355,37 @@ const PaymentMethodModal = ({ isOpen, onClose, onSuccess, editingMethod = null }
             )}
 
             {/* Form Actions */}
-            <div className="form-actions">
+            <div className="form-actions" style={{ border: 'none', padding: 0, marginTop: '2rem' }}>
+              <button
+                type="submit"
+                className="btn-premium-done"
+                disabled={loading}
+                style={{ background: 'var(--primary)' }}
+              >
+                {loading ? (
+                  <>
+                    <div className="spinner small" style={{ borderColor: 'white', borderTopColor: 'transparent' }}></div>
+                    {editingMethod ? 'Updating...' : 'Adding...'}
+                  </>
+                ) : (
+                  editingMethod ? 'Update Payment Method' : 'Add Payment Method'
+                )}
+              </button>
               <button
                 type="button"
                 className="btn btn-secondary"
                 onClick={onClose}
                 disabled={loading}
+                style={{ width: '100%', marginTop: '0.75rem', border: 'none' }}
               >
                 Cancel
               </button>
-              <button
-                type="submit"
-                className="btn btn-primary"
-                disabled={loading}
-              >
-                {loading ? (
-                  <>
-                    <div className="spinner small"></div>
-                    {editingMethod ? 'Updating...' : 'Adding...'}
-                  </>
-                ) : (
-                  editingMethod ? 'Update Method' : 'Add Method'
-                )}
-              </button>
             </div>
           </form>
-        </motion.div>
+        </div>
       </motion.div>
-    </AnimatePresence>
+    </motion.div>
+  </AnimatePresence>
   );
 };
 

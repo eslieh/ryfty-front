@@ -12,7 +12,7 @@ import '@/styles/wallet.css';
 import PaymentMethodModal from '@/components/PaymentMethodModal';
 import WithdrawalModal from '@/components/WithdrawalModal';
 import config from '@/config';
-
+import { AnimatePresence } from 'framer-motion';
 // Helper function to get the correct API base URL
 const getApiBaseUrl = () => {
   return config.api.forceLocalhost ? 'http://localhost:5000' : config.api.baseUrl;
@@ -172,6 +172,27 @@ export default function ProviderWallet() {
     });
   };
 
+  const formatTimelineDate = (dateString) => {
+    if (!dateString) return { day: '?', dateNumber: '?' };
+    const d = new Date(dateString);
+    return {
+      day: d.toLocaleDateString('en-US', { weekday: 'short' }),
+      dateNumber: d.getDate()
+    };
+  };
+
+  const groupSettlementsByDate = (items) => {
+    if (!items) return {};
+    return items.reduce((groups, item) => {
+      const date = new Date(item.date_done).toLocaleDateString();
+      if (!groups[date]) {
+        groups[date] = [];
+      }
+      groups[date].push(item);
+      return groups;
+    }, {});
+  };
+
   const handleAddPaymentMethod = () => {
     setEditingMethod(null);
     setIsModalOpen(true);
@@ -261,38 +282,52 @@ export default function ProviderWallet() {
     setIsWithdrawalModalOpen(false);
   };
 
-  const SettlementCard = ({ settlement }) => (
-    <motion.div
-      className="settlement-card"
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.3 }}
+  const SettlementItem = ({ settlement }) => (
+    <motion.div 
+      className="timeline-card-content"
+      whileHover={{ x: 5 }}
+      initial={{ opacity: 0, x: 20 }}
+      animate={{ opacity: 1, x: 0 }}
     >
-      <div className="settlement-header">
-        <div className="settlement-amount">{formatCurrency(settlement.amount)}</div>
-        <div className="settlement-date">{formatDate(settlement.date_done)}</div>
+      <div className="settlement-icon-wrapper">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M12 2v10M17 7l-5 5-5-5M4 20h16" />
+        </svg>
       </div>
-      
-      <div className="settlement-details">
-        <div className="settlement-detail">
-          <span className="detail-label">Transaction ID:</span>
-          <span className="detail-value">{settlement.txn_id}</span>
+      <div className="settlement-info">
+        <div className="settlement-main-row">
+          <div className="settlement-amount">{formatCurrency(settlement.amount)}</div>
+          <div className="settlement-meta">
+            <span className="settlement-time">
+              {new Date(settlement.date_done).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+            </span>
+            <div className="settlement-status-pill">Success</div>
+          </div>
         </div>
-        <div className="settlement-detail">
-          <span className="detail-label">Checkout ID:</span>
-          <span className="detail-value">{settlement.checkout_id}</span>
-        </div>
-        <div className="settlement-detail">
-          <span className="detail-label">Service Fee:</span>
-          <span className="detail-value">{formatCurrency(settlement.service_fee)}</span>
-        </div>
-        <div className="settlement-detail">
-          <span className="detail-label">Platform:</span>
-          <span className="detail-value">{settlement.platform ? 'Yes' : 'No'}</span>
+        <div className="settlement-secondary-row">
+          <span className="txn-id">Withdrawal • {settlement.txn_id}</span>
         </div>
       </div>
     </motion.div>
   );
+
+  const SettlementGroup = ({ date, items }) => {
+    const { day, dateNumber } = formatTimelineDate(items[0].date_done);
+    return (
+      <div className="timeline-item-group">
+        <div className="timeline-marker">
+          <div className="day-text">{day}</div>
+          <div className="date-bubble">{dateNumber}</div>
+          <div className="timeline-line"></div>
+        </div>
+        <div className="timeline-cards-stack">
+          {items.map(item => (
+            <SettlementItem key={item.id} settlement={item} />
+          ))}
+        </div>
+      </div>
+    );
+  };
 
   const RefundCard = ({ refund }) => (
     <motion.div
@@ -336,25 +371,34 @@ export default function ProviderWallet() {
     return 'Payment Method';
   };
 
-  const PaymentMethodCard = ({ paymentMethod }) => (
-    <motion.div
-      className="payment-method-card"
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.3 }}
-    >
-      <div className="payment-method-header">
-        <div className="payment-method-type">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-            <path d="M3 3H21L19 21H5L3 3Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-            <path d="M16 17H21V21H3V17H8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-          </svg>
-          <span className="method-name">{getPaymentMethodType(paymentMethod)}</span>
+  const PaymentMethodCard = ({ paymentMethod, index }) => {
+    const isPrimary = index === 0; // Assuming the first one is the primary payout method
+    
+    return (
+      <motion.div
+        className={`payment-method-card ${isPrimary ? 'is-active' : ''}`}
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.3 }}
+      >
+        <div className="payment-method-header">
+          <div className="payment-method-type">
+            <div className="type-icon-wrapper">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M21 4H3a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h18a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2zM1 10h22" />
+              </svg>
+            </div>
+            <span className="method-name">{getPaymentMethodType(paymentMethod)}</span>
+          </div>
+          {isPrimary && (
+            <div className="payment-method-status primary">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+                <path d="M20 6L9 17L4 12" />
+              </svg>
+              <span>Primary</span>
+            </div>
+          )}
         </div>
-        {paymentMethod.default_method && (
-          <div className="payment-method-status">Default</div>
-        )}
-      </div>
       
       <div className="payment-method-details">
         {paymentMethod.mpesa_number && (
@@ -417,7 +461,8 @@ export default function ProviderWallet() {
         </button>
       </div>
     </motion.div>
-  );
+    );
+  };
 
   if (!isAuthenticated || !isProvider()) {
     return (
@@ -453,23 +498,18 @@ export default function ProviderWallet() {
       <div className="provider-main-page">
         <ProviderHeader variant="main" />
         <div className="provider-layout-content">
-          <TabNavigation
-            className="provider-left-nav"
-            orientation="vertical"
-          />
+          <TabNavigation className="provider-left-nav" orientation="vertical" />
           <div className="provider-main-content">
-            <div className="error-state">
+            <div className="error-state glass-card">
               <div className="error-icon">
-                <svg width="64" height="64" viewBox="0 0 24 24" fill="none">
-                  <path d="M12 9V13M12 17H12.01M21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                <svg width="48" height="48" viewBox="0 0 24 24" fill="none">
+                  <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2" />
+                  <path d="M12 8V12M12 16H12.01" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
                 </svg>
               </div>
-              <h3 className="error-title">Failed to Load Wallet</h3>
-              <p className="error-description">{error}</p>
-              <button 
-                className="btn btn-primary"
-                onClick={() => window.location.reload()}
-              >
+              <h3>Unable to load wallet</h3>
+              <p>{error}</p>
+              <button className="btn btn-primary" onClick={() => window.location.reload()}>
                 Try Again
               </button>
             </div>
@@ -478,6 +518,25 @@ export default function ProviderWallet() {
       </div>
     );
   }
+
+  const QuickActionCard = ({ title, subtitle, icon, onClick }) => (
+    <motion.div 
+      className="quick-action-card"
+      onClick={onClick}
+      whileTap={{ scale: 0.98 }}
+    >
+      <div className="quick-action-icon">{icon}</div>
+      <div className="quick-action-info">
+        <div className="quick-action-title">{title}</div>
+        <div className="quick-action-subtitle">{subtitle}</div>
+      </div>
+      <div className="quick-action-arrow">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M5 12h14M12 5l7 7-7 7" />
+        </svg>
+      </div>
+    </motion.div>
+  );
 
   return (
     <div className="provider-main-page">
@@ -496,118 +555,67 @@ export default function ProviderWallet() {
           transition={{ duration: 0.5, delay: 0.2 }}
         >
           <div className="content-wrapper">
-            {/* Header */}
+            {/* Header & Balance */}
             <div className="wallet-header">
-              <div className="header-content">
-                <div>
-                  <h1 className="page-title">Wallet & Payments</h1>
-                  <p className="page-subtitle">
-                    Manage your earnings and payment settings
-                  </p>
-                </div>
-                <div className="event-source-status">
-                  <div className={`status-indicator ${eventSourceStatus}`}>
-                    <div className="status-dot"></div>
-                    <span className="status-text">
-                      {eventSourceStatus === 'connecting' && 'Connecting to live updates...'}
-                      {eventSourceStatus === 'connected' && 'Live updates active'}
-                      {eventSourceStatus === 'disconnected' && 'Live updates disconnected'}
-                    </span>
-                  </div>
+              <h1 className="page-title">Your Balance</h1>
+              <motion.div 
+                className="balance-amounts"
+                initial={{ scale: 0.9, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                transition={{ type: "spring", stiffness: 100 }}
+              >
+                {formatCurrency(walletData.wallet.balance)}
+              </motion.div>
+              
+              <div className="event-source-status">
+                <div className={`status-indicator ${eventSourceStatus}`}>
+                  <span className="status-text">
+                    {eventSourceStatus === 'connecting' && 'Syncing...'}
+                    {eventSourceStatus === 'connected' && 'Live Updates Active'}
+                    {eventSourceStatus === 'disconnected' && 'Live Updates Off'}
+                  </span>
                 </div>
               </div>
             </div>
 
-            {/* Balance Card */}
-            <motion.div
-              className="balance-cards wallet"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: 0.1 }}
-            >
-              <div className="balance-content">
-                <div className="balance-label">Available Balance</div>
-                <div className="balance-amounts">{formatCurrency(walletData.wallet.balance)}</div>
-                <div className="balance-updated">
-                  Last updated: {formatDate(walletData.wallet.updated_at)}
-                </div>
-              </div>
-              <button 
-                className="withdraw-button"
+            {/* Quick Actions */}
+            <div className="quick-actions-grid">
+              <QuickActionCard 
+                title="Withdraw"
+                subtitle="Transfer to your account"
+                icon={<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2v10M17 7l-5 5-5-5M4 20h16" /></svg>}
                 onClick={handleWithdrawClick}
-                disabled={!walletData?.wallet?.balance || parseFloat(walletData.wallet.balance) <= 0}
-              >
-                Withdraw
-              </button>
-            </motion.div>
+              />
+              <QuickActionCard 
+                title="Payments"
+                subtitle="Manage payout methods"
+                icon={<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 4H3a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h18a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2zM1 10h22" /></svg>}
+                onClick={handleAddPaymentMethod}
+              />
+            </div>
 
-            {/* Withdrawal Status */}
-            {withdrawalStatus && (
-              <motion.div
-                className="withdrawal-status-card"
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.3 }}
-              >
-                <div className="withdrawal-status-header">
-                  <div className="withdrawal-status-icon">
-                    {withdrawalStatus.type === 'withdrawal_initiated' && (
-                      <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-                        <path d="M12 2L2 7L12 12L22 7L12 2Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                        <path d="M2 17L12 22L22 17" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                        <path d="M2 12L12 17L22 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                      </svg>
-                    )}
-                    {withdrawalStatus.type === 'disbursment.success' && (
-                      <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-                        <path d="M9 12L11 14L15 10M21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                      </svg>
-                    )}
-                    {withdrawalStatus.type === 'disbursment.failed' && (
-                      <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-                        <path d="M12 9V13M12 17H12.01M21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                      </svg>
-                    )}
+            {/* Withdrawal Status Alert */}
+            <AnimatePresence>
+              {withdrawalStatus && (
+                <motion.div
+                  className={`withdrawal-status-card ${withdrawalStatus.type.includes('success') ? 'success' : 'info'}`}
+                  initial={{ opacity: 0, y: -20, scale: 0.95 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.95 }}
+                >
+                  <div className="status-content">
+                    <div className="status-icon">
+                      {withdrawalStatus.type.includes('success') ? '✅' : '⏳'}
+                    </div>
+                    <div className="status-text">
+                      <h4>{withdrawalStatus.type.includes('success') ? 'Withdrawal Successful' : 'Withdrawal Processing'}</h4>
+                      <p>{formatCurrency(withdrawalStatus.data?.amount || 0)} is on its way.</p>
+                    </div>
+                    <button className="status-close" onClick={() => setWithdrawalStatus(null)}>×</button>
                   </div>
-                  <div className="withdrawal-status-text">
-                    <h3 className="withdrawal-status-title">
-                      {withdrawalStatus.type === 'withdrawal_initiated' && 'Withdrawal Initiated'}
-                      {withdrawalStatus.type === 'disbursment.success' && 'Withdrawal Successful'}
-                      {withdrawalStatus.type === 'disbursment.failed' && 'Withdrawal Failed'}
-                    </h3>
-                    <p className="withdrawal-status-message">
-                      {withdrawalStatus.type === 'withdrawal_initiated' && 'Your withdrawal request is being processed.'}
-                      {withdrawalStatus.type === 'disbursment.success' && 'Your withdrawal has been completed successfully.'}
-                      {withdrawalStatus.type === 'disbursment.failed' && 'Your withdrawal request failed. Please try again.'}
-                    </p>
-                  </div>
-                  <button
-                    className="withdrawal-status-close"
-                    onClick={() => setWithdrawalStatus(null)}
-                  >
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-                      <path d="M18 6L6 18M6 6L18 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                    </svg>
-                  </button>
-                </div>
-                {withdrawalStatus.data && (
-                  <div className="withdrawal-status-details">
-                    {(withdrawalStatus.data.transaction_id || withdrawalStatus.data.disbursement_id) && (
-                      <div className="withdrawal-detail">
-                        <span className="detail-label">Transaction ID:</span>
-                        <span className="detail-value">{withdrawalStatus.data.transaction_id || withdrawalStatus.data.disbursement_id}</span>
-                      </div>
-                    )}
-                    {withdrawalStatus.data.amount && (
-                      <div className="withdrawal-detail">
-                        <span className="detail-label">Amount:</span>
-                        <span className="detail-value">{formatCurrency(withdrawalStatus.data.amount)}</span>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </motion.div>
-            )}
+                </motion.div>
+              )}
+            </AnimatePresence>
 
             {/* Payment Methods */}
             <motion.div
@@ -633,8 +641,8 @@ export default function ProviderWallet() {
               
               <div className="payment-methods-grid">
                 {walletData.payment_methods.length > 0 ? (
-                  walletData.payment_methods.map((method) => (
-                    <PaymentMethodCard key={method.id} paymentMethod={method} />
+                  walletData.payment_methods.map((method, index) => (
+                    <PaymentMethodCard key={method.id} paymentMethod={method} index={index} />
                   ))
                 ) : (
                   <div className="empty-state">
@@ -672,8 +680,8 @@ export default function ProviderWallet() {
               
               <div className="settlements-list">
                 {walletData.settlements?.items?.length > 0 ? (
-                  walletData.settlements.items.map((settlement) => (
-                    <SettlementCard key={settlement.id} settlement={settlement} />
+                  Object.entries(groupSettlementsByDate(walletData.settlements.items)).map(([date, items]) => (
+                    <SettlementGroup key={date} date={date} items={items} />
                   ))
                 ) : (
                   <div className="empty-state">

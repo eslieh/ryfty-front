@@ -284,10 +284,7 @@ export default function ProviderProfile() {
       <div className="provider-main-page">
         <ProviderHeader variant="main" />
         <div className="provider-layout-content">
-          <TabNavigation
-            className="provider-left-nav"
-            orientation="vertical"
-          />
+          <TabNavigation className="provider-left-nav" orientation="vertical" />
           <div className="provider-main-content">
             <div className="profile-container">
               <div className="loading-container">
@@ -306,10 +303,7 @@ export default function ProviderProfile() {
       <ProviderHeader variant="main" />
 
       <div className="provider-layout-content">
-        <TabNavigation
-          className="provider-left-nav"
-          orientation="vertical"
-        />
+        <TabNavigation className="provider-left-nav" orientation="vertical" />
 
         <div 
           className="provider-main-content"
@@ -317,283 +311,122 @@ export default function ProviderProfile() {
           onTouchMove={handleTouchMove}
           onTouchEnd={handleTouchEnd}
         >
-          <div className="profile-container">
-            {/* Pull to refresh indicator */}
-            <AnimatePresence>
-              {(isPulling || isRefreshing) && (
-                <motion.div 
-                  className="pull-refresh-indicator"
-                  initial={{ opacity: 0, y: -50 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -50 }}
-                  style={{ transform: `translateY(${pullDistance}px)` }}
-                >
-                  <div className="refresh-icon">
-                    {isRefreshing ? (
-                      <div className="loading-spinner"></div>
-                    ) : (
-                      <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-                        <path d="M3 12A9 9 0 0 1 12 3A9 9 0 0 1 21 12M21 12A9 9 0 0 1 12 21A9 9 0 0 1 3 12M21 12H3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                      </svg>
-                    )}
-                  </div>
-                  <span>{isRefreshing ? 'Refreshing...' : 'Pull to refresh'}</span>
-                </motion.div>
-              )}
-            </AnimatePresence>
-
-            {/* Profile Header */}
-            <motion.div 
-              className="profile-header"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5 }}
-            >
-              <h1 className="profile-title">Provider Profile</h1>
-              <p className="profile-subtitle">Manage your provider account settings</p>
-            </motion.div>
-
-            {/* Profile Card */}
-            <motion.div 
-              className="profile-card"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: 0.1 }}
-            >
-              {/* Avatar Section */}
-              <div className="avatar-section">
-                <div className="avatar-container">
-                  {formData.avatar_url ? (
+          <div className="profile-layout-container provider-profile-layout">
+            {/* Internal Profile Sidebar - Identity & Navigation */}
+            <aside className="profile-sidebar provider-profile-sidebar">
+              <div className="user-brief">
+                <div className="avatar-edit-section" style={{ position: 'relative' }}>
+                  <div className="avatar-wrapper" style={{ width: '64px', height: '64px', cursor: 'pointer' }} onClick={() => fileInputRef.current.click()}>
                     <NextImage
-                      src={formData.avatar_url}
+                      src={formData.avatar_url || "/placeholder-avatar.jpg"}
                       alt={formData.name || 'Profile'}
-                      width={120}
-                      height={120}
-                      className="profile-avatar-image"
+                      width={64}
+                      height={64}
+                      className="sidebar-avatar"
                     />
-                  ) : (
-                    <div className="profile-avatar-placeholder">
-                      <svg width="48" height="48" viewBox="0 0 24 24" fill="none">
-                        <path d="M20 21V19C20 17.9391 19.5786 16.9217 18.8284 16.1716C18.0783 15.4214 17.0609 15 16 15H8C6.93913 15 5.92172 15.4214 5.17157 16.1716C4.42143 16.9217 4 17.9391 4 19V21M16 7C16 9.20914 14.2091 11 12 11C9.79086 11 8 9.20914 8 7C8 4.79086 9.79086 3 12 3C14.2091 3 16 4.79086 16 7Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                      </svg>
+                    <div className="avatar-overlay-mini" style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.3)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: 0, transition: 'opacity 0.2s' }}>
+                       <svg width="12" height="12" viewBox="0 0 24 24" fill="white"><path d="M23 4H19V2H5V4H1V22H23V4ZM12 18C8.685 18 6 15.315 6 12C6 8.685 8.685 6 12 6C15.315 6 18 8.685 18 12C18 15.315 15.315 18 12 18Z"/></svg>
                     </div>
-                  )}
-                  
-                  {/* Upload Overlay - Always visible when editing */}
-                  {isEditing && (
-                    <div 
-                      className="avatar-upload-overlay"
-                      onClick={() => fileInputRef.current?.click()}
-                    >
-                      <input
-                        ref={fileInputRef}
-                        type="file"
-                        accept="image/*"
-                        onChange={handleAvatarUpload}
-                        className="avatar-upload-input"
-                      />
-                      <div className="upload-content">
-                        {uploadingAvatar ? (
-                          <div className="upload-loading">
-                            <div className="loading-spinner"></div>
-                            <span className="upload-text">Uploading...</span>
-                          </div>
-                        ) : (
-                          <div className="upload-prompt">
-                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" className="upload-icon">
-                              <path d="M14.5 4H20C20.5523 4 21 4.44772 21 5V19C21 19.5523 20.5523 20 20 20H4C3.44772 20 3 19.5523 3 19V5C3 4.44772 3.44772 4 4 4H9.5M14.5 4V2C14.5 1.44772 14.0523 1 13.5 1H10.5C9.94772 1 9.5 1.44772 9.5 2V4M14.5 4H9.5M9 12L12 9L15 12M12 9V18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                            </svg>
-                            <span className="upload-text">Change Photo</span>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  )}
+                  </div>
+                  <input ref={fileInputRef} type="file" accept="image/*" onChange={handleAvatarUpload} hidden />
                 </div>
                 
-                <div className="avatar-info">
-                  <h2 className="profile-name">{formData.name || 'No name set'}</h2>
-                  <p className="profile-email">{profileData.email}</p>
-                  <p className="profile-role">{profileData.role}</p>
+                <div className="user-identity">
+                  <h2>{formData.name || 'Set Name'}</h2>
+                  <p>{profileData.email}</p>
                 </div>
+
+                <button 
+                  className="change-avatar-btn" 
+                  onClick={() => fileInputRef.current.click()}
+                  style={{ fontSize: '0.7rem', padding: '0.25rem 0.5rem', marginTop: '0.25rem' }}
+                >
+                  {uploadingAvatar ? "..." : "Change photo"}
+                </button>
               </div>
 
-              {/* Profile Menu */}
-              <div className="profile-menu">
-                {isEditing ? (
-                  <div className="edit-form">
-                    <div className="form-group">
-                      <label htmlFor="name" className="form-label">Name</label>
-                      <input
-                        type="text"
-                        id="name"
-                        className="form-input"
-                        value={formData.name}
-                        onChange={(e) => handleInputChange('name', e.target.value)}
-                        placeholder="Enter your name"
-                      />
-                    </div>
+              <nav className="sidebar-nav">
+                <button className="nav-item-p active">
+                  <div className="nav-icon">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20 21V19C20 17.9391 19.5786 16.9217 18.8284 16.1716C18.0783 15.4214 17.0609 15 16 15H8C6.93913 15 5.92172 15.4214 5.17157 16.1716C4.42143 16.9217 4 17.9391 4 19V21M16 7C16 9.20914 14.2091 11 12 11C9.79086 11 8 9.20914 8 7C8 4.79086 9.79086 3 12 3C14.2091 3 16 4.79086 16 7Z"/></svg>
+                  </div>
+                  <span>About me</span>
+                </button>
+              </nav>
 
-                    <div className="form-group">
-                      <label htmlFor="bio" className="form-label">Bio</label>
-                      <textarea
-                        id="bio"
-                        className="form-textarea"
-                        value={formData.bio}
-                        onChange={(e) => handleInputChange('bio', e.target.value)}
-                        placeholder="Tell us about yourself"
-                        rows={4}
-                      />
-                    </div>
+              <div className="sidebar-actions-group" style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                <button
+                  className="switch-role-btn"
+                  onClick={handleRoleSwitch}
+                  style={{ background: '#f8fafc', border: '1px solid #e2e8f0', padding: '0.75rem', borderRadius: '12px' }}
+                >
+                  <div className="nav-icon">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M7 16V4M7 4L3 8M7 4L11 8M17 8V20M17 20L21 16M17 20L13 16"/></svg>
+                  </div>
+                  <span style={{ fontSize: '0.85rem' }}>Switch to Customer</span>
+                </button>
+                
+                <button 
+                  onClick={handleLogout} 
+                  className="sidebar-logout"
+                  style={{ textAlign: 'center', fontSize: '0.85rem', padding: '0.5rem', borderTop: 'none', color: '#64748b' }}
+                >
+                  Logout
+                </button>
+              </div>
+            </aside>
 
-                    {error && (
-                      <div className="form-error">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                          <path d="M12 8V12M12 16H12.01M22 12C22 17.5228 17.5228 22 12 22C6.47715 22 2 17.5228 2 12C2 6.47715 6.47715 2 12 2C17.5228 2 22 6.47715 22 12Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                        </svg>
-                        {error}
-                      </div>
-                    )}
+            {/* Internal Profile Content */}
+            <main className="profile-main">
+              <AnimatePresence mode="wait">
+                <motion.div
+                  key="about"
+                  className="tab-content about-me"
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -20 }}
+                >
+                  <div className="about-me-card" style={{ gap: '2rem' }}>
+                    <div className="form-section" style={{ width: '100%', maxWidth: '100%' }}>
+                      <div className="profile-form" style={{ maxWidth: '600px' }}>
+                        <div className="field-group">
+                          <label>Display Name</label>
+                          <input
+                            value={formData.name}
+                            onChange={(e) => handleInputChange("name", e.target.value)}
+                            placeholder="Your name"
+                          />
+                        </div>
+                        <div className="field-group">
+                          <label>Short Bio</label>
+                          <textarea
+                            value={formData.bio}
+                            onChange={(e) => handleInputChange("bio", e.target.value)}
+                            placeholder="Tell others about yourself"
+                            rows={5}
+                          />
+                        </div>
 
-                    <div className="form-actions">
-                      <button
-                        className="btn btn-secondary"
-                        onClick={handleCancel}
-                        disabled={saving}
-                      >
-                        Cancel
-                      </button>
-                      <button
-                        className="btn btn-primary"
-                        onClick={handleSave}
-                        disabled={saving}
-                      >
-                        {saving ? (
-                          <>
-                            <div className="loading-spinner"></div>
-                            Saving...
-                          </>
-                        ) : (
-                          'Save Changes'
+                        {error && (
+                          <div className="form-error" style={{ color: '#dc2626', fontSize: '0.875rem', marginTop: '1rem' }}>
+                            {error}
+                          </div>
                         )}
-                      </button>
+
+                        <button
+                          className="save-btn"
+                          onClick={handleSave}
+                          disabled={saving}
+                          style={{ background: '#00915a', color: 'white' }}
+                        >
+                          {saving ? "Saving..." : "Save changes"}
+                        </button>
+                      </div>
                     </div>
                   </div>
-                ) : (
-                  <div className="menu-items">
-                    {/* Menu Items */}
-                    <div className="menu-section">
-                      <button className="menu-item" onClick={() => setIsEditing(true)}>
-                        <div className="menu-icon">
-                          <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-                            <path d="M12 15C13.6569 15 15 13.6569 15 12C15 10.3431 13.6569 9 12 9C10.3431 9 9 10.3431 9 12C9 13.6569 10.3431 15 12 15Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                            <path d="M2.458 12C3.732 7.943 7.523 5 12 5C16.478 5 20.268 7.943 21.542 12C20.268 16.057 16.478 19 12 19C7.523 19 3.732 16.057 2.458 12Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                          </svg>
-                        </div>
-                        <span className="menu-text">Account settings</span>
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" className="menu-arrow">
-                          <path d="M9 18L15 12L9 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                        </svg>
-                      </button>
-
-                      <button className="menu-item" onClick={() => setIsEditing(true)}>
-                        <div className="menu-icon">
-                          <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-                            <path d="M20 21V19C20 17.9391 19.5786 16.9217 18.8284 16.1716C18.0783 15.4214 17.0609 15 16 15H8C6.93913 15 5.92172 15.4214 5.17157 16.1716C4.42143 16.9217 4 17.9391 4 19V21M16 7C16 9.20914 14.2091 11 12 11C9.79086 11 8 9.20914 8 7C8 4.79086 9.79086 3 12 3C14.2091 3 16 4.79086 16 7Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                          </svg>
-                        </div>
-                        <span className="menu-text">View profile</span>
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" className="menu-arrow">
-                          <path d="M9 18L15 12L9 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                        </svg>
-                      </button>
-
-                      <button className="menu-item">
-                        <div className="menu-icon">
-                          <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-                            <path d="M9 12L11 14L15 10M21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                          </svg>
-                        </div>
-                        <span className="menu-text">Privacy</span>
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" className="menu-arrow">
-                          <path d="M9 18L15 12L9 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                        </svg>
-                      </button>
-
-                      <button className="menu-item">
-                        <div className="menu-icon">
-                          <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-                            <path d="M9.09 9C9.3251 8.33167 9.78915 7.76811 10.4 7.40913C11.0108 7.05016 11.7289 6.91494 12.4272 7.02451C13.1255 7.13408 13.7588 7.48223 14.2151 8.00001C14.6713 8.51779 14.9211 9.16936 14.92 9.84C14.92 12 12.92 13.5 12 13.5C11.08 13.5 9.08 12 9.08 9.84C9.08 9.28 9.08 9 9.09 9Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                            <path d="M12 17H12.01" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                          </svg>
-                        </div>
-                        <span className="menu-text">Get help</span>
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" className="menu-arrow">
-                          <path d="M9 18L15 12L9 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                        </svg>
-                      </button>
-                    </div>
-
-                    {/* Separator */}
-                    <div className="menu-separator"></div>
-
-                    {/* Additional Menu Items */}
-                    <div className="menu-section">
-                      <button className="menu-item">
-                        <div className="menu-icon">
-                          <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-                            <path d="M16 21V19C16 17.9391 15.5786 16.9217 14.8284 16.1716C14.0783 15.4214 13.0609 15 12 15C10.9391 15 9.92172 15.4214 9.17157 16.1716C8.42143 16.9217 8 17.9391 8 19V21M12 7C13.6569 7 15 8.34315 15 10C15 11.6569 13.6569 13 12 13C10.3431 13 9 11.6569 9 10C9 8.34315 10.3431 7 12 7Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                            <path d="M22 12L18 8M22 12L18 16M22 12H2" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                          </svg>
-                        </div>
-                        <span className="menu-text">Refer a friend</span>
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" className="menu-arrow">
-                          <path d="M9 18L15 12L9 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                        </svg>
-                      </button>
-
-                      <button className="menu-item">
-                        <div className="menu-icon">
-                          <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-                            <path d="M17 21V19C17 17.9391 16.5786 16.9217 15.8284 16.1716C15.0783 15.4214 14.0609 15 13 15H5C3.93913 15 2.92172 15.4214 2.17157 16.1716C1.42143 16.9217 1 17.9391 1 19V21M9 7C11.2091 7 13 8.79086 13 11C13 13.2091 11.2091 15 9 15C6.79086 15 5 13.2091 5 11C5 8.79086 6.79086 7 9 7Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                            <path d="M23 21V19C23 17.9391 22.5786 16.9217 21.8284 16.1716C21.0783 15.4214 20.0609 15 19 15H17" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                          </svg>
-                        </div>
-                        <span className="menu-text">Find experiences</span>
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" className="menu-arrow">
-                          <path d="M9 18L15 12L9 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                        </svg>
-                      </button>
-                    </div>
-
-                    {/* Action Buttons */}
-                    <div className="action-buttons">
-                      {/* Mobile Customer Switch Button - Only visible on mobile for provider role users */}
-                      <button 
-                        className="btn btn-customer-switch mobile-only"
-                        onClick={handleRoleSwitch}
-                      >
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-                          <path d="M16 21V19C16 17.9391 15.5786 16.9217 14.8284 16.1716C14.0783 15.4214 13.0609 15 12 15C10.9391 15 9.92172 15.4214 9.17157 16.1716C8.42143 16.9217 8 17.9391 8 19V21M12 7C13.6569 7 15 8.34315 15 10C15 11.6569 13.6569 13 12 13C10.3431 13 9 11.6569 9 10C9 8.34315 10.3431 7 12 7Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                          <path d="M22 12L18 8M22 12L18 16M22 12H2" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                        </svg>
-                        Switch to Customer View
-                      </button>
-
-                      <button 
-                        className="btn btn-logout"
-                        onClick={handleLogout}
-                      >
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-                          <path d="M9 21H5C4.46957 21 3.96086 20.7893 3.58579 20.4142C3.21071 20.0391 3 19.5304 3 19V5C3 4.46957 3.21071 3.96086 3.58579 3.58579C3.96086 3.21071 4.46957 3 5 3H9M16 17L21 12L16 7M21 12H9" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                        </svg>
-                        Logout
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </motion.div>
+                </motion.div>
+              </AnimatePresence>
+            </main>
           </div>
         </div>
       </div>
