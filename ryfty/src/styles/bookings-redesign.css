@@ -1,0 +1,302 @@
+/* =========================================================
+   RYFTY — Bookings Ledger Redesign
+   Airbnb-inspired minimalist data tables
+   Primary: #00915a (Ryfty green)
+   ========================================================= */
+
+.br-bookings-page {
+  min-height: 100vh;
+  background: var(--lr-gray-50);
+}
+
+/* ── Header ────────────────────────────────────────────── */
+.br-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 2rem 0 1.5rem;
+  gap: 1rem;
+}
+
+.br-title {
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: var(--lr-gray-900);
+  letter-spacing: -0.02em;
+  margin: 0;
+}
+
+.br-subtitle {
+  font-size: 0.9375rem;
+  color: var(--lr-gray-500);
+  margin: 0.25rem 0 0 0;
+}
+
+/* ── Experience Filter Bar ─────────────────────────────── */
+.br-filter-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  overflow-x: auto;
+  padding-bottom: 1rem;
+  margin-bottom: 1rem;
+  border-bottom: 1px solid var(--lr-border);
+  scrollbar-width: none; /* Firefox */
+}
+.br-filter-bar::-webkit-scrollbar {
+  display: none; /* Chrome */
+}
+
+.br-filter-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.625rem 1.125rem;
+  background: var(--lr-white);
+  border: 1.5px solid var(--lr-border);
+  border-radius: var(--lr-radius-pill);
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--lr-gray-600);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.2s ease;
+  user-select: none;
+}
+
+.br-filter-pill:hover {
+  border-color: var(--lr-gray-300);
+  background: var(--lr-gray-100);
+}
+
+.br-filter-pill.active {
+  background: var(--lr-gray-900);
+  border-color: var(--lr-gray-900);
+  color: var(--lr-white);
+}
+
+.br-filter-pill-badge {
+  background: var(--lr-gray-100);
+  color: var(--lr-gray-700);
+  padding: 2px 6px;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  line-height: 1;
+}
+
+.br-filter-pill.active .br-filter-pill-badge {
+  background: rgba(255, 255, 255, 0.2);
+  color: var(--lr-white);
+}
+
+/* ── Ledger Container ──────────────────────────────────── */
+.br-ledger-container {
+  background: var(--lr-white);
+  border: 1px solid var(--lr-border);
+  border-radius: var(--lr-radius-xl);
+  overflow: hidden;
+  box-shadow: var(--lr-shadow-xs);
+  margin-bottom: 2rem;
+}
+
+/* Table Header */
+.br-ledger-header {
+  display: grid;
+  grid-template-columns: 2fr 1.5fr 1fr 1fr 1fr;
+  gap: 1rem;
+  padding: 1rem 1.5rem;
+  background: var(--lr-gray-50);
+  border-bottom: 1px solid var(--lr-border);
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--lr-gray-500);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.br-header-cell {
+  display: flex;
+  align-items: center;
+}
+
+.br-header-cell.right-align {
+  justify-content: flex-end;
+}
+
+/* Table Row */
+.br-ledger-row {
+  display: grid;
+  grid-template-columns: 2fr 1.5fr 1fr 1fr 1fr;
+  gap: 1rem;
+  padding: 1.25rem 1.5rem;
+  border-bottom: 1px solid var(--lr-border);
+  transition: background 0.15s ease;
+  align-items: center;
+  cursor: pointer;
+}
+
+.br-ledger-row:last-child {
+  border-bottom: none;
+}
+
+.br-ledger-row:hover {
+  background: var(--lr-gray-50);
+}
+
+/* Cells */
+.br-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  min-width: 0;
+}
+
+.br-cell.right-align {
+  align-items: flex-end;
+  text-align: right;
+}
+
+/* Customer Cell */
+.br-customer-name {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--lr-gray-900);
+  margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.br-customer-email {
+  font-size: 0.8125rem;
+  color: var(--lr-gray-500);
+  margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Slot Cell */
+.br-slot-date {
+  font-size: 0.9375rem;
+  font-weight: 500;
+  color: var(--lr-gray-900);
+}
+
+.br-slot-time {
+  font-size: 0.8125rem;
+  color: var(--lr-gray-500);
+}
+
+/* Text Cell */
+.br-text-main {
+  font-size: 0.9375rem;
+  color: var(--lr-gray-900);
+  font-weight: 500;
+}
+
+.br-text-sub {
+  font-size: 0.8125rem;
+  color: var(--lr-gray-500);
+}
+
+/* Status Pill */
+.br-status-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 10px;
+  border-radius: var(--lr-radius-pill);
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: capitalize;
+  width: fit-content;
+}
+
+.br-status-pill.confirmed {
+  background: var(--lr-green-chip-bg);
+  color: var(--lr-green-chip-txt);
+}
+
+.br-status-pill.pending {
+  background: #fffbeb;
+  color: #b45309;
+}
+
+.br-status-pill.cancelled {
+  background: var(--lr-red-chip-bg);
+  color: var(--lr-red-chip-txt);
+}
+
+.br-status-pill.completed {
+  background: var(--lr-gray-100);
+  color: var(--lr-gray-700);
+}
+
+/* Empty State */
+.br-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 4rem 2rem;
+  background: var(--lr-white);
+  border-radius: var(--lr-radius-xl);
+  border: 1px solid var(--lr-border);
+}
+
+/* Make it responsive */
+@media (max-width: 1024px) {
+  .br-ledger-header,
+  .br-ledger-row {
+    grid-template-columns: 1.5fr 1.5fr 1fr 1fr;
+  }
+  .br-hide-md {
+    display: none !important;
+  }
+}
+
+@media (max-width: 768px) {
+  .br-ledger-header {
+    display: none; /* Hide standard headers on mobile */
+  }
+  
+  .br-ledger-row {
+    grid-template-columns: 1fr;
+    gap: 0.75rem;
+    padding: 1rem;
+    position: relative;
+  }
+
+  .br-cell {
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+  }
+
+  .br-cell.right-align {
+    align-items: center;
+    text-align: left;
+  }
+
+  /* Create mobile labels using pseudoelements */
+  .br-cell::before {
+    content: attr(data-label);
+    font-size: 0.75rem;
+    color: var(--lr-gray-500);
+    text-transform: uppercase;
+    font-weight: 600;
+    flex-shrink: 0;
+    min-width: 80px;
+  }
+  
+  .br-customer-name { font-size: 1rem; }
+  .br-customer-info { 
+    display: flex; 
+    flex-direction: column; 
+    align-items: flex-end; 
+    text-align: right; 
+  }
+}

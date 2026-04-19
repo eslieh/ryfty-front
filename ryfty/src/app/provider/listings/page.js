@@ -1,359 +1,298 @@
 "use client";
 
-import { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
+import { useState, useEffect, useRef } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 import TabNavigation from '@/components/provider/TabNavigation';
 import ProviderHeader from '@/components/provider/ProviderHeader';
 import { fetchProviderExperiences } from '@/utils/api';
 import '@/styles/provider.css';
+import '@/styles/listing-redesign.css';
+
+// Overflow menu for each card
+function OverflowMenu({ experience, router }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+
+  useEffect(() => {
+    const handler = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  return (
+    <div className="lr-overflow-wrap" ref={ref}>
+      <button
+        className="lr-btn-overflow"
+        onClick={() => setOpen(v => !v)}
+        title="More options"
+        aria-label="More options"
+      >
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+          <circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/>
+        </svg>
+      </button>
+
+      <AnimatePresence>
+        {open && (
+          <motion.div
+            className="lr-overflow-menu"
+            initial={{ opacity: 0, y: -4, scale: 0.96 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -4, scale: 0.96 }}
+            transition={{ duration: 0.12 }}
+          >
+            <button
+              className="lr-overflow-item"
+              onClick={() => { setOpen(false); router.push(`/experience/${experience.id}`); }}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M1 12S5 4 12 4S23 12 23 12S19 20 12 20S1 12 1 12Z"/>
+                <circle cx="12" cy="12" r="3"/>
+              </svg>
+              View Public Page
+            </button>
+            <button
+              className="lr-overflow-item"
+              onClick={() => { setOpen(false); router.push(`/provider/listings/reviews/${experience.id}`); }}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+              </svg>
+              Reviews
+            </button>
+            <button
+              className="lr-overflow-item"
+              onClick={() => { setOpen(false); router.push('/provider/bookings'); }}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+                <line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
+              </svg>
+              View Bookings
+            </button>
+            <div className="lr-overflow-divider"/>
+            <button
+              className="lr-overflow-item danger"
+              onClick={() => { setOpen(false); router.push(`/provider/listings/edit/${experience.id}`); }}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M11 4H4C3.46957 4 2.96086 4.21071 2.58579 4.58579C2.21071 4.96086 2 5.46957 2 6V20C2 20.5304 2.21071 21.0391 2.58579 21.4142C2.96086 21.7893 3.46957 22 4 22H18C18.5304 22 19.0391 21.7893 19.4142 21.4142C19.7893 21.0391 20 20.5304 20 20V13"/>
+                <path d="M18.5 2.5C18.8978 2.10218 19.4374 1.87868 20 1.87868C20.5626 1.87868 21.1022 2.10218 21.5 2.5C21.8978 2.89782 22.1213 3.43739 22.1213 4C22.1213 4.56261 21.8978 5.10218 21.5 5.5L12 15L8 16L9 12L18.5 2.5Z"/>
+              </svg>
+              Edit Experience
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
+// Experience listing card
+function ExperienceCard({ experience, router, index }) {
+  const statusLabel = experience.status === 'published' ? 'Published' : 'Draft';
+
+  const formatDateRange = () => {
+    if (!experience.start_date && !experience.end_date) return null;
+    const fmt = (d) => new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    if (experience.start_date && experience.end_date) {
+      return `${fmt(experience.start_date)} – ${fmt(experience.end_date)}`;
+    }
+    return fmt(experience.start_date || experience.end_date);
+  };
+
+  const dateRange = formatDateRange();
+  const totalSlots   = experience.total_slots   ?? 0;
+  const totalBooked  = experience.total_booked  ?? 0;
+  const totalAvail   = Math.max(0, totalSlots - totalBooked);
+
+  return (
+    <motion.div
+      className="lr-experience-card"
+      initial={{ opacity: 0, y: 16 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3, delay: index * 0.05 }}
+    >
+      {/* ── Image block ── */}
+      <div className="lr-card-image-wrap">
+        <img
+          src={experience.poster_image_url || '/images/placeholder.jpg'}
+          alt={experience.title}
+          className="lr-card-image"
+        />
+
+        {/* Status pill — top right */}
+        <div className={`lr-status-pill ${experience.status}`}>
+          <div className="lr-status-dot"/>
+          {statusLabel}
+        </div>
+
+        {/* Overflow menu — top left */}
+        <div style={{ position: 'absolute', top: 10, left: 10, zIndex: 2 }}>
+          <OverflowMenu experience={experience} router={router} />
+        </div>
+      </div>
+
+      {/* ── Text body ── */}
+      <div className="lr-card-body">
+        <h3 className="lr-card-title">{experience.title}</h3>
+        <p className="lr-card-subtitle">
+          {dateRange && <span>{dateRange}</span>}
+          {dateRange && totalSlots > 0 && <span className="lr-card-subtitle-dot"/>}
+          {totalSlots > 0
+            ? <span>{totalSlots} slot{totalSlots !== 1 ? 's' : ''} · {totalBooked} booked</span>
+            : !dateRange ? <span style={{ color: '#b0b0b0' }}>No slots yet</span> : null}
+        </p>
+      </div>
+
+      {/* ── Footer: location + Manage ── */}
+      <div className="lr-card-footer">
+        <span className="lr-card-location">
+          {experience.meeting_point?.name
+            || experience.meeting_point?.address
+            || 'Location not set'}
+        </span>
+        <button
+          className="lr-btn-manage"
+          onClick={() => router.push(`/provider/listings/manage/${experience.id}`)}
+        >
+          Manage
+        </button>
+      </div>
+    </motion.div>
+  );
+}
 
 export default function ListingsPage() {
-  const [activeTab, setActiveTab] = useState('experiences');
   const [experiences, setExperiences] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const { isAuthenticated, user, isProvider } = useAuth();
+  const { isAuthenticated, isProvider } = useAuth();
   const router = useRouter();
-
-  // Redirect if not authenticated or not a provider
- 
 
   useEffect(() => {
     const fetchExperiences = async () => {
       if (!isAuthenticated || !isProvider()) return;
-      
       setLoading(true);
       setError(null);
-      
       try {
         const response = await fetchProviderExperiences();
-        
-        // Handle the API response structure
-        if (response && response.experiences) {
-          setExperiences(response.experiences);
-        } else {
-          setExperiences([]);
-        }
+        setExperiences(response?.experiences ?? []);
       } catch (err) {
         console.error('Error fetching experiences:', err);
         setError(err.message || 'Failed to fetch experiences');
-        setExperiences([]);
       } finally {
         setLoading(false);
       }
     };
-
     fetchExperiences();
   }, [isAuthenticated, isProvider]);
-
-  const ExperienceCard = ({ experience }) => (
-    <motion.div
-      className="experience-card"
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.3 }}
-    >
-      <div className="experience-poster">
-        <img 
-          src={experience.poster_image_url || '/images/placeholder.jpg'} 
-          alt={experience.title} 
-          className="poster-image" 
-        />
-        <div className={`experience-status experience-status-${experience.status}`}>
-          {experience.status}
-        </div>
-      </div>
-      
-      <div className="experience-content">
-        <h3 className="experience-title">{experience.title}</h3>
-        {/* <p className="experience-description">{experience.description || 'No description available'}</p> */}
-        
-        <div className="experience-metrics">
-          <div className="metric-item">
-            <div className="metric-label">Created</div>
-            <div className="metric-value">
-              <span className="created-date">
-                {new Date(experience.created_at).toLocaleDateString()}
-              </span>
-            </div>
-          </div>
-          
-          <div className="metric-item">
-            <div className="metric-label">Duration</div>
-            <div className="metric-value">
-              <span className="duration">
-                {experience.start_date && experience.end_date 
-                  ? `${new Date(experience.start_date).toLocaleDateString()} - ${new Date(experience.end_date).toLocaleDateString()}`
-                  : 'No dates set'
-                }
-              </span>
-            </div>
-          </div>
-        </div>
-        
-        <div className="experience-actions">
-          <button 
-            className="btn btn-secondary"
-            onClick={() => router.push(`/provider/listings/manage/${experience.id}`)}
-          >
-            Manage
-          </button>
-          <button 
-            className="btn btn-primary"
-            onClick={() => router.push(`/provider/bookings`)}
-          >
-            View Bookings
-          </button>
-          <button 
-            className="btn btn-outline"
-            onClick={() => router.push(`/provider/listings/reviews/${experience.id}`)}
-          >
-            Reviews
-          </button>
-          <button 
-            className="btn btn-outline"
-            onClick={() => router.push(`/experience/${experience.id}`)}
-          >
-            View Public
-          </button>
-        </div>
-      </div>
-    </motion.div>
-  );
 
   if (!isAuthenticated || !isProvider()) {
     return (
       <div className="provider-loading">
-        <div className="spinner large"></div>
+        <div className="spinner large"/>
         <p>Redirecting to login...</p>
       </div>
     );
   }
 
-  if (loading) {
-    return (
-      <div className="provider-main-page">
-        <ProviderHeader variant="main" />
-        <div className="provider-layout-content">
-          <TabNavigation
-            className="provider-left-nav"
-            orientation="vertical"
-          />
-          <div className="provider-main-content">
-            <div className="experiences-loading">
-              <div className="spinner large"></div>
-              <p>Loading experiences...</p>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="provider-main-page">
-        <ProviderHeader variant="main" />
-        <div className="provider-layout-content">
-          <TabNavigation
-            className="provider-left-nav"
-            orientation="vertical"
-          />
-          <div className="provider-main-content">
-            <div className="error-state">
-              <div className="error-icon">
-                <svg width="64" height="64" viewBox="0 0 24 24" fill="none">
-                  <path d="M12 9V13M12 17H12.01M21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                </svg>
-              </div>
-              <h3 className="error-title">Failed to Load Experiences</h3>
-              <p className="error-description">{error}</p>
-              <button 
-                className="btn btn-primary"
-                onClick={() => window.location.reload()}
-              >
-                Try Again
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div className="provider-main-page">
-      {/* Header with Logo */}
+    <div className="provider-main-page lr-listings-page">
       <ProviderHeader variant="main" />
 
       <div className="provider-layout-content">
-        {/* Left Navigation */}
-        <TabNavigation
-          className="provider-left-nav"
-          orientation="vertical"
-        />
+        <TabNavigation className="provider-left-nav" orientation="vertical" />
 
-        {/* Main Content Area */}
-        <motion.main 
+        <motion.main
           className="provider-main-content"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.2 }}
+          transition={{ duration: 0.4 }}
         >
           <div className="content-wrapper">
-            <div className="provider-experiences">
-        {/* Header */}
-        <motion.div
-          className="experiences-header"
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
-        >
-          <div className="header-content">
-            <h1 className="page-title">Listings</h1>
-          </div>
-          <motion.button
-            className="btn btn-primary create-btn"
-            onClick={() => router.push('/provider/listings/create')}
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
-          >
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-              <path d="M12 5V19M5 12H19" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-            </svg>
-            Add Listings
-          </motion.button>
-        </motion.div>
 
-        {/* Tab Navigation */}
-        <motion.div
-          className="listings-tabs"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.1 }}
-        >
-          <div className="tab-buttons">
-            <button
-              className={`tab-button ${activeTab === 'experiences' ? 'active' : ''}`}
-              onClick={() => setActiveTab('experiences')}
-            >
-              Experiences
-            </button>
-            <button
-              className={`tab-button ${activeTab === 'services' ? 'active' : ''}`}
-              onClick={() => setActiveTab('services')}
-            >
-            Services
-            </button>
-          </div>
-        </motion.div>
-
-        {/* Tab Content */}
-        {activeTab === 'experiences' && (
-          <>
-            {/* Experiences Grid */}
-            <motion.div 
-              className="experiences-grid"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: 0.3 }}
-            >
-              {experiences.length > 0 ? (
-                experiences.map((experience) => (
-                  <ExperienceCard key={experience.id} experience={experience} />
-                ))
-              ) : (
-                <motion.div
-                  className="empty-state"
-                  initial={{ opacity: 0, scale: 0.9 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  transition={{ duration: 0.5 }}
-                >
-                  <div className="empty-icon">
-                    <svg width="64" height="64" viewBox="0 0 24 24" fill="none">
-                      <path d="M12 2L2 7L12 12L22 7L12 2Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                      <path d="M2 17L12 22L22 17" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                      <path d="M2 12L12 17L22 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                    </svg>
-                  </div>
-                  <h3 className="empty-title">No experiences yet</h3>
-                  <p className="empty-description">
-                    Create your first experience to start hosting guests
-                  </p>
-                  <button 
-                    className="btn btn-primary"
-                    onClick={() => router.push('/provider/listings/create')}
-                  >
-                    Create Your First Experience
-                  </button>
-                </motion.div>
-              )}
-            </motion.div>
-          </>
-        )}
-
-        {activeTab === 'services' && (
-          <motion.div
-            className="services-coming-soon"
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.5, delay: 0.2 }}
-          >
-            <div className="coming-soon-content">
-              <div className="coming-soon-icon">
-                <svg width="80" height="80" viewBox="0 0 24 24" fill="none">
-                  <path d="M3 3H21L19 21H5L3 3Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                  <path d="M8 12H16" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                  <path d="M8 16H16" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+            {/* Header */}
+            <div className="lr-listings-header">
+              <h1 className="lr-listings-title">
+                Your Experiences
+                {!loading && experiences.length > 0 && (
+                  <span className="lr-listings-count-badge">{experiences.length}</span>
+                )}
+              </h1>
+              <button
+                className="lr-btn-new-listing"
+                onClick={() => router.push('/provider/listings/create')}
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M12 5v14M5 12h14"/>
                 </svg>
+                <span>New listing</span>
+              </button>
+            </div>
+
+            {/* Content */}
+            {loading ? (
+              <div className="lr-experience-list">
+                {[1, 2, 3].map(i => (
+                  <div key={i} className="lr-experience-card" style={{ pointerEvents: 'none' }}>
+                    <div className="lr-card-image-wrap lr-skeleton" style={{ height: 160 }}/>
+                    <div className="lr-card-body" style={{ gap: '0.625rem' }}>
+                      <div className="lr-skeleton" style={{ height: 22, width: '60%', borderRadius: 6 }}/>
+                      <div className="lr-skeleton" style={{ height: 14, width: '40%', borderRadius: 6 }}/>
+                      <div className="lr-skeleton" style={{ height: 14, width: '80%', borderRadius: 6 }}/>
+                    </div>
+                  </div>
+                ))}
               </div>
-              <h2 className="coming-soon-title">Services Coming Soon</h2>
-              <p className="coming-soon-description">
-                We&apos;re working on bringing you a comprehensive services platform. 
-                Soon you&apos;ll be able to offer various services like transportation, 
-                photography, catering, and more to complement your experiences.
-              </p>
-              <div className="coming-soon-features">
-                <div className="feature-item">
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-                    <path d="M9 12L11 14L15 10M21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+            ) : error ? (
+              <div className="lr-empty-state">
+                <div className="lr-empty-icon" style={{ background: '#fee2e2', color: '#b91c1c' }}>
+                  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M12 9v4M12 17h.01M21 12c0 4.97-4.03 9-9 9s-9-4.03-9-9 4.03-9 9-9 9 4.03 9 9z"/>
                   </svg>
-                  <span>Transportation Services</span>
                 </div>
-                <div className="feature-item">
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-                    <path d="M9 12L11 14L15 10M21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                  </svg>
-                  <span>Photography & Videography</span>
-                </div>
-                <div className="feature-item">
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-                    <path d="M9 12L11 14L15 10M21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                  </svg>
-                  <span>Catering Services</span>
-                </div>
-                <div className="feature-item">
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-                    <path d="M9 12L11 14L15 10M21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                  </svg>
-                  <span>Equipment Rental</span>
-                </div>
+                <h3 className="lr-empty-title">Failed to Load</h3>
+                <p className="lr-empty-subtitle">{error}</p>
+                <button className="btn btn-primary" onClick={() => window.location.reload()}>Try Again</button>
               </div>
-              <div className="coming-soon-notify">
-                <button className="btn btn-secondary">
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-                    <path d="M4 4H20C21.1 4 22 4.9 22 6V18C22 19.1 21.1 20 20 20H4C2.9 20 2 19.1 2 18V6C2 4.9 2.9 4 4 4Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                    <path d="M22 6L12 13L2 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+            ) : experiences.length === 0 ? (
+              <motion.div
+                className="lr-empty-state"
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ duration: 0.4 }}
+              >
+                <div className="lr-empty-icon">
+                  <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
                   </svg>
-                  Notify Me When Available
+                </div>
+                <h3 className="lr-empty-title">No experiences yet</h3>
+                <p className="lr-empty-subtitle">
+                  Create your first experience and start welcoming guests to your world.
+                </p>
+                <button
+                  className="lr-btn-new-listing"
+                  onClick={() => router.push('/provider/listings/create')}
+                  style={{ fontSize: '0.9375rem', padding: '0.875rem 1.75rem' }}
+                >
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M12 5v14M5 12h14"/>
+                  </svg>
+                  Create your first experience
                 </button>
+              </motion.div>
+            ) : (
+              <div className="lr-experience-list">
+                {experiences.map((exp, i) => (
+                  <ExperienceCard key={exp.id} experience={exp} router={router} index={i} />
+                ))}
               </div>
-            </div>
-          </motion.div>
             )}
-            </div>
+
           </div>
         </motion.main>
       </div>
