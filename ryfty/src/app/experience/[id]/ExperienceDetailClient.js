@@ -246,6 +246,80 @@ export default function ExperienceDetailClient({ id }) {
     fetchReviews();
   }, [experience?.id]);
 
+  // Helper to format time ago
+  const getTimeAgo = (dateString) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffInSeconds = Math.floor((now - date) / 1000);
+    
+    if (diffInSeconds < 60) return 'Just now';
+    if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)} minutes ago`;
+    if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)} hours ago`;
+    if (diffInSeconds < 604800) return `${Math.floor(diffInSeconds / 86400)} days ago`;
+    if (diffInSeconds < 2592000) return `${Math.floor(diffInSeconds / 604800)} weeks ago`;
+    if (diffInSeconds < 31536000) return `${Math.floor(diffInSeconds / 2592000)} months ago`;
+    return `${Math.floor(diffInSeconds / 31536000)} years ago`;
+  };
+
+  // Sub-component for individual review items
+  const ReviewItem = ({ review }) => {
+    const [isExpanded, setIsExpanded] = useState(false);
+    const comment = review.comment || '';
+    const shouldShowExpand = comment.length > 200;
+    const displayText = isExpanded ? comment : (shouldShowExpand ? comment.substring(0, 200) + '...' : comment);
+
+    return (
+      <motion.div
+        className="review-item-refined"
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.3 }}
+      >
+        <div className="review-user-header">
+          <div className="review-avatar-refined">
+            <Image
+              src={review.user?.avatar_url || config.defaultAvatar}
+              alt={review.user?.name || 'User'}
+              width={48}
+              height={48}
+              className="review-avatar-img"
+            />
+          </div>
+          <div className="review-user-text">
+            <h4 className="review-user-name-refined">{review.user?.name || 'Anonymous'}</h4>
+            <p className="review-user-location-refined">{review.user?.location || 'Guest'}</p>
+          </div>
+        </div>
+        
+        <div className="review-meta-row">
+          <div className="review-stars-refined">
+            {[...Array(5)].map((_, i) => (
+              <span key={i} className={`star-refined ${i < review.rating ? 'filled' : 'empty'}`}>
+                ★
+              </span>
+            ))}
+          </div>
+          <span className="review-dot-separator">·</span>
+          <span className="review-time-ago">{getTimeAgo(review.created_at)}</span>
+        </div>
+        
+        <div className="review-body-refined">
+          <p className="review-comment-refined">
+            {displayText}
+            {shouldShowExpand && !isExpanded && (
+              <button 
+                className="review-show-more" 
+                onClick={() => setIsExpanded(true)}
+              >
+                Show more
+              </button>
+            )}
+          </p>
+        </div>
+      </motion.div>
+    );
+  };
+
   useEffect(() => {
     const fetchExperience = async () => {
       try {
@@ -703,37 +777,31 @@ export default function ExperienceDetailClient({ id }) {
     <div className="min-h-screen bg-white">
       {!isMobile && <Header />}
       <div className="experience-detail-container">
-        {/* Back Button */}
-        <motion.button
-          className="back-button"
-          onClick={() => router.push('/')}
-          initial={{ opacity: 0, x: -20 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ duration: 0.3 }}
+        {/* Experience Header: Back Button + Title */}
+        <motion.div 
+          className="experience-header"
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
         >
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-            <path d="M19 12H5M12 19L5 12L12 5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-          </svg>
-          Back to experiences
-        </motion.button>
-
-        {/* Title and Favorite - Desktop Only */}
-        {!isMobile && (
-          <motion.div 
-            className="experience-header"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5 }}
+          <button
+            className="experience-back-btn"
+            onClick={() => router.push('/')}
           >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+              <path d="M15 18l-6-6 6-6" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+          </button>
+
+          {!isMobile && (
             <div className="experience-title-section">
               <h1 className="experience-detail-title">{experience?.title || 'Experience'}</h1>
               <div className="experience-meta">
                 <span className="location-text">{experience?.destinations?.join(', ') || 'Location not specified'}</span>
-                {/* <span className="status-text">{experience?.status || 'Available'}</span> */}
               </div>
             </div>
-          </motion.div>
-        )}
+          )}
+        </motion.div>
 
         {/* Image Gallery */}
         <motion.div 
@@ -879,335 +947,246 @@ export default function ExperienceDetailClient({ id }) {
         {/* Content Section */}
         <div className="experience-content-section">
           <div className="main-content">
-            {/* Provider Info */}
-            <motion.div 
-              className="host-section"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: 0.2 }}
-            >
-              <div className="host-avatar">
-                <Image
-                  src={experience?.provider?.avatar_url || config.defaultAvatar}
-                  alt={experience?.provider?.name || 'Host'}
-                  width={56}
-                  height={56}
-                  className="host-image"
-                />
-              </div>
-              <div className="host-info">
-                <h3 className="host-name">Provided by {experience?.provider?.name || 'Unknown Host'}</h3>
-                <p className="host-experience">{experience?.provider?.bio || 'No bio available'}</p>
-              </div>
-            </motion.div>
+            {/* Main Content Timeline */}
+            <div className="experience-timeline-container">
+              <div className="timeline-line-main"></div>
 
-            {/* Description */}
-            <motion.div 
-              className="description-section"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: 0.3 }}
-            >
-              <h2 className="section-title">About this experience</h2>
-              <p className="description-text">{experience?.description || 'No description available'}</p>
-            </motion.div>
-
-            {/* Activities */}
-            {experience?.activities && experience.activities.length > 0 && (
+              {/* Provider Info */}
               <motion.div 
-                className="highlights-section"
+                className="timeline-section-item"
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5, delay: 0.4 }}
+                transition={{ duration: 0.5, delay: 0.2 }}
               >
-                <h2 className="section-title">Activities</h2>
-                <ul className="highlights-list">
-                  {experience.activities.map((activity, index) => (
-                    <li key={index} className="highlight-item">{activity}</li>
-                  ))}
-                </ul>
+                <div className="timeline-dot-main"></div>
+                <div className="host-section detail-clean-card">
+                  <div className="host-avatar">
+                    <Image
+                      src={experience?.provider?.avatar_url || config.defaultAvatar}
+                      alt={experience?.provider?.name || 'Host'}
+                      width={56}
+                      height={56}
+                      className="host-image"
+                    />
+                  </div>
+                  <div className="host-info">
+                    <h3 className="host-name">Provided by {experience?.provider?.name || 'Unknown Host'}</h3>
+                    <p className="host-experience">{experience?.provider?.bio || 'No bio available'}</p>
+                  </div>
+                </div>
               </motion.div>
-            )}
 
-            {/* Destinations */}
-            {experience?.destinations && experience.destinations.length > 0 && (
+              {/* Description */}
               <motion.div 
-                className="highlights-section"
+                className="timeline-section-item"
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5, delay: 0.45 }}
+                transition={{ duration: 0.5, delay: 0.3 }}
               >
-                <h2 className="section-title">Destinations</h2>
-                <ul className="highlights-list">
-                  {experience.destinations.map((destination, index) => (
-                    <li key={index} className="highlight-item">{destination}</li>
-                  ))}
-                </ul>
+                <div className="timeline-dot-main"></div>
+                <div className="description-section detail-clean-card">
+                  <h2 className="section-title">About this experience</h2>
+                  <p className="description-text">{experience?.description || 'No description available'}</p>
+                </div>
               </motion.div>
-            )}
 
-            {/* Inclusions */}
-            {experience?.inclusions && experience.inclusions.length > 0 && (
+              {/* Highlights (Activities, Destinations, Inclusions, Exclusions) */}
+              {(experience?.activities?.length > 0 || experience?.destinations?.length > 0 || experience?.inclusions?.length > 0 || experience?.exclusions?.length > 0) && (
+                <motion.div 
+                  className="timeline-section-item"
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.5, delay: 0.4 }}
+                >
+                  <div className="timeline-dot-main"></div>
+                  <div className="highlights-wrapper detail-clean-card">
+                    {/* Activities */}
+                    {experience?.activities && experience.activities.length > 0 && (
+                      <div className="highlights-section">
+                        <h2 className="section-title">Activities</h2>
+                        <ul className="highlights-list">
+                          {experience.activities.map((activity, index) => (
+                            <li key={index} className="highlight-item-refined">
+                              <span className="highlight-icon icon-activity">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                                  <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                                </svg>
+                              </span>
+                              <span className="highlight-text">{activity}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+
+                    {/* Destinations */}
+                    {experience?.destinations && experience.destinations.length > 0 && (
+                      <div className="highlights-section" style={{ marginTop: experience.activities?.length > 0 ? '1.5rem' : 0 }}>
+                        <h2 className="section-title">Destinations</h2>
+                        <ul className="highlights-list">
+                          {experience.destinations.map((destination, index) => (
+                            <li key={index} className="highlight-item-refined">
+                              <span className="highlight-icon icon-destination">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                                  <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z" stroke="currentColor" strokeWidth="2"/>
+                                  <circle cx="12" cy="10" r="3" stroke="currentColor" strokeWidth="2"/>
+                                </svg>
+                              </span>
+                              <span className="highlight-text">{destination}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+
+                    {/* Inclusions */}
+                    {experience?.inclusions && experience.inclusions.length > 0 && (
+                      <div className="highlights-section" style={{ marginTop: '1.5rem' }}>
+                        <h2 className="section-title">What's Included</h2>
+                        <ul className="highlights-list">
+                          {experience.inclusions.map((inclusion, index) => (
+                            <li key={index} className="highlight-item-refined">
+                              <span className="highlight-icon icon-inclusion">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                                  <path d="M20 6L9 17L4 12" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+                                </svg>
+                              </span>
+                              <span className="highlight-text">{inclusion}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+
+                    {/* Exclusions */}
+                    {experience?.exclusions && experience.exclusions.length > 0 && (
+                      <div className="highlights-section" style={{ marginTop: '1.5rem' }}>
+                        <h2 className="section-title">What's Not Included</h2>
+                        <ul className="highlights-list">
+                          {experience.exclusions.map((exclusion, index) => (
+                            <li key={index} className="highlight-item-refined">
+                              <span className="highlight-icon icon-exclusion">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                                  <path d="M18 6L6 18M6 6L18 18" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+                                </svg>
+                              </span>
+                              <span className="highlight-text">{exclusion}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                  </div>
+                </motion.div>
+              )}
+
+              {/* Reviews Section - MOVED BEFORE MEETING POINT */}
               <motion.div 
-                className="highlights-section"
+                className="timeline-section-item"
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5, delay: 0.5 }}
               >
-                <h2 className="section-title">What's Included</h2>
-                <ul className="highlights-list">
-                  {experience.inclusions.map((inclusion, index) => (
-                    <li key={index} className="highlight-item">{inclusion}</li>
-                  ))}
-                </ul>
-              </motion.div>
-            )}
-
-            {/* Exclusions */}
-            {experience?.exclusions && experience.exclusions.length > 0 && (
-              <motion.div 
-                className="highlights-section"
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5, delay: 0.52 }}
-              >
-                <h2 className="section-title">What's Not Included</h2>
-                <ul className="highlights-list">
-                  {experience.exclusions.map((exclusion, index) => (
-                    <li key={index} className="highlight-item">{exclusion}</li>
-                  ))}
-                </ul>
-              </motion.div>
-            )}
-
-            {/* Where we'll meet */}
-            <motion.div 
-              className="meeting-section"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: 0.57 }}
-            >
-              <h2 className="section-title">Where we&apos;ll meet</h2>
-              <div className="meeting-info">
-                <p className="meeting-point">{experience?.meeting_point?.name || 'Meeting point not specified'}</p>
-                <p className="meeting-details">{experience?.meeting_point?.address || 'Address not provided'}</p>
-                <p className="meeting-instructions">{experience?.meeting_point?.instructions || 'No special instructions'}</p>
-              </div>
-              
-              {/* Map Container */}
-              {experience?.meeting_point?.coordinates?.latitude && experience?.meeting_point?.coordinates?.longitude && (
-                <div className="map-container">
-                  <div className="map-header">
-                    <h3 className="map-title">Meeting Location</h3>
-                    <div className="map-actions">
-                      <button
-                        className="directions-btn"
-                        onClick={() => {
-                          const lat = experience.meeting_point.coordinates.latitude;
-                          const lng = experience.meeting_point.coordinates.longitude;
-                          const address = encodeURIComponent(experience.meeting_point.address || '');
-                          const url = `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}&destination_place_id=${address}`;
-                          window.open(url, '_blank');
-                        }}
-                      >
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                          <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" stroke="currentColor" strokeWidth="2"/>
-                          <circle cx="12" cy="10" r="3" stroke="currentColor" strokeWidth="2"/>
-                        </svg>
-                        Get Directions
-                      </button>
-                      <button
-                        className="map-expand-btn"
-                        onClick={() => {
-                          const lat = experience.meeting_point.coordinates.latitude;
-                          const lng = experience.meeting_point.coordinates.longitude;
-                          const url = `https://www.google.com/maps?q=${lat},${lng}&hl=en&z=15`;
-                          window.open(url, '_blank');
-                        }}
-                      >
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                          <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3" stroke="currentColor" strokeWidth="2"/>
-                        </svg>
-                        Open in Maps
-                      </button>
-                    </div>
+                <div className="timeline-dot-main"></div>
+                <div className="reviews-section-refined detail-clean-card">
+                  <div className="reviews-header-refined">
+                    <h2 className="section-title-refined">
+                      <span className="rating-star-big">★</span>
+                      {experience?.rating || 'New'} · {reviewsPagination.total_count} reviews
+                    </h2>
                   </div>
-                  <div className="map-iframe-container">
-                    <iframe
-                      src={`https://www.google.com/maps?q=${experience.meeting_point.coordinates.latitude},${experience.meeting_point.coordinates.longitude}&hl=en&z=15&output=embed`}
-                      width="100%"
-                      height="300"
-                      style={{ border: 0, borderRadius: '8px' }}
-                      allowFullScreen=""
-                      loading="lazy"
-                      referrerPolicy="no-referrer-when-downgrade"
-                      title={`Map showing ${experience.meeting_point.name}`}
-                    ></iframe>
-                  </div>
-                  <div className="map-footer">
-                    <p className="map-note">
-                      📍 Click "Get Directions" to navigate to this location using your preferred maps app
-                    </p>
-                  </div>
-                </div>
-              )}
-            </motion.div>
-
-            {/* Reviews Section */}
-            <motion.div 
-              className="reviews-section"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: 0.6 }}
-            >
-              <h2 className="section-title">Reviews</h2>
-              
-              {reviewsLoading ? (
-                <div className="reviews-skeleton">
-                  {[1, 2, 3].map((item) => (
-                    <div key={item} className="review-skeleton-item">
-                      <div className="review-skeleton-header">
-                        <div className="review-skeleton-user">
-                          <SkeletonLoader variant="circular" width="40px" height="40px" />
-                          <div className="review-skeleton-user-info">
-                            <SkeletonLoader width="120px" height="16px" borderRadius="4px" />
-                            <SkeletonLoader width="80px" height="12px" borderRadius="4px" style={{ marginTop: '4px' }} />
-                          </div>
-                        </div>
-                        <div className="review-skeleton-rating">
-                          <SkeletonLoader width="80px" height="16px" borderRadius="4px" />
-                        </div>
-                      </div>
-                      <div className="review-skeleton-content">
-                        <SkeletonLoader width="100%" height="16px" borderRadius="4px" />
-                        <SkeletonLoader width="100%" height="16px" borderRadius="4px" style={{ marginTop: '8px' }} />
-                        <SkeletonLoader width="75%" height="16px" borderRadius="4px" style={{ marginTop: '8px' }} />
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : reviewsError ? (
-                <div className="reviews-error">
-                  <p>Error loading reviews: {reviewsError}</p>
-                  <button onClick={() => window.location.reload()} className="retry-btn">
-                    Retry
-                  </button>
-                </div>
-              ) : reviews.length > 0 ? (
-                <div className="reviews-list">
-                  {reviews.map((review) => (
-                    <motion.div
-                      key={review.id}
-                      className="review-item"
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ duration: 0.3 }}
-                    >
-                      <div className="review-header">
-                        <div className="review-user">
-                          <div className="review-avatar">
-                            <Image
-                              src={review.user?.avatar_url || config.defaultAvatar}
-                              alt={review.user?.name || 'User'}
-                              width={40}
-                              height={40}
-                              className="review-avatar-image"
-                            />
-                          </div>
-                          <div className="review-user-info">
-                            <h4 className="review-user-name">{review.user?.name || 'Anonymous'}</h4>
-                            <p className="review-date">
-                              {new Date(review.created_at).toLocaleDateString('en-US', {
-                                year: 'numeric',
-                                month: 'long',
-                                day: 'numeric'
-                              })}
-                            </p>
-                          </div>
-                        </div>
-                        <div className="review-rating">
-                          {[...Array(5)].map((_, i) => (
-                            <span
-                              key={i}
-                              className={`star ${i < review.rating ? 'filled' : 'empty'}`}
-                            >
-                              ★
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-                      
-                      <div className="review-content">
-                        <p className="review-comment">{review.comment}</p>
-                        
-                        {review.images && review.images.length > 0 && (
-                          <div className="review-images">
-                            <div className="review-image-group">
-                              {review.images.map((imageUrl, imageIndex) => (
-                                <div key={imageIndex} className="review-image-item">
-                                  <Image
-                                    src={imageUrl}
-                                    alt={`Review image ${imageIndex + 1}`}
-                                    width={120}
-                                    height={120}
-                                    className="review-image"
-                                    style={{ objectFit: 'cover' }}
-                                  />
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    </motion.div>
-                  ))}
                   
-                  {/* Load More Reviews Button */}
-                  {reviewsPagination.has_next && (
-                    <div className="reviews-load-more">
-                      <button
-                        onClick={loadMoreReviews}
-                        disabled={loadingMoreReviews}
-                        className="load-more-reviews-btn"
-                      >
-                        {loadingMoreReviews ? (
-                          <>
-                            <span className="loading-spinner"></span>
-                            Loading more reviews...
-                          </>
-                        ) : (
-                          `Load More Reviews (${reviewsPagination.total_count - reviews.length} remaining)`
-                        )}
-                      </button>
+                  {reviewsLoading ? (
+                    <div className="reviews-skeleton-refined">
+                      {[1, 2].map((item) => (
+                        <div key={item} className="review-skeleton-item-refined">
+                          <SkeletonLoader width="100%" height="100px" borderRadius="12px" />
+                        </div>
+                      ))}
+                    </div>
+                  ) : reviewsError ? (
+                    <div className="reviews-error-refined">
+                      <p>Error loading reviews: {reviewsError}</p>
+                    </div>
+                  ) : reviews.length > 0 ? (
+                    <div className="reviews-grid-refined">
+                      {reviews.slice(0, 4).map((review) => (
+                        <ReviewItem key={review.id} review={review} />
+                      ))}
+                      
+                      {reviewsPagination.total_count > 4 && (
+                        <div className="reviews-load-more-refined">
+                          <button
+                            onClick={loadMoreReviews}
+                            disabled={loadingMoreReviews}
+                            className="load-more-reviews-btn-refined"
+                          >
+                            Show all {reviewsPagination.total_count} reviews
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="no-reviews-refined">
+                      <p>No reviews yet for this experience.</p>
                     </div>
                   )}
-                  
-                  {/* Reviews Summary */}
-                  <div className="reviews-summary">
-                    <p className="reviews-count">
-                      Showing {reviews.length} of {reviewsPagination.total_count} reviews
-                    </p>
-                  </div>
-                  
-                  {/* Reviews End Marker */}
                   <div ref={setReviewsEndRef} className="reviews-end-marker"></div>
                 </div>
-              ) : (
-                <div className="no-reviews">
-                  <div className="no-reviews-icon">
-                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none">
-                      <path d="M12 2L15.09 8.26L22 9L17 14L18.18 21L12 17.77L5.82 21L7 14L2 9L8.91 8.26L12 2Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                    </svg>
+              </motion.div>
+
+              {/* Where we'll meet */}
+              <motion.div 
+                className="timeline-section-item"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5, delay: 0.6 }}
+              >
+                <div className="timeline-dot-main"></div>
+                <div className="meeting-section detail-clean-card">
+                  <h2 className="section-title">Where we&apos;ll meet</h2>
+                  <div className="meeting-info">
+                    <p className="meeting-point">{experience?.meeting_point?.name || 'Meeting point not specified'}</p>
+                    <p className="meeting-details">{experience?.meeting_point?.address || 'Address not provided'}</p>
+                    <p className="meeting-instructions">{experience?.meeting_point?.instructions || 'No special instructions'}</p>
                   </div>
-                  <h4 className="no-reviews-title">No reviews yet</h4>
-                  <p className="no-reviews-message">
-                    Be the first to share your experience!
-                  </p>
-                  {/* Reviews End Marker for no reviews */}
-                  <div ref={setReviewsEndRef} className="reviews-end-marker"></div>
+                  
+                  {/* Map Container */}
+                  {experience?.meeting_point?.coordinates?.latitude && experience?.meeting_point?.coordinates?.longitude && (
+                    <div className="map-container">
+                      <div className="map-iframe-container">
+                        <iframe
+                          src={`https://www.google.com/maps?q=${experience.meeting_point.coordinates.latitude},${experience.meeting_point.coordinates.longitude}&hl=en&z=15&output=embed`}
+                          width="100%"
+                          height="250"
+                          style={{ border: 0, borderRadius: '16px' }}
+                          allowFullScreen=""
+                          loading="lazy"
+                          referrerPolicy="no-referrer-when-downgrade"
+                          title={`Map showing ${experience.meeting_point.name}`}
+                        ></iframe>
+                      </div>
+                      <div className="map-header" style={{ marginTop: '1rem', border: 'none', padding: 0 }}>
+                        <div className="map-actions">
+                          <button
+                            className="directions-btn"
+                            onClick={() => {
+                              const lat = experience.meeting_point.coordinates.latitude;
+                              const lng = experience.meeting_point.coordinates.longitude;
+                              const address = encodeURIComponent(experience.meeting_point.address || '');
+                              const url = `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}&destination_place_id=${address}`;
+                              window.open(url, '_blank');
+                            }}
+                          >
+                            Get Directions
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
-              )}
-            </motion.div>
+              </motion.div>
+            </div>
 
           </div>
 

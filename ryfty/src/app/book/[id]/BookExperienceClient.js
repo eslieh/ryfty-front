@@ -363,7 +363,7 @@ export default function BookExperienceClient({ id }) {
 
           {/* Right Column: Summary Card */}
           <aside className="summary-card-container">
-            <div className="summary-card">
+            <div className="summary-card-book">
               <div className="summary-header">
                 <div className="summary-thumb">
                   <Image 
