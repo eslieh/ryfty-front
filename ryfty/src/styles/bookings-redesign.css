@@ -300,3 +300,153 @@
     text-align: right; 
   }
 }
+
+/* ── Vertical Timeline (Airbnb Style) ────────────────────── */
+.br-timeline {
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  margin-top: 1rem;
+  padding-bottom: 2rem;
+}
+
+.br-timeline-item {
+  display: flex;
+  gap: 1.5rem;
+  position: relative;
+  min-height: 120px;
+}
+
+/* The vertical connecting line */
+.br-timeline-item::after {
+  content: '';
+  position: absolute;
+  top: 64px; /* Stems from below the date badge */
+  bottom: -24px; /* Connects down to the next item */
+  left: 23px; /* Centers under the 48px badge */
+  width: 2px;
+  background-color: var(--lr-gray-200);
+  z-index: 0;
+}
+
+/* Hide line on the last item */
+.br-timeline-item:last-child::after {
+  display: none;
+}
+
+.br-timeline-left {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 48px; /* Fixed width to align lines perfectly */
+  flex-shrink: 0;
+  z-index: 1; /* Keep above the line */
+}
+
+.br-timeline-day {
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: var(--lr-gray-700);
+  margin-bottom: 0.25rem;
+  text-transform: capitalize;
+}
+
+.br-date-badge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 25%;
+  background-color: #00b05d; /* Airbnb brand vibrant pink/magenta */
+  color: #ffffff;
+  font-size: 1.125rem;
+  font-weight: 700;
+  box-shadow: 0 4px 12px rgba(230, 30, 77, 0.25);
+}
+
+.br-timeline-right {
+  flex-grow: 1;
+  padding-bottom: 2rem; /* Spacing between cards */
+}
+
+/* The actual clickable slot card */
+.br-timeline-card {
+  background: var(--lr-white);
+  border: 1px solid var(--lr-border);
+  border-radius: var(--lr-radius-xl);
+  padding: 1.5rem;
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+}
+
+.br-timeline-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 16px rgba(0,0,0,0.08);
+  border-color: var(--lr-gray-300);
+}
+
+.br-timeline-icon {
+  width: 56px;
+  height: 56px;
+  background: var(--lr-gray-50);
+  border-radius: var(--lr-radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  border: 1px solid var(--lr-border);
+}
+
+.br-timeline-icon img,
+.br-timeline-icon svg {
+  width: 32px;
+  height: 32px;
+  object-fit: contain;
+}
+
+.br-timeline-content {
+  flex-grow: 1;
+}
+
+.br-timeline-title {
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: var(--lr-gray-900);
+  margin: 0 0 0.25rem 0;
+}
+
+.br-timeline-subtitle {
+  font-size: 0.9375rem;
+  color: var(--lr-gray-500);
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.br-timeline-actions {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+@media (max-width: 768px) {
+  .br-timeline-card {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1rem;
+  }
+  .br-timeline-actions {
+    width: 100%;
+    justify-content: space-between;
+    border-top: 1px solid var(--lr-border);
+    padding-top: 1rem;
+  }
+}
