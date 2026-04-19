@@ -2497,3 +2497,381 @@
     justify-content: flex-end;
   }
 }
+/* ===== NEW TRIPS (TIMELINE) STYLES ===== */
+
+.trips-content {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+.timeline-container {
+  display: flex;
+  flex-direction: column;
+}
+
+.timeline-item {
+  display: flex;
+  gap: 2rem;
+}
+
+.timeline-marker {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 40px;
+}
+
+.marker-dot {
+  width: 14px;
+  height: 14px;
+  background: #dddddd;
+  border-radius: 50%;
+  margin-top: 1.5rem;
+  z-index: 1;
+}
+
+.timeline-item:first-child .marker-dot {
+  background: #222222;
+  box-shadow: 0 0 0 4px rgba(0,0,0,0.05);
+}
+
+.marker-line {
+  flex: 1;
+  width: 2px;
+  background: #f0f0f0;
+}
+
+.trip-card {
+  flex: 1;
+  background: white;
+  border: 1px solid #f0f0f0;
+  border-radius: 20px;
+  padding: 1.25rem;
+  display: flex;
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+  cursor: pointer;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.02);
+  transition: all 0.3s ease;
+}
+
+.trip-card:hover {
+  border-color: #dddddd;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+}
+
+.trip-image {
+  width: 80px;
+  height: 80px;
+  border-radius: 12px;
+  overflow: hidden;
+  position: relative;
+  flex-shrink: 0;
+}
+
+.trip-content {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.trip-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.trip-title {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #222222;
+  margin: 0;
+}
+
+.trip-date {
+  font-size: 0.9rem;
+  color: #717171;
+  margin: 0;
+}
+
+.status-pill {
+  padding: 0.4rem 1rem;
+  border-radius: 20px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-transform: capitalize;
+}
+
+.trip-arrow {
+  color: #dddddd;
+}
+
+.trip-card:hover .trip-arrow {
+  color: #222222;
+  transform: translateX(4px);
+  transition: all 0.2s ease;
+}
+
+/* ===== PAST TRIPS BANNER ===== */
+
+.past-trips-banner {
+  background: #f7f7f7;
+  border-radius: 20px;
+  padding: 1.5rem 2rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: pointer;
+  margin-top: 1rem;
+  transition: background 0.2s ease;
+}
+
+.past-trips-banner:hover {
+  background: #eeeeee;
+}
+
+.banner-left {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 1.05rem;
+  font-weight: 500;
+  color: #222222;
+}
+
+.suitcase-icon {
+  width: 48px;
+  height: 48px;
+  background: white;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+}
+
+/* ===== EMPTY STATE REDESIGN ===== */
+
+.empty-trips-container {
+  display: flex;
+  align-items: center;
+  gap: 4rem;
+  max-width: 1000px;
+  margin: 4rem auto;
+}
+
+.empty-left {
+  flex: 1;
+}
+
+.empty-right {
+  flex: 1.2;
+}
+
+.decoration-timeline {
+  display: flex;
+  flex-direction: column;
+}
+
+.decoration-item {
+  display: flex;
+  gap: 1.5rem;
+  opacity: 0.6;
+}
+
+.decoration-item:nth-child(2) { opacity: 1; }
+.decoration-item:nth-child(3) { opacity: 0.3; }
+
+.marker {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 30px;
+}
+
+.marker .dot {
+  width: 12px;
+  height: 12px;
+  background: #eeeeee;
+  border-radius: 50%;
+  margin-top: 1.5rem;
+}
+
+.decoration-item:nth-child(2) .marker .dot {
+  background: #dddddd;
+}
+
+.marker .line {
+  flex: 1;
+  width: 2px;
+  background: #f5f5f5;
+}
+
+.skeleton-card {
+  flex: 1;
+  background: white;
+  border: 1px solid #f5f5f5;
+  border-radius: 16px;
+  padding: 1rem;
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.02);
+}
+
+.skeleton-image {
+  width: 64px;
+  height: 64px;
+  background: #f9f9f9;
+  border-radius: 10px;
+}
+
+.skeleton-lines {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 0.6rem;
+}
+
+.line-long { height: 10px; width: 60%; background: #f9f9f9; border-radius: 5px; }
+.line-short { height: 10px; width: 40%; background: #f9f9f9; border-radius: 5px; }
+
+.empty-title {
+  font-size: 2.25rem;
+  font-weight: 700;
+  color: #222222;
+  margin-bottom: 1.5rem;
+}
+
+.empty-text {
+  font-size: 1.1rem;
+  color: #717171;
+  line-height: 1.6;
+  margin-bottom: 2rem;
+  max-width: 400px;
+}
+
+.get-started-btn {
+  background: #e31c5f;
+  color: white;
+  border: none;
+  padding: 1rem 2rem;
+  border-radius: 12px;
+  font-size: 1.1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.get-started-btn:hover {
+  background: #d70466;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(227, 28, 95, 0.3);
+}
+
+@media (max-width: 900px) {
+  .reservations-container {
+    padding: 1.5rem 20px;
+  }
+
+  .reservations-title {
+    font-size: 2rem;
+  }
+
+  .empty-trips-container {
+    flex-direction: column-reverse;
+    text-align: center;
+    gap: 2rem;
+    margin: 2rem auto;
+  }
+  
+  .empty-right {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  
+  .empty-left {
+    width: 100%;
+    max-width: 500px;
+    margin-top: 2rem;
+  }
+  
+  .trip-card {
+    flex-direction: row; /* Keep row for small devices but adjust content */
+    padding: 1rem;
+    gap: 1rem;
+  }
+  
+  .trip-image {
+    width: 100px;
+    height: 100px;
+  }
+
+  .trip-content {
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: center;
+    gap: 0.5rem;
+  }
+
+  .trip-status {
+    width: 100%;
+    display: flex;
+    justify-content: flex-start;
+  }
+
+  .trip-arrow {
+    display: none; /* Hide arrow on mobile to save space */
+  }
+
+  .past-trips-banner {
+    padding: 1rem;
+    flex-direction: column;
+    gap: 1.5rem;
+    text-align: center;
+  }
+
+  .banner-left {
+    justify-content: center;
+  }
+
+  .suitcase-icon {
+    margin: 0 auto;
+  }
+}
+
+@media (max-width: 600px) {
+  .trip-card {
+    flex-direction: column;
+  }
+
+  .trip-image {
+    width: 100%;
+    height: 180px;
+  }
+
+  .timeline-item {
+    gap: 1rem;
+  }
+
+  .timeline-marker {
+    min-width: 20px;
+  }
+}
+
+.trip-description {
+  font-size: 0.85rem;
+  color: #717171;
+  margin: 0.25rem 0;
+  display: -webkit-box;
+  -webkit-line-clamp: 1;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  line-height: 1.4;
+}

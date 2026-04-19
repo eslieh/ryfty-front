@@ -23,14 +23,14 @@ export default function ReservationsPage() {
     total_count: 0,
     total_pages: 0,
     has_next: false,
-    has_prev: false
+    has_prev: false,
   });
   const [currentPage, setCurrentPage] = useState(1);
 
   // Redirect if not authenticated
   useEffect(() => {
     if (!isAuthenticated) {
-      router.push('/auth?mode=login');
+      router.push("/auth?mode=login");
     }
   }, [isAuthenticated, router]);
 
@@ -38,23 +38,25 @@ export default function ReservationsPage() {
   useEffect(() => {
     const loadReservations = async () => {
       if (!isAuthenticated) return;
-      
+
       try {
         setLoading(true);
         setError(null);
-        
+
         const response = await fetchUserReservations(currentPage, 10);
-        console.log('Reservations response:', response);
-        
+
         if (response.reservations) {
-          setReservations(response.reservations);
+          // Filter out passed reservations as they should be seen in Profile
+          setReservations(
+            response.reservations.filter((r) => !isPassedReservation(r)),
+          );
           setPagination(response.pagination);
         } else {
-          throw new Error('Invalid response format');
+          throw new Error("Invalid response format");
         }
       } catch (err) {
-        console.error('Error fetching reservations:', err);
-        setError(err.message || 'Failed to load reservations');
+        console.error("Error fetching reservations:", err);
+        setError(err.message || "Failed to load reservations");
       } finally {
         setLoading(false);
       }
@@ -70,104 +72,26 @@ export default function ReservationsPage() {
   };
 
   const formatDate = (dateString) => {
-    if (!dateString) return 'TBD';
+    if (!dateString) return "TBD";
     const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', { 
-      weekday: 'long', 
-      year: 'numeric', 
-      month: 'long', 
-      day: 'numeric' 
+    return date.toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
     });
-  };
-
-  const formatTime = (timeString) => {
-    if (!timeString) return 'TBD';
-    const [hours, minutes] = timeString.split(':');
-    const hour = parseInt(hours);
-    const ampm = hour >= 12 ? 'PM' : 'AM';
-    const displayHour = hour % 12 || 12;
-    return `${displayHour}:${minutes} ${ampm}`;
-  };
-
-  const formatPrice = (amount) => {
-    return new Intl.NumberFormat('en-KE', {
-      style: 'currency',
-      currency: 'KES'
-    }).format(amount);
   };
 
   const getStatusColor = (status) => {
     switch (status.toLowerCase()) {
-      case 'confirmed':
-        return '#28a745';
-      case 'pending':
-        return '#ffc107';
-      case 'cancelled':
-        return '#dc3545';
+      case "confirmed":
+        return "#28a745";
+      case "pending":
+        return "#ffc107";
+      case "cancelled":
+        return "#dc3545";
       default:
-        return '#6c757d';
+        return "#6c757d";
     }
-  };
-
-  const getStatusIcon = (status) => {
-    switch (status.toLowerCase()) {
-      case 'confirmed':
-        return (
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-            <path d="M9 12L11 14L15 10M21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-          </svg>
-        );
-      case 'pending':
-        return (
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-            <path d="M12 8V12L16 14M22 12C22 17.5228 17.5228 22 12 22C6.47715 22 2 17.5228 2 12C2 6.47715 6.47715 2 12 2C17.5228 2 22 6.47715 22 12Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-          </svg>
-        );
-      case 'cancelled':
-        return (
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-            <path d="M18 6L6 18M6 6L18 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-          </svg>
-        );
-      default:
-        return null;
-    }
-  };
-
-  // Group reservations by status and sort by slot date
-  const groupReservations = (reservations) => {
-    const now = new Date();
-    
-    const groups = {
-      upcoming: [],
-      checkedIn: [],
-      passed: []
-    };
-
-    reservations.forEach(reservation => {
-      const reservationDate = new Date(reservation.slot?.date);
-      
-      if (reservation.checked_in) {
-        groups.checkedIn.push(reservation);
-      } else if (reservationDate < now) {
-        groups.passed.push(reservation);
-      } else {
-        groups.upcoming.push(reservation);
-      }
-    });
-
-    // Sort each group by slot date
-    const sortByDate = (a, b) => {
-      const dateA = new Date(a.slot?.date || 0);
-      const dateB = new Date(b.slot?.date || 0);
-      return dateA - dateB; // Ascending order (earliest first)
-    };
-
-    groups.upcoming.sort(sortByDate);
-    groups.checkedIn.sort(sortByDate);
-    groups.passed.sort(sortByDate);
-
-    return groups;
   };
 
   // Helper function to check if a reservation is passed
@@ -177,139 +101,72 @@ export default function ReservationsPage() {
     return reservationDate < now && !reservation.checked_in;
   };
 
-  const groupedReservations = groupReservations(reservations);
-
-  // Component to render a group of reservations
-  const ReservationGroup = ({ title, reservations }) => {
-    if (reservations.length === 0) return null;
-
+  const ReservationItem = ({ reservation, isLast }) => {
     return (
-      <motion.div 
-        className={"reservation-group"}
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
-      >
-        <div className="group-header">
-          <div className="group-title">
-            <h2>{title}</h2>
+      <div className="timeline-item">
+        <div className="timeline-marker">
+          <div className="marker-dot"></div>
+          {!isLast && <div className="marker-line"></div>}
+        </div>
+
+        <motion.div
+          className="trip-card"
+          initial={{ opacity: 0, x: 20 }}
+          animate={{ opacity: 1, x: 0 }}
+          whileHover={{ y: -4 }}
+          onClick={() => router.push(`/reservations/d/${reservation.id}`)}
+        >
+          <div className="trip-image">
+            <Image
+              src={
+                reservation.experience.poster_image_url ||
+                "/placeholder-image.jpg"
+              }
+              alt={reservation.experience.title}
+              fill
+              style={{ objectFit: "cover" }}
+            />
           </div>
-        </div>
-        
-        <div className="group-reservations">
-          {reservations.map((reservation, index) => (
-            <motion.div
-              key={reservation.id}
-              className={`reservation-card ${reservation.checked_in ? 'checked-in' : ''} ${isPassedReservation(reservation) ? 'passed' : ''}`}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: index * 0.1 }}
-              whileHover={{ scale: 1.02 }}
-            >
-              {/* Experience Image */}
-              <div className="reservation-image">
-                <Image
-                  src={reservation.experience.poster_image_url || '/placeholder-image.jpg'}
-                  alt={reservation.experience.title}
-                  fill
-                  style={{ objectFit: 'cover' }}
-                  className={`experience-image ${title.toLowerCase()}`}
+
+          <div className="trip-content">
+            <div className="trip-info">
+              <h3 className="trip-title">{reservation.experience.title}</h3>
+              <p className="trip-description">
+                {reservation.experience.description}
+              </p>
+              <p className="trip-date">{formatDate(reservation.slot?.date)}</p>
+            </div>
+
+            <div className="trip-status">
+              <span
+                className="status-pill"
+                style={{
+                  backgroundColor: `${getStatusColor(reservation.status)}15`,
+                  color: getStatusColor(reservation.status),
+                }}
+              >
+                {reservation.status}
+              </span>
+            </div>
+
+            <div className="trip-arrow">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                <path
+                  d="M9 18L15 12L9 6"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
                 />
-              </div>
-
-              {/* Reservation Details */}
-              <div className={`reservation-details ${title.toLowerCase()}`}>
-                <div className="reservation-header">
-                  <div className="title-section">
-                    <h3 className="experience-title">{reservation.experience.title}</h3>
-                    {reservation.slot?.name && (
-                      <span className="slot-name">{reservation.slot.name}</span>
-                    )}
-                  </div>
-                  <div 
-                    className="status-badge"
-                    style={{ backgroundColor: getStatusColor(reservation.status) }}
-                  >
-                    {getStatusIcon(reservation.status)}
-                    <span>{reservation.status}</span>
-                  </div>
-                </div>
-
-                <p className="experience-description">
-                  {reservation.experience.description}
-                </p>
-
-                <div className="reservation-info">
-                  <div className="info-items">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                      <path d="M17 21V19C17 17.9391 16.5786 16.9217 15.8284 16.1716C15.0783 15.4214 14.0609 15 13 15H5C3.93913 15 2.92172 15.4214 2.17157 16.1716C1.42143 16.9217 1 17.9391 1 19V21M13 7C13 9.20914 11.2091 11 9 11C6.79086 11 5 9.20914 5 7C5 4.79086 6.79086 3 9 3C11.2091 3 13 4.79086 13 7Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                    </svg>
-                    <span>{reservation.quantity} guest{reservation.quantity !== 1 ? 's' : ''}</span>
-                  </div>
-
-                  <div className="info-items">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                      <path d="M17.657 16.657L13.414 20.9C13.039 21.2749 12.5301 21.4852 12 21.4852C11.4699 21.4852 10.961 21.2749 10.586 20.9L6.343 16.657C5.22422 15.5382 4.46234 14.1127 4.15369 12.5609C3.84503 11.009 4.00351 9.40051 4.60901 7.93868C5.21451 6.47684 6.2399 5.22749 7.55548 4.34847C8.87107 3.46945 10.4178 3.00026 12 3.00026C13.5822 3.00026 15.1289 3.46945 16.4445 4.34847C17.7601 5.22749 18.7855 6.47684 19.391 7.93868C19.9965 9.40051 20.155 11.009 19.8463 12.5609C19.5377 14.1127 18.7758 15.5382 17.657 16.657Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                    </svg>
-                    <span>{reservation.experience.meeting_point.name}</span>
-                  </div>
-
-                  <div className="info-items">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                      <path d="M8 7V3M16 7V3M7 11H17M5 21H19C20.1046 21 21 20.1046 21 19V7C21 5.89543 20.1046 5 19 5H5C3.89543 5 3 5.89543 3 7V19C3 20.1046 3.89543 21 5 21Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                    </svg>
-                    <span>{formatDate(reservation.slot?.date)}</span>
-                  </div>
-                  
-                  <div className="info-items">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                      <path d="M12 8V12L16 14M22 12C22 17.5228 17.5228 22 12 22C6.47715 22 2 17.5228 2 12C2 6.47715 6.47715 2 12 2C17.5228 2 22 6.47715 22 12Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                    </svg>
-                    <span>{formatTime(reservation.slot?.start_time)} - {formatTime(reservation.slot?.end_time)}</span>
-                  </div>
-                  
-                  <div className="info-items">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                      <path d="M7 7H17M7 7V5C7 3.89543 7.89543 3 9 3H15C16.1046 3 17 3.89543 17 5V7M7 7H5C3.89543 7 3 7.89543 3 9V19C3 20.1046 3.89543 21 5 21H19C20.1046 21 21 20.1046 21 19V9C21 7.89543 20.1046 7 19 7H17" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                    </svg>
-                    <span>{reservation.slot?.name || 'Standard'}</span>
-                  </div>
-                </div>
-
-                <div className="reservation-footer">
-                  <div className="price-info">
-                    <span className="total-price">{formatPrice(reservation.total_price)}</span>
-                    <span className="amount-paid">Paid: {formatPrice(reservation.amount_paid)}</span>
-                  </div>
-                  
-                  <div className="reservation-actions">
-                    <button 
-                      className="action-button secondary"
-                      onClick={() => router.push(`/reservations/d/${reservation.id}`)}
-                    >
-                      View Details
-                    </button>
-                    {reservation.checked_in && (
-                      <div className="checked-in-badge">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                          <path d="M9 12L11 14L15 10M21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                        </svg>
-                        <span>Checked In</span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </motion.div>
-          ))}
-        </div>
-      </motion.div>
+              </svg>
+            </div>
+          </div>
+        </motion.div>
+      </div>
     );
   };
 
-  if (!isAuthenticated) {
-    return null; // Will redirect
-  }
+  if (!isAuthenticated) return null;
 
   if (loading) {
     return (
@@ -326,119 +183,101 @@ export default function ReservationsPage() {
     );
   }
 
-  if (error) {
-    return (
-      <div className="min-h-screen bg-white">
-        <Header />
-        <div className="reservations-container">
-          <div className="error-container">
-            <h2>Error Loading Reservations</h2>
-            <p>{error}</p>
-            <button 
-              onClick={() => window.location.reload()} 
-              className="retry-button"
-            >
-              Try Again
-            </button>
-          </div>
-        </div>
-        <Footer />
-      </div>
-    );
-  }
-
   return (
     <div className="min-h-screen bg-white">
       <Header />
-      
+
       <div className="reservations-container">
-        {/* Header */}
-        <motion.div 
+        <motion.div
           className="reservations-header"
-          initial={{ opacity: 0, y: 20 }}
+          initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
         >
           <h1 className="reservations-title">My Reservations</h1>
-          <p className="reservations-subtitle">
-            {pagination.total_count > 0 
-              ? `${pagination.total_count} reservation${pagination.total_count !== 1 ? 's' : ''} found`
-              : 'No reservations found'
-            }
-          </p>
         </motion.div>
 
-        {/* Grouped Reservations */}
         {reservations.length > 0 ? (
-          <div className="reservations-groups">
-            <ReservationGroup
-              title="Upcoming Reservations"
-              reservations={groupedReservations.upcoming}
-            />
-            
-            <ReservationGroup
-              title="Checked In"
-              reservations={groupedReservations.checkedIn}
-            />
-            
-            <ReservationGroup
-              title="Past Reservations"
-              reservations={groupedReservations.passed}
-            />
+          <div className="trips-content">
+            <div className="timeline-container">
+              {reservations.map((reservation, index) => (
+                <ReservationItem
+                  key={reservation.id}
+                  reservation={reservation}
+                  isLast={index === reservations.length - 1}
+                />
+              ))}
+            </div>
+
+            {/* Past trips banner */}
+            <motion.div
+              className="past-trips-banner"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              onClick={() => router.push("/profile?tab=past-trips")}
+            >
+              <div className="banner-left">
+                <span>Find past reservations in your profile</span>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                  <path
+                    d="M9 18L15 12L9 6"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+              </div>
+              <div className="banner-right">
+                <div className="suitcase-icon">
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                    <path
+                      d="M16 7V5C16 3.89543 15.1046 3 14 3H10C8.89543 3 8 3.89543 8 5V7M7 7H17M7 7V5M17 7V5M5 7H19C20.1046 7 21 7.89543 21 9V19C21 20.1046 20.1046 21 19 21H5C3.89543 21 3 20.1046 3 19V9C3 7.89543 3.89543 7 5 7Z"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
+                </div>
+              </div>
+            </motion.div>
           </div>
         ) : (
-          <motion.div 
-            className="empty-state"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.1 }}
-          >
-            <div className="empty-icon">
-              <svg width="64" height="64" viewBox="0 0 24 24" fill="none">
-                <path d="M8 7V3M16 7V3M7 11H17M5 21H19C20.1046 21 21 20.1046 21 19V7C21 5.89543 20.1046 5 19 5H5C3.89543 5 3 5.89543 3 7V19C3 20.1046 3.89543 21 5 21Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
+          <div className="empty-trips-container">
+            <div className="empty-left">
+              <div className="decoration-timeline">
+                {[1, 2, 3].map((i) => (
+                  <div key={i} className="decoration-item">
+                    <div className="marker">
+                      <div className="dot"></div>
+                      {i !== 3 && <div className="line"></div>}
+                    </div>
+                    <div className="skeleton-card">
+                      <div className="skeleton-image"></div>
+                      <div className="skeleton-lines">
+                        <div className="line-long"></div>
+                        <div className="line-short"></div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
-            <h3 className="empty-title">No reservations yet</h3>
-            <p className="empty-description">
-              Start exploring amazing experiences and make your first reservation!
-            </p>
-            <button 
-              className="explore-button"
-              onClick={() => router.push('/')}
-            >
-              Explore Experiences
-            </button>
-          </motion.div>
-        )}
 
-        {/* Pagination */}
-        {pagination.total_pages > 1 && (
-          <motion.div 
-            className="pagination"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.2 }}
-          >
-            <button 
-              className="pagination-button"
-              onClick={() => handlePageChange(currentPage - 1)}
-              disabled={!pagination.has_prev}
-            >
-              Previous
-            </button>
-            
-            <div className="pagination-info">
-              Page {pagination.page} of {pagination.total_pages}
+            <div className="empty-right">
+              <h2 className="empty-title">Build the perfect trip</h2>
+              <p className="empty-text">
+                Explore homes, experiences, and services. When you book, your
+                reservations will show up here.
+              </p>
+              <button
+                className="get-started-btn"
+                onClick={() => router.push("/")}
+              >
+                Get started
+              </button>
             </div>
-            
-            <button 
-              className="pagination-button"
-              onClick={() => handlePageChange(currentPage + 1)}
-              disabled={!pagination.has_next}
-            >
-              Next
-            </button>
-          </motion.div>
+          </div>
         )}
       </div>
 
